@@ -60,12 +60,14 @@ Name Parser::ParseName() {
 IntegerLiteral Parser::ParseIntegerLiteral() {
   // For now, this only supports decimal literals, and ignores 0-padding.
   // TODO: Extend this to support hex.
-  // TODO: Disallow 0-padding for decimal literals.
   const std::string_view word = PeekWord();
   std::int64_t value = 0;
   // We should always have at least one character here, since we dispatch to
   // ParseIntegerLiteral based on the lookahead, which would have been a digit.
   assert(!word.empty());
+  if (word != "0" && word.starts_with("0")) {
+    throw Error("integer literals must not be 0-padded");
+  }
   for (char c : word) {
     if (!IsDigit(c)) throw Error("invalid integer literal");
     value = 10 * value + (c - '0');
