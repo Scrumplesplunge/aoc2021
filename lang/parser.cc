@@ -22,7 +22,9 @@ constexpr bool IsOperator(char c) {
     case '&': return true;
     case '*': return true;
     case '+': return true;
+    case ',': return true;
     case '-': return true;
+    case '.': return true;
     case '/': return true;
     case ':': return true;
     case '<': return true;
@@ -117,11 +119,30 @@ AnyExpression Parser::ParseSuffix() {
     const Location location = reader_.location();
     if (reader_.ConsumePrefix("(")) {
       SkipWhitespaceAndComments();
-      // TODO: Parse arguments.
+      std::vector<AnyExpression> arguments;
       if (!reader_.ConsumePrefix(")")) {
-        throw Error("call expression must have no arguments");
+        while (true) {
+          arguments.push_back(ParseExpression());
+          SkipWhitespaceAndComments();
+          if (!ConsumeOperator(",")) break;
+          SkipWhitespaceAndComments();
+        }
+        if (!reader_.ConsumePrefix(")")) {
+          std::vector<Message> messages;
+          messages.emplace_back(Message{
+              .location = reader_.location(),
+              .type = Message::Type::kError,
+              .text = "expected ')'",
+          });
+          messages.emplace_back(Message{
+              .location = location,
+              .type = Message::Type::kNote,
+              .text = "to match this '('",
+          });
+          throw ParseError(std::move(messages));
+        }
       }
-      term = Call(location, std::move(term), {});
+      term = Call(location, std::move(term), std::move(arguments));
     } else {
       return term;
     }
