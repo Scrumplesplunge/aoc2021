@@ -48,6 +48,18 @@ constexpr bool IsAlphaNumeric(char c) { return IsDigit(c) || IsAlpha(c); }
 
 AnyExpression Parser::ParseExpression() { return ParseTernary(); }
 
+AnyStatement Parser::ParseStatement() {
+  const std::string_view keyword = PeekWord();
+  if (keyword == "var") return ParseDeclaration();
+  if (keyword == "if") return ParseIf();
+  if (keyword == "while") return ParseWhile();
+  if (keyword == "return") return ParseReturn();
+  if (keyword == "break") return ParseBreak();
+  if (keyword == "continue") return ParseContinue();
+  // TODO: Handle assignments and discarded expressions.
+  throw Error("expected statement");
+}
+
 Name Parser::ParseName() {
   const std::string_view word = PeekWord();
   // We should always have at least one character here, since we dispatch to
@@ -366,6 +378,122 @@ AnyExpression Parser::ParseTernary() {
                            std::move(else_branch));
 }
 
+std::vector<AnyStatement> Parser::ParseBlock() {
+  if (!reader_.ConsumePrefix("{")) throw Error("expected statement block");
+  std::vector<AnyStatement> body;
+  while (true) {
+    SkipWhitespaceAndComments();
+    if (reader_.ConsumePrefix("}")) return body;
+    body.push_back(ParseStatement());
+  }
+}
+
+AnyStatement Parser::ParseDeclaration() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("var")) throw Error("expected variable declaration");
+  SkipWhitespaceAndComments();
+  const std::string_view name = PeekWord();
+  if (name.empty() || !IsAlpha(name.front())) {
+    throw ParseError({Message{
+        .location = location,
+        .type = Message::Type::kError,
+        .text = "variable name must begin with a letter",
+    }});
+  }
+  reader_.Advance(name.size());
+  SkipWhitespaceAndComments();
+  const Location bracket_position = reader_.location();
+  if (reader_.ConsumePrefix("[")) {
+    AnyExpression size = ParseExpression();
+    SkipWhitespaceAndComments();
+    if (!reader_.ConsumePrefix("]")) {
+      std::vector<Message> messages;
+      messages.emplace_back(Message{
+          .location = reader_.location(),
+          .type = Message::Type::kError,
+          .text = "expected ']'",
+      });
+      messages.emplace_back(Message{
+          .location = bracket_position,
+          .type = Message::Type::kNote,
+          .text = "to match this '['",
+      });
+      throw ParseError(std::move(messages));
+    }
+    SkipWhitespaceAndComments();
+    // TODO: Add support for `var x[3] = {1, 2, 3};`.
+    if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+    return DeclareArray(location, name, std::move(size));
+  } else if (reader_.ConsumePrefix(";")) {
+    return DeclareScalar(location, name);
+  } else {
+    // TODO: Add support for `var x = 1;`
+    throw Error("expected ';'");
+  }
+}
+
+AnyStatement Parser::ParseIf() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("if")) throw Error("expected if statement");
+  SkipWhitespaceAndComments();
+  AnyExpression condition = ParseExpression();
+  SkipWhitespaceAndComments();
+  std::vector<AnyStatement> then_branch = ParseBlock();
+  SkipWhitespaceAndComments();
+  if (!ConsumeWord("else")) {
+    // if .. {}
+    return If(location, std::move(condition), std::move(then_branch), {});
+  }
+  SkipWhitespaceAndComments();
+  if (PeekWord() == "if") {
+    // if .. {} else if ..
+    std::vector<AnyStatement> else_branch;
+    else_branch.push_back(ParseIf());
+    return If(location, std::move(condition), std::move(then_branch),
+              std::move(else_branch));
+  } else {
+    // if .. {} else {}
+    return If(location, std::move(condition), std::move(then_branch),
+              ParseBlock());
+  }
+}
+
+AnyStatement Parser::ParseWhile() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("while")) throw Error("expected while statement");
+  SkipWhitespaceAndComments();
+  AnyExpression condition = ParseExpression();
+  SkipWhitespaceAndComments();
+  return While(location, std::move(condition), ParseBlock());
+}
+
+AnyStatement Parser::ParseReturn() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("return")) throw Error("expected return statement");
+  SkipWhitespaceAndComments();
+  if (reader_.ConsumePrefix(";")) return Return(location);
+  AnyExpression value = ParseExpression();
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  return Return(location, std::move(value));
+}
+
+AnyStatement Parser::ParseBreak() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("break")) throw Error("expected break statement");
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  return Break(location);
+}
+
+AnyStatement Parser::ParseContinue() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("continue")) throw Error("expected continue statement");
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  return Continue(location);
+}
+
 std::string_view Parser::PeekWord() const noexcept {
   const std::string_view tail = reader_.remaining();
   const char* const first = tail.data();
@@ -382,6 +510,13 @@ std::string_view Parser::PeekOperator() const noexcept {
   const char* i = first;
   while (i != end && IsOperator(*i)) i++;
   return std::string_view(first, i - first);
+}
+
+bool Parser::ConsumeWord(std::string_view value) noexcept {
+  const std::string_view o = PeekWord();
+  if (o != value) return false;
+  reader_.Advance(value.size());
+  return true;
 }
 
 bool Parser::ConsumeOperator(std::string_view value) noexcept {

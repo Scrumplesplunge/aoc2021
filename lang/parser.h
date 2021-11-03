@@ -16,6 +16,7 @@ class Parser {
   explicit Parser(const Source& source) noexcept : reader_(source) {}
 
   AnyExpression ParseExpression();
+  AnyStatement ParseStatement();
 
  private:
   Name ParseName();
@@ -35,9 +36,19 @@ class Parser {
   AnyExpression ParseDisjunction();
   AnyExpression ParseTernary();
 
+  std::vector<AnyStatement> ParseBlock();
+
+  AnyStatement ParseDeclaration();
+  AnyStatement ParseIf();
+  AnyStatement ParseWhile();
+  AnyStatement ParseReturn();
+  AnyStatement ParseBreak();
+  AnyStatement ParseContinue();
+
   std::string_view PeekWord() const noexcept;
   std::string_view PeekOperator() const noexcept;
 
+  bool ConsumeWord(std::string_view value) noexcept;
   bool ConsumeOperator(std::string_view value) noexcept;
 
   ParseError Error(std::string text) const noexcept {

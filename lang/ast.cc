@@ -3,6 +3,32 @@
 #include <iomanip>
 
 namespace aoc2021 {
+namespace {
+
+template <typename T>
+struct List {
+  explicit List(const T& value) : value(value) {}
+
+  const T& value;
+
+  friend inline std::ostream& operator<<(std::ostream& output, List list) {
+    output << "{";
+    bool first = true;
+    for (const auto& x : list.value) {
+      if (first) {
+        first = false;
+      } else {
+        output << ", ";
+      }
+      output << x;
+    }
+    return output << "}";
+  }
+};
+
+template <typename T> List(T) -> List<T>;
+
+}  // namespace
 
 std::ostream& operator<<(std::ostream& output,
                          const AnyExpression& expression) noexcept {
@@ -19,17 +45,7 @@ void IntegerLiteral::Print(std::ostream& output) const noexcept {
 }
 
 void Call::Print(std::ostream& output) const noexcept {
-  output << "Call(" << function_ << ", {";
-  bool first = true;
-  for (const auto& argument : arguments_) {
-    if (first) {
-      first = false;
-    } else {
-      output << ", ";
-    }
-    output << argument;
-  }
-  output << "})";
+  output << "Call(" << function_ << ", " << List(arguments_) << ")";
 }
 
 void Negate::Print(std::ostream& output) const noexcept {
@@ -123,6 +139,49 @@ void ShiftRight::Print(std::ostream& output) const noexcept {
 void TernaryExpression::Print(std::ostream& output) const noexcept {
   output << "TernaryExpression(" << condition_ << ", " << then_branch_ << ", "
          << else_branch_ << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const AnyStatement& statement) noexcept {
+  statement.Print(output);
+  return output;
+}
+
+void DeclareScalar::Print(std::ostream& output) const noexcept {
+  output << "DeclareScalar(" << std::quoted(name_) << ")";
+}
+
+void DeclareArray::Print(std::ostream& output) const noexcept {
+  output << "DeclareArray(" << std::quoted(name_) << ", " << size_ << ")";
+}
+
+void Assign::Print(std::ostream& output) const noexcept {
+  output << "Assign(" << left_ << ", " << right_ << ")";
+}
+
+void If::Print(std::ostream& output) const noexcept {
+  output << "If(" << condition_ << ", " << List(then_branch_) << ", "
+         << List(else_branch_) << ")";
+}
+
+void While::Print(std::ostream& output) const noexcept {
+  output << "While(" << condition_ << ", " << List(body_) << ")";
+}
+
+void Return::Print(std::ostream& output) const noexcept {
+  if (value_) {
+    output << "Return(" << *value_ << ")";
+  } else {
+    output << "Return()";
+  }
+}
+
+void Break::Print(std::ostream& output) const noexcept {
+  output << "Break()";
+}
+
+void Continue::Print(std::ostream& output) const noexcept {
+  output << "Continue()";
 }
 
 }  // namespace aoc2021

@@ -1,1 +1,11 @@
-foo(0, x)
+if x {
+  var a;
+  var b[42 * 42];
+  break;
+} else if true {
+  while 1 {
+    continue;
+  }
+} else {
+  return 4;
+}

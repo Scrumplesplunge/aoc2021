@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -350,6 +351,120 @@ class TernaryExpression : public Expression {
 
  private:
   AnyExpression condition_, then_branch_, else_branch_;
+};
+
+class Statement {
+ public:
+  Statement(Location location) noexcept : location_(location) {}
+
+  virtual ~Statement() = default;
+  virtual void Print(std::ostream& output) const noexcept = 0;
+  const Location& location() const noexcept { return location_; }
+
+ private:
+  Location location_;
+};
+
+class AnyStatement {
+ public:
+  // Implicit conversion from any type of expression.
+  template <typename T>
+  AnyStatement(T&& value)
+      : value_(new std::decay_t<T>(std::forward<T>(value))) {}
+  void Print(std::ostream& output) const noexcept { value_->Print(output); }
+  const Location& location() const noexcept { return value_->location(); }
+
+  explicit operator bool() const noexcept { return value_ != nullptr; }
+
+ private:
+  std::unique_ptr<Statement> value_;
+};
+
+std::ostream& operator<<(std::ostream&, const AnyStatement&) noexcept;
+
+class DeclareScalar : public Statement {
+ public:
+  DeclareScalar(Location location, std::string_view name) noexcept
+      : Statement(location), name_(name) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  std::string name_;
+};
+
+class DeclareArray : public Statement {
+ public:
+  DeclareArray(Location location, std::string_view name,
+               AnyExpression size) noexcept
+      : Statement(location), name_(name), size_(std::move(size)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  std::string name_;
+  AnyExpression size_;
+};
+
+class Assign : public Statement {
+ public:
+  Assign(Location location, AnyExpression left, AnyExpression right) noexcept
+      : Statement(location), left_(std::move(left)), right_(std::move(right)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  AnyExpression left_, right_;
+};
+
+class If : public Statement {
+ public:
+  If(Location location, AnyExpression condition,
+     std::vector<AnyStatement> then_branch,
+     std::vector<AnyStatement> else_branch) noexcept
+      : Statement(location),
+        condition_(std::move(condition)),
+        then_branch_(std::move(then_branch)),
+        else_branch_(std::move(else_branch)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  AnyExpression condition_;
+  std::vector<AnyStatement> then_branch_, else_branch_;
+};
+
+class While : public Statement {
+ public:
+  While(Location location, AnyExpression condition,
+        std::vector<AnyStatement> body) noexcept
+      : Statement(location),
+        condition_(std::move(condition)),
+        body_(std::move(body)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  AnyExpression condition_;
+  std::vector<AnyStatement> body_;
+};
+
+class Return : public Statement {
+ public:
+  Return(Location location,
+         std::optional<AnyExpression> value = std::nullopt) noexcept
+      : Statement(location), value_(std::move(value)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  std::optional<AnyExpression> value_;
+};
+
+class Break : public Statement {
+ public:
+  Break(Location location) noexcept : Statement(location) {}
+  void Print(std::ostream& output) const noexcept override;
+};
+
+class Continue : public Statement {
+ public:
+  Continue(Location location) noexcept : Statement(location) {}
+  void Print(std::ostream& output) const noexcept override;
 };
 
 }  // namespace aoc2021
