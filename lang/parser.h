@@ -25,9 +25,15 @@ class Parser {
   AnyExpression ParsePrefix();
   AnyExpression ParseProduct();
   AnyExpression ParseSum();
-  AnyExpression ParseComparison();
+  AnyExpression ParseShift();
+  AnyExpression ParseOrder();
+  AnyExpression ParseEqual();
+  AnyExpression ParseBitwiseAnd();
+  AnyExpression ParseBitwiseXor();
+  AnyExpression ParseBitwiseOr();
   AnyExpression ParseConjunction();
   AnyExpression ParseDisjunction();
+  AnyExpression ParseTernary();
 
   std::string_view PeekWord() const noexcept;
   std::string_view PeekOperator() const noexcept;

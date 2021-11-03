@@ -312,6 +312,46 @@ class BitwiseXor : public Expression {
   AnyExpression left_, right_;
 };
 
+class ShiftLeft : public Expression {
+ public:
+  ShiftLeft(Location location, AnyExpression left, AnyExpression right) noexcept
+      : Expression(location),
+        left_(std::move(left)),
+        right_(std::move(right)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  AnyExpression left_, right_;
+};
+
+class ShiftRight : public Expression {
+ public:
+  ShiftRight(Location location, AnyExpression left,
+             AnyExpression right) noexcept
+      : Expression(location),
+        left_(std::move(left)),
+        right_(std::move(right)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  AnyExpression left_, right_;
+};
+
+class TernaryExpression : public Expression {
+ public:
+  TernaryExpression(Location location, AnyExpression condition,
+                    AnyExpression then_branch,
+                    AnyExpression else_branch) noexcept
+      : Expression(location),
+        condition_(std::move(condition)),
+        then_branch_(std::move(then_branch)),
+        else_branch_(std::move(else_branch)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  AnyExpression condition_, then_branch_, else_branch_;
+};
+
 }  // namespace aoc2021
 
 #endif  // AST_H_

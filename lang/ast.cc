@@ -112,4 +112,17 @@ void BitwiseXor::Print(std::ostream& output) const noexcept {
   output << "BitwiseXor(" << left_ << ", " << right_ << ")";
 }
 
+void ShiftLeft::Print(std::ostream& output) const noexcept {
+  output << "ShiftLeft(" << left_ << ", " << right_ << ")";
+}
+
+void ShiftRight::Print(std::ostream& output) const noexcept {
+  output << "ShiftRight(" << left_ << ", " << right_ << ")";
+}
+
+void TernaryExpression::Print(std::ostream& output) const noexcept {
+  output << "TernaryExpression(" << condition_ << ", " << then_branch_ << ", "
+         << else_branch_ << ")";
+}
+
 }  // namespace aoc2021

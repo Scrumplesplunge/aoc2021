@@ -24,9 +24,11 @@ constexpr bool IsOperator(char c) {
     case '+': return true;
     case '-': return true;
     case '/': return true;
+    case ':': return true;
     case '<': return true;
     case '=': return true;
     case '>': return true;
+    case '?': return true;
     case '^': return true;
     case '|': return true;
     case '~': return true;
@@ -42,9 +44,7 @@ constexpr bool IsAlphaNumeric(char c) { return IsDigit(c) || IsAlpha(c); }
 
 }  // namespace
 
-AnyExpression Parser::ParseExpression() {
-  return ParseDisjunction();
-}
+AnyExpression Parser::ParseExpression() { return ParseTernary(); }
 
 Name Parser::ParseName() {
   const std::string_view word = PeekWord();
@@ -181,29 +181,102 @@ AnyExpression Parser::ParseSum() {
   }
 }
 
-AnyExpression Parser::ParseComparison() {
+AnyExpression Parser::ParseShift() {
   AnyExpression expression = ParseSum();
+  while (true) {
+    SkipWhitespaceAndComments();
+    const Location location = reader_.location();
+    if (ConsumeOperator("<<")) {
+      SkipWhitespaceAndComments();
+      expression = ShiftLeft(location, std::move(expression), ParseSum());
+    } else if (ConsumeOperator(">>")) {
+      SkipWhitespaceAndComments();
+      expression = ShiftRight(location, std::move(expression), ParseSum());
+    } else {
+      return expression;
+    }
+  }
+}
+
+AnyExpression Parser::ParseOrder() {
+  AnyExpression expression = ParseShift();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
     if (ConsumeOperator("<")) {
       SkipWhitespaceAndComments();
-      expression = LessThan(location, std::move(expression), ParseSum());
+      expression = LessThan(location, std::move(expression), ParseShift());
     } else if (ConsumeOperator("<=")) {
       SkipWhitespaceAndComments();
-      expression = LessOrEqual(location, std::move(expression), ParseSum());
+      expression = LessOrEqual(location, std::move(expression), ParseShift());
     } else if (ConsumeOperator(">")) {
       SkipWhitespaceAndComments();
-      expression = LessOrEqual(location, std::move(expression), ParseSum());
+      expression = GreaterThan(location, std::move(expression), ParseShift());
     } else if (ConsumeOperator(">=")) {
       SkipWhitespaceAndComments();
-      expression = LessOrEqual(location, std::move(expression), ParseSum());
-    } else if (ConsumeOperator("==")) {
+      expression =
+          GreaterOrEqual(location, std::move(expression), ParseShift());
+    } else {
+      return expression;
+    }
+  }
+}
+
+AnyExpression Parser::ParseEqual() {
+  AnyExpression expression = ParseOrder();
+  while (true) {
+    SkipWhitespaceAndComments();
+    const Location location = reader_.location();
+    if (ConsumeOperator("==")) {
       SkipWhitespaceAndComments();
-      expression = LessOrEqual(location, std::move(expression), ParseSum());
+      expression = Equal(location, std::move(expression), ParseOrder());
     } else if (ConsumeOperator("!=")) {
       SkipWhitespaceAndComments();
-      expression = LessOrEqual(location, std::move(expression), ParseSum());
+      expression = NotEqual(location, std::move(expression), ParseOrder());
+    } else {
+      return expression;
+    }
+  }
+}
+
+AnyExpression Parser::ParseBitwiseAnd() {
+  AnyExpression expression = ParseEqual();
+  while (true) {
+    SkipWhitespaceAndComments();
+    const Location location = reader_.location();
+    if (ConsumeOperator("&")) {
+      SkipWhitespaceAndComments();
+      expression = BitwiseAnd(location, std::move(expression), ParseEqual());
+    } else {
+      return expression;
+    }
+  }
+}
+
+AnyExpression Parser::ParseBitwiseXor() {
+  AnyExpression expression = ParseBitwiseAnd();
+  while (true) {
+    SkipWhitespaceAndComments();
+    const Location location = reader_.location();
+    if (ConsumeOperator("^")) {
+      SkipWhitespaceAndComments();
+      expression =
+          BitwiseXor(location, std::move(expression), ParseBitwiseAnd());
+    } else {
+      return expression;
+    }
+  }
+}
+
+AnyExpression Parser::ParseBitwiseOr() {
+  AnyExpression expression = ParseBitwiseXor();
+  while (true) {
+    SkipWhitespaceAndComments();
+    const Location location = reader_.location();
+    if (ConsumeOperator("|")) {
+      SkipWhitespaceAndComments();
+      expression =
+          BitwiseOr(location, std::move(expression), ParseBitwiseXor());
     } else {
       return expression;
     }
@@ -211,14 +284,14 @@ AnyExpression Parser::ParseComparison() {
 }
 
 AnyExpression Parser::ParseConjunction() {
-  AnyExpression expression = ParseComparison();
+  AnyExpression expression = ParseBitwiseOr();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
     if (ConsumeOperator("&&")) {
       SkipWhitespaceAndComments();
       expression =
-          LogicalAnd(location, std::move(expression), ParseComparison());
+          LogicalAnd(location, std::move(expression), ParseBitwiseOr());
     } else {
       return expression;
     }
@@ -238,6 +311,36 @@ AnyExpression Parser::ParseDisjunction() {
       return expression;
     }
   }
+}
+
+AnyExpression Parser::ParseTernary() {
+  AnyExpression expression = ParseDisjunction();
+  SkipWhitespaceAndComments();
+  const Location start = reader_.location();
+  if (!ConsumeOperator("?")) return expression;
+  SkipWhitespaceAndComments();
+  AnyExpression then_branch = ParseTernary();
+  SkipWhitespaceAndComments();
+  if (!ConsumeOperator(":")) {
+    // The then expression is not followed by a ':'
+    // preceded it.
+    std::vector<Message> messages;
+    messages.emplace_back(Message{
+        .location = reader_.location(),
+        .type = Message::Type::kError,
+        .text = "expected ':'",
+    });
+    messages.emplace_back(Message{
+        .location = start,
+        .type = Message::Type::kNote,
+        .text = "to continue this ternary expression",
+    });
+    throw ParseError(std::move(messages));
+  }
+  SkipWhitespaceAndComments();
+  AnyExpression else_branch = ParseTernary();
+  return TernaryExpression(start, std::move(expression), std::move(then_branch),
+                           std::move(else_branch));
 }
 
 std::string_view Parser::PeekWord() const noexcept {
