@@ -56,6 +56,19 @@ AnyStatement Parser::ParseStatement() {
   if (keyword == "return") return ParseReturn();
   if (keyword == "break") return ParseBreak();
   if (keyword == "continue") return ParseContinue();
+  AnyExpression expression = ParseExpression();
+  SkipWhitespaceAndComments();
+  if (reader_.ConsumePrefix(";")) {
+    return DiscardedExpression(std::move(expression));
+  }
+  const Location location = reader_.location();
+  if (ConsumeOperator("=")) {
+    SkipWhitespaceAndComments();
+    AnyExpression value = ParseExpression();
+    SkipWhitespaceAndComments();
+    if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+    return Assign(location, std::move(expression), std::move(value));
+  }
   // TODO: Handle assignments and discarded expressions.
   throw Error("expected statement");
 }

@@ -467,6 +467,16 @@ class Continue : public Statement {
   void Print(std::ostream& output) const noexcept override;
 };
 
+class DiscardedExpression : public Statement {
+ public:
+  DiscardedExpression(AnyExpression expression) noexcept
+      : Statement(expression.location()), expression_(std::move(expression)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  AnyExpression expression_;
+};
+
 }  // namespace aoc2021
 
 #endif  // AST_H_

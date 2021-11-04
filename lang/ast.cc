@@ -184,4 +184,8 @@ void Continue::Print(std::ostream& output) const noexcept {
   output << "Continue()";
 }
 
+void DiscardedExpression::Print(std::ostream& output) const noexcept {
+  output << "DiscardedExpression(" << expression_ << ")";
+}
+
 }  // namespace aoc2021
