@@ -143,6 +143,7 @@ AnyExpression Parser::ParseSuffix() {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
     if (reader_.ConsumePrefix("(")) {
+      // Function call.
       SkipWhitespaceAndComments();
       std::vector<AnyExpression> arguments;
       if (!reader_.ConsumePrefix(")")) {
@@ -168,6 +169,26 @@ AnyExpression Parser::ParseSuffix() {
         }
       }
       term = Call(location, std::move(term), std::move(arguments));
+    } else if (reader_.ConsumePrefix("[")) {
+      // Index expression.
+      SkipWhitespaceAndComments();
+      AnyExpression index = ParseExpression();
+      SkipWhitespaceAndComments();
+      if (!reader_.ConsumePrefix("]")) {
+        std::vector<Message> messages;
+        messages.emplace_back(Message{
+            .location = reader_.location(),
+            .type = Message::Type::kError,
+            .text = "expected ']'",
+        });
+        messages.emplace_back(Message{
+            .location = location,
+            .type = Message::Type::kNote,
+            .text = "to match this '['",
+        });
+        throw ParseError(std::move(messages));
+      }
+      term = Index(location, std::move(term), std::move(index));
     } else {
       return term;
     }

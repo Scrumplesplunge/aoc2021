@@ -48,6 +48,10 @@ void Call::Print(std::ostream& output) const noexcept {
   output << "Call(" << function_ << ", " << List(arguments_) << ")";
 }
 
+void Index::Print(std::ostream& output) const noexcept {
+  output << "Index(" << container_ << ", " << index_ << ")";
+}
+
 void Negate::Print(std::ostream& output) const noexcept {
   output << "Negate(" << inner_ << ")";
 }

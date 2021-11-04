@@ -1,9 +1,9 @@
 if x {
   var a;
   var b[42 * 42];
-  a = *b;
+  a = b[0];
   break;
-  if a == *(b + 1) {
+  if a == b[1] {
     return;
   }
 } else if true {

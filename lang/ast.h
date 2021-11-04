@@ -75,6 +75,19 @@ class Call : public Expression {
   std::vector<AnyExpression> arguments_;
 };
 
+class Index : public Expression {
+ public:
+  Index(Location location, AnyExpression container,
+        AnyExpression index) noexcept
+      : Expression(location),
+        container_(std::move(container)),
+        index_(std::move(index)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  AnyExpression container_, index_;
+};
+
 class Negate : public Expression {
  public:
   Negate(Location location, AnyExpression inner) noexcept
