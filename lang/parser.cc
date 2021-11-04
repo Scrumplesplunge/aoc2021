@@ -50,12 +50,13 @@ AnyExpression Parser::ParseExpression() { return ParseTernary(); }
 
 AnyStatement Parser::ParseStatement() {
   const std::string_view keyword = PeekWord();
-  if (keyword == "var") return ParseDeclaration();
-  if (keyword == "if") return ParseIf();
-  if (keyword == "while") return ParseWhile();
-  if (keyword == "return") return ParseReturn();
   if (keyword == "break") return ParseBreak();
   if (keyword == "continue") return ParseContinue();
+  if (keyword == "function") return ParseFunctionDefinition();
+  if (keyword == "if") return ParseIf();
+  if (keyword == "return") return ParseReturn();
+  if (keyword == "var") return ParseDeclaration();
+  if (keyword == "while") return ParseWhile();
   AnyExpression expression = ParseExpression();
   SkipWhitespaceAndComments();
   if (reader_.ConsumePrefix(";")) {
@@ -422,6 +423,83 @@ std::vector<AnyStatement> Parser::ParseBlock() {
   }
 }
 
+AnyStatement Parser::ParseBreak() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("break")) throw Error("expected break statement");
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  return Break(location);
+}
+
+AnyStatement Parser::ParseContinue() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("continue")) throw Error("expected continue statement");
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  return Continue(location);
+}
+
+AnyStatement Parser::ParseFunctionDefinition() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("function")) throw Error("expected function definition");
+  SkipWhitespaceAndComments();
+  const std::string_view name = PeekWord();
+  if (name.empty()) throw Error("expected function name");
+  reader_.Advance(name.size());
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix("(")) throw Error("expected '('");
+  SkipWhitespaceAndComments();
+  std::vector<Name> arguments;
+  if (!reader_.ConsumePrefix(")")) {
+    while (true) {
+      arguments.push_back(ParseName());
+      SkipWhitespaceAndComments();
+      if (reader_.ConsumePrefix(")")) break;
+      if (!reader_.ConsumePrefix(",")) throw Error("expected ','");
+      SkipWhitespaceAndComments();
+    }
+  }
+  SkipWhitespaceAndComments();
+  return FunctionDefinition(location, name, std::move(arguments), ParseBlock());
+}
+
+AnyStatement Parser::ParseIf() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("if")) throw Error("expected if statement");
+  SkipWhitespaceAndComments();
+  AnyExpression condition = ParseExpression();
+  SkipWhitespaceAndComments();
+  std::vector<AnyStatement> then_branch = ParseBlock();
+  SkipWhitespaceAndComments();
+  if (!ConsumeWord("else")) {
+    // if .. {}
+    return If(location, std::move(condition), std::move(then_branch), {});
+  }
+  SkipWhitespaceAndComments();
+  if (PeekWord() == "if") {
+    // if .. {} else if ..
+    std::vector<AnyStatement> else_branch;
+    else_branch.push_back(ParseIf());
+    return If(location, std::move(condition), std::move(then_branch),
+              std::move(else_branch));
+  } else {
+    // if .. {} else {}
+    return If(location, std::move(condition), std::move(then_branch),
+              ParseBlock());
+  }
+}
+
+AnyStatement Parser::ParseReturn() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("return")) throw Error("expected return statement");
+  SkipWhitespaceAndComments();
+  if (reader_.ConsumePrefix(";")) return Return(location);
+  AnyExpression value = ParseExpression();
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  return Return(location, std::move(value));
+}
+
 AnyStatement Parser::ParseDeclaration() {
   const Location location = reader_.location();
   if (!ConsumeWord("var")) throw Error("expected variable declaration");
@@ -466,32 +544,6 @@ AnyStatement Parser::ParseDeclaration() {
   }
 }
 
-AnyStatement Parser::ParseIf() {
-  const Location location = reader_.location();
-  if (!ConsumeWord("if")) throw Error("expected if statement");
-  SkipWhitespaceAndComments();
-  AnyExpression condition = ParseExpression();
-  SkipWhitespaceAndComments();
-  std::vector<AnyStatement> then_branch = ParseBlock();
-  SkipWhitespaceAndComments();
-  if (!ConsumeWord("else")) {
-    // if .. {}
-    return If(location, std::move(condition), std::move(then_branch), {});
-  }
-  SkipWhitespaceAndComments();
-  if (PeekWord() == "if") {
-    // if .. {} else if ..
-    std::vector<AnyStatement> else_branch;
-    else_branch.push_back(ParseIf());
-    return If(location, std::move(condition), std::move(then_branch),
-              std::move(else_branch));
-  } else {
-    // if .. {} else {}
-    return If(location, std::move(condition), std::move(then_branch),
-              ParseBlock());
-  }
-}
-
 AnyStatement Parser::ParseWhile() {
   const Location location = reader_.location();
   if (!ConsumeWord("while")) throw Error("expected while statement");
@@ -499,33 +551,6 @@ AnyStatement Parser::ParseWhile() {
   AnyExpression condition = ParseExpression();
   SkipWhitespaceAndComments();
   return While(location, std::move(condition), ParseBlock());
-}
-
-AnyStatement Parser::ParseReturn() {
-  const Location location = reader_.location();
-  if (!ConsumeWord("return")) throw Error("expected return statement");
-  SkipWhitespaceAndComments();
-  if (reader_.ConsumePrefix(";")) return Return(location);
-  AnyExpression value = ParseExpression();
-  SkipWhitespaceAndComments();
-  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
-  return Return(location, std::move(value));
-}
-
-AnyStatement Parser::ParseBreak() {
-  const Location location = reader_.location();
-  if (!ConsumeWord("break")) throw Error("expected break statement");
-  SkipWhitespaceAndComments();
-  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
-  return Break(location);
-}
-
-AnyStatement Parser::ParseContinue() {
-  const Location location = reader_.location();
-  if (!ConsumeWord("continue")) throw Error("expected continue statement");
-  SkipWhitespaceAndComments();
-  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
-  return Continue(location);
 }
 
 std::string_view Parser::PeekWord() const noexcept {

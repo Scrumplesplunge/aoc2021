@@ -31,6 +31,12 @@ template <typename T> List(T) -> List<T>;
 }  // namespace
 
 std::ostream& operator<<(std::ostream& output,
+                         const Expression& expression) noexcept {
+  expression.Print(output);
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
                          const AnyExpression& expression) noexcept {
   expression.Print(output);
   return output;
@@ -146,6 +152,12 @@ void TernaryExpression::Print(std::ostream& output) const noexcept {
 }
 
 std::ostream& operator<<(std::ostream& output,
+                         const Statement& statement) noexcept {
+  statement.Print(output);
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
                          const AnyStatement& statement) noexcept {
   statement.Print(output);
   return output;
@@ -190,6 +202,11 @@ void Continue::Print(std::ostream& output) const noexcept {
 
 void DiscardedExpression::Print(std::ostream& output) const noexcept {
   output << "DiscardedExpression(" << expression_ << ")";
+}
+
+void FunctionDefinition::Print(std::ostream& output) const noexcept {
+  output << "FunctionDefinition(" << std::quoted(name_) << ", "
+         << List(arguments_) << ", " << List(body_) << ")";
 }
 
 }  // namespace aoc2021

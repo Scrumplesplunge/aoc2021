@@ -38,12 +38,13 @@ class Parser {
 
   std::vector<AnyStatement> ParseBlock();
 
-  AnyStatement ParseDeclaration();
-  AnyStatement ParseIf();
-  AnyStatement ParseWhile();
-  AnyStatement ParseReturn();
   AnyStatement ParseBreak();
   AnyStatement ParseContinue();
+  AnyStatement ParseFunctionDefinition();
+  AnyStatement ParseIf();
+  AnyStatement ParseReturn();
+  AnyStatement ParseDeclaration();
+  AnyStatement ParseWhile();
 
   std::string_view PeekWord() const noexcept;
   std::string_view PeekOperator() const noexcept;

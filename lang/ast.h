@@ -39,6 +39,7 @@ class AnyExpression {
   std::unique_ptr<Expression> value_;
 };
 
+std::ostream& operator<<(std::ostream&, const Expression&) noexcept;
 std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
 class Name : public Expression {
@@ -393,6 +394,7 @@ class AnyStatement {
   std::unique_ptr<Statement> value_;
 };
 
+std::ostream& operator<<(std::ostream&, const Statement&) noexcept;
 std::ostream& operator<<(std::ostream&, const AnyStatement&) noexcept;
 
 class DeclareScalar : public Statement {
@@ -488,6 +490,23 @@ class DiscardedExpression : public Statement {
 
  private:
   AnyExpression expression_;
+};
+
+class FunctionDefinition : public Statement {
+ public:
+  FunctionDefinition(Location location, std::string_view name,
+                     std::vector<Name> arguments,
+                     std::vector<AnyStatement> body) noexcept
+      : Statement(location),
+        name_(name),
+        arguments_(std::move(arguments)),
+        body_(std::move(body)) {}
+  void Print(std::ostream& output) const noexcept override;
+
+ private:
+  std::string name_;
+  std::vector<Name> arguments_;
+  std::vector<AnyStatement> body_;
 };
 
 }  // namespace aoc2021

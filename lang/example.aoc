@@ -1,15 +1,17 @@
-if x {
-  var a;
-  var b[42 * 42];
-  a = b[0];
-  break;
-  if a == b[1] {
-    return;
+function demo(x, y) {
+  if x {
+    var a;
+    var b[42 * 42];
+    a = b[0];
+    break;
+    if a == b[1] {
+      return;
+    }
+  } else if y {
+    while 1 {
+      continue;
+    }
+  } else {
+    return 4;
   }
-} else if true {
-  while 1 {
-    continue;
-  }
-} else {
-  return 4;
 }
