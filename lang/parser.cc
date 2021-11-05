@@ -72,7 +72,6 @@ AnyStatement Parser::ParseStatement() {
     if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
     return Assign(location, std::move(expression), std::move(value));
   }
-  // TODO: Handle assignments and discarded expressions.
   throw Error("expected statement");
 }
 
