@@ -75,6 +75,15 @@ AnyStatement Parser::ParseStatement() {
   throw Error("expected statement");
 }
 
+std::vector<AnyStatement> Parser::ParseProgram() {
+  std::vector<AnyStatement> program;
+  while (true) {
+    SkipWhitespaceAndComments();
+    if (reader_.empty()) return program;
+    program.push_back(ParseStatement());
+  }
+}
+
 Name Parser::ParseName() {
   const std::string_view word = PeekWord();
   // We should always have at least one character here, since we dispatch to

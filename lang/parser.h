@@ -17,6 +17,7 @@ class Parser {
 
   ast::AnyExpression ParseExpression();
   ast::AnyStatement ParseStatement();
+  std::vector<ast::AnyStatement> ParseProgram();
 
  private:
   ast::Name ParseName();

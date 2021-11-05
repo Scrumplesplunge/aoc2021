@@ -11,7 +11,12 @@ int main(int argc, char* argv[]) {
   aoc2021::Source source(argv[1]);
   aoc2021::Parser parser(source);
   try {
-    std::cout << parser.ParseStatement() << '\n';
+    const auto program = parser.ParseProgram();
+    std::cout << '{';
+    for (const auto& statement : program) {
+      std::cout << statement << ',';
+    }
+    std::cout << "}\n";
   } catch (const aoc2021::ParseError& error) {
     std::cerr << error.what() << '\n';
   }
