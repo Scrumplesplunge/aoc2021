@@ -2,7 +2,7 @@
 
 #include <iomanip>
 
-namespace aoc2021 {
+namespace aoc2021::ast {
 namespace {
 
 template <typename T>
@@ -209,4 +209,4 @@ void FunctionDefinition::Print(std::ostream& output) const noexcept {
          << List(arguments_) << ", " << List(body_) << ")";
 }
 
-}  // namespace aoc2021
+}  // namespace aoc2021::ast

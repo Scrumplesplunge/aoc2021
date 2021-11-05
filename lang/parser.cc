@@ -5,6 +5,8 @@
 namespace aoc2021 {
 namespace {
 
+using namespace ast;
+
 constexpr bool IsWhitespace(char c) {
   switch (c) {
     case ' ': return true;

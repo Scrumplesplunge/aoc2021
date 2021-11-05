@@ -15,36 +15,36 @@ class Parser {
  public:
   explicit Parser(const Source& source) noexcept : reader_(source) {}
 
-  AnyExpression ParseExpression();
-  AnyStatement ParseStatement();
+  ast::AnyExpression ParseExpression();
+  ast::AnyStatement ParseStatement();
 
  private:
-  Name ParseName();
-  IntegerLiteral ParseIntegerLiteral();
-  AnyExpression ParseTerm();
-  AnyExpression ParseSuffix();
-  AnyExpression ParsePrefix();
-  AnyExpression ParseProduct();
-  AnyExpression ParseSum();
-  AnyExpression ParseShift();
-  AnyExpression ParseOrder();
-  AnyExpression ParseEqual();
-  AnyExpression ParseBitwiseAnd();
-  AnyExpression ParseBitwiseXor();
-  AnyExpression ParseBitwiseOr();
-  AnyExpression ParseConjunction();
-  AnyExpression ParseDisjunction();
-  AnyExpression ParseTernary();
+  ast::Name ParseName();
+  ast::IntegerLiteral ParseIntegerLiteral();
+  ast::AnyExpression ParseTerm();
+  ast::AnyExpression ParseSuffix();
+  ast::AnyExpression ParsePrefix();
+  ast::AnyExpression ParseProduct();
+  ast::AnyExpression ParseSum();
+  ast::AnyExpression ParseShift();
+  ast::AnyExpression ParseOrder();
+  ast::AnyExpression ParseEqual();
+  ast::AnyExpression ParseBitwiseAnd();
+  ast::AnyExpression ParseBitwiseXor();
+  ast::AnyExpression ParseBitwiseOr();
+  ast::AnyExpression ParseConjunction();
+  ast::AnyExpression ParseDisjunction();
+  ast::AnyExpression ParseTernary();
 
-  std::vector<AnyStatement> ParseBlock();
+  std::vector<ast::AnyStatement> ParseBlock();
 
-  AnyStatement ParseBreak();
-  AnyStatement ParseContinue();
-  AnyStatement ParseFunctionDefinition();
-  AnyStatement ParseIf();
-  AnyStatement ParseReturn();
-  AnyStatement ParseDeclaration();
-  AnyStatement ParseWhile();
+  ast::AnyStatement ParseBreak();
+  ast::AnyStatement ParseContinue();
+  ast::AnyStatement ParseFunctionDefinition();
+  ast::AnyStatement ParseIf();
+  ast::AnyStatement ParseReturn();
+  ast::AnyStatement ParseDeclaration();
+  ast::AnyStatement ParseWhile();
 
   std::string_view PeekWord() const noexcept;
   std::string_view PeekOperator() const noexcept;

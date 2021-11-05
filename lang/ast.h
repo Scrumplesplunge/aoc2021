@@ -10,7 +10,7 @@
 
 #include "source.h"
 
-namespace aoc2021 {
+namespace aoc2021::ast {
 
 class Expression {
  public:
@@ -509,6 +509,6 @@ class FunctionDefinition : public Statement {
   std::vector<AnyStatement> body_;
 };
 
-}  // namespace aoc2021
+}  // namespace aoc2021::ast
 
 #endif  // AST_H_
