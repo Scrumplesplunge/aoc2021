@@ -3,6 +3,7 @@
 #include "string_utils.h"
 
 #include <map>
+#include <variant>
 
 namespace aoc2021 {
 namespace {
@@ -40,6 +41,17 @@ CheckError UndeclaredError(std::string_view name, Location location) {
   return Error(location, "use of undeclared name '", name, "'");
 }
 
+// Represents a value which can change at runtime.
+struct DynamicValue {};
+
+// Represents a constant value which is known at compile time.
+struct Constant { std::int64_t value; };
+
+// Represents a symbolic constant with the given name.
+struct SymbolicConstant { std::string name; };
+
+using Value = std::variant<DynamicValue, Constant, SymbolicConstant>;
+
 class Environment {
  public:
   enum class ShadowMode {
@@ -47,14 +59,9 @@ class Environment {
     kDeny,
   };
 
-  enum class Kind {
-    kConstant,
-    kVariable,
-  };
-
   struct Definition {
     Location location;
-    Kind kind;
+    Value value;
   };
 
   Environment() noexcept : parent_(nullptr), shadow_mode_(ShadowMode::kDeny) {}
@@ -63,7 +70,7 @@ class Environment {
 
   void Define(std::string_view name, Definition definition) {
     if (shadow_mode_ == ShadowMode::kDeny && parent_) {
-      auto* previous = parent_->Lookup(name);
+      auto* previous = parent_->LookupWithinShadowDomain(name);
       if (previous) {
         throw RedeclarationError(name, previous->location, definition.location);
       }
@@ -91,6 +98,16 @@ class Environment {
     return parent_ ? parent_->Lookup(name) : nullptr;
   }
 
+  // Like Lookup(), except that it only searches within the broadest lexical
+  // scope that forbids shadowing: variables outside this scope are ignored.
+  const Definition* LookupWithinShadowDomain(std::string_view name) const {
+    auto i = names_.find(name);
+    if (i != names_.end()) return &i->second;
+    return shadow_mode_ == ShadowMode::kDeny && parent_
+               ? parent_->LookupWithinShadowDomain(name)
+               : nullptr;
+  }
+
  private:
   Environment* parent_;
   ShadowMode shadow_mode_;
@@ -98,37 +115,41 @@ class Environment {
   std::optional<Location> break_, continue_;
 };
 
-class ExpressionChecker : public ast::ExpressionVisitor<void> {
+struct ExpressionInfo {
+  Value value;
+};
+
+class ExpressionChecker : public ast::ExpressionVisitor<ExpressionInfo> {
  public:
   ExpressionChecker(Environment& environment) noexcept
       : environment_(&environment) {}
-  void operator()(const ast::Name&) override;
-  void operator()(const ast::IntegerLiteral&) override;
-  void operator()(const ast::Call&) override;
-  void operator()(const ast::Index&) override;
-  void operator()(const ast::Negate&) override;
-  void operator()(const ast::LogicalNot&) override;
-  void operator()(const ast::BitwiseNot&) override;
-  void operator()(const ast::Dereference&) override;
-  void operator()(const ast::Add&) override;
-  void operator()(const ast::Subtract&) override;
-  void operator()(const ast::Multiply&) override;
-  void operator()(const ast::Divide&) override;
-  void operator()(const ast::Modulo&) override;
-  void operator()(const ast::LessThan&) override;
-  void operator()(const ast::LessOrEqual&) override;
-  void operator()(const ast::GreaterThan&) override;
-  void operator()(const ast::GreaterOrEqual&) override;
-  void operator()(const ast::Equal&) override;
-  void operator()(const ast::NotEqual&) override;
-  void operator()(const ast::LogicalAnd&) override;
-  void operator()(const ast::LogicalOr&) override;
-  void operator()(const ast::BitwiseAnd&) override;
-  void operator()(const ast::BitwiseOr&) override;
-  void operator()(const ast::BitwiseXor&) override;
-  void operator()(const ast::ShiftLeft&) override;
-  void operator()(const ast::ShiftRight&) override;
-  void operator()(const ast::TernaryExpression&) override;
+  ExpressionInfo operator()(const ast::Name&) override;
+  ExpressionInfo operator()(const ast::IntegerLiteral&) override;
+  ExpressionInfo operator()(const ast::Call&) override;
+  ExpressionInfo operator()(const ast::Index&) override;
+  ExpressionInfo operator()(const ast::Negate&) override;
+  ExpressionInfo operator()(const ast::LogicalNot&) override;
+  ExpressionInfo operator()(const ast::BitwiseNot&) override;
+  ExpressionInfo operator()(const ast::Dereference&) override;
+  ExpressionInfo operator()(const ast::Add&) override;
+  ExpressionInfo operator()(const ast::Subtract&) override;
+  ExpressionInfo operator()(const ast::Multiply&) override;
+  ExpressionInfo operator()(const ast::Divide&) override;
+  ExpressionInfo operator()(const ast::Modulo&) override;
+  ExpressionInfo operator()(const ast::LessThan&) override;
+  ExpressionInfo operator()(const ast::LessOrEqual&) override;
+  ExpressionInfo operator()(const ast::GreaterThan&) override;
+  ExpressionInfo operator()(const ast::GreaterOrEqual&) override;
+  ExpressionInfo operator()(const ast::Equal&) override;
+  ExpressionInfo operator()(const ast::NotEqual&) override;
+  ExpressionInfo operator()(const ast::LogicalAnd&) override;
+  ExpressionInfo operator()(const ast::LogicalOr&) override;
+  ExpressionInfo operator()(const ast::BitwiseAnd&) override;
+  ExpressionInfo operator()(const ast::BitwiseOr&) override;
+  ExpressionInfo operator()(const ast::BitwiseXor&) override;
+  ExpressionInfo operator()(const ast::ShiftLeft&) override;
+  ExpressionInfo operator()(const ast::ShiftRight&) override;
+  ExpressionInfo operator()(const ast::TernaryExpression&) override;
 
  private:
   template <typename T> void CheckUnary(const T&);
@@ -137,9 +158,10 @@ class ExpressionChecker : public ast::ExpressionVisitor<void> {
   Environment* environment_;
 };
 
-void Check(Environment& environment, const ast::AnyExpression& expression) {
+ExpressionInfo Check(Environment& environment,
+                     const ast::AnyExpression& expression) {
   ExpressionChecker checker(environment);
-  expression.Visit(checker);
+  return expression.Visit(checker);
 }
 
 class StatementChecker : public ast::StatementVisitor {
@@ -180,82 +202,302 @@ class ModuleStatementChecker : public ast::StatementVisitor {
   Environment* environment_;
 };
 
-void ExpressionChecker::operator()(const ast::Name& x) {
+ExpressionInfo ExpressionChecker::operator()(const ast::Name& x) {
   auto* definition = environment_->Lookup(x.value);
   if (!definition) throw UndeclaredError(x.value, x.location);
+  return ExpressionInfo{.value = definition->value};
 }
 
-void ExpressionChecker::operator()(const ast::IntegerLiteral& x) {}
+ExpressionInfo ExpressionChecker::operator()(const ast::IntegerLiteral& x) {
+  return ExpressionInfo{.value = Constant(x.value)};
+}
 
-void ExpressionChecker::operator()(const ast::Call& x) {
+ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
   Check(*environment_, x.function);
   // TODO: Check the number of arguments for the function once types are
   // tracked.
   for (const auto& argument : x.arguments) Check(*environment_, argument);
+  return ExpressionInfo{.value = DynamicValue()};
 }
 
-void ExpressionChecker::operator()(const ast::Index& x) {
+ExpressionInfo ExpressionChecker::operator()(const ast::Index& x) {
   Check(*environment_, x.container);
   Check(*environment_, x.index);
+  return ExpressionInfo{.value = DynamicValue()};
 }
 
-void ExpressionChecker::operator()(const ast::Negate& x) { CheckUnary(x); }
-void ExpressionChecker::operator()(const ast::LogicalNot& x) { CheckUnary(x); }
-void ExpressionChecker::operator()(const ast::BitwiseNot& x) { CheckUnary(x); }
-void ExpressionChecker::operator()(const ast::Dereference& x) { CheckUnary(x); }
-void ExpressionChecker::operator()(const ast::Add& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::Subtract& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::Multiply& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::Divide& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::Modulo& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::LessThan& x) { CheckBinary(x); }
-
-void ExpressionChecker::operator()(const ast::LessOrEqual& x) {
-  CheckBinary(x);
-}
-
-void ExpressionChecker::operator()(const ast::GreaterThan& x) {
-  CheckBinary(x);
-}
-
-void ExpressionChecker::operator()(const ast::GreaterOrEqual& x) {
-  CheckBinary(x);
-}
-
-void ExpressionChecker::operator()(const ast::Equal& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::NotEqual& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::LogicalAnd& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::LogicalOr& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::BitwiseAnd& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::BitwiseOr& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::BitwiseXor& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::ShiftLeft& x) { CheckBinary(x); }
-void ExpressionChecker::operator()(const ast::ShiftRight& x) { CheckBinary(x); }
-
-void ExpressionChecker::operator()(const ast::TernaryExpression& x) {
-  {
-    ExpressionChecker checker(*environment_);
-    x.condition.Visit(checker);
-  }
-  {
-    ExpressionChecker checker(*environment_);
-    x.then_branch.Visit(checker);
-  }
-  {
-    ExpressionChecker checker(*environment_);
-    x.else_branch.Visit(checker);
+ExpressionInfo ExpressionChecker::operator()(const ast::Negate& x) {
+  ExpressionInfo inner = Check(*environment_, x.inner);
+  if (auto* x = std::get_if<Constant>(&inner.value)) {
+    return ExpressionInfo{.value = Constant(-x->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
   }
 }
 
-template <typename T>
-void ExpressionChecker::CheckUnary(const T& x) {
-  Check(*environment_, x.inner);
+ExpressionInfo ExpressionChecker::operator()(const ast::LogicalNot& x) {
+  ExpressionInfo inner = Check(*environment_, x.inner);
+  if (auto* x = std::get_if<Constant>(&inner.value)) {
+    return ExpressionInfo{.value = Constant(!x->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
 }
 
-template <typename T>
-void ExpressionChecker::CheckBinary(const T& x) {
-  Check(*environment_, x.left);
-  Check(*environment_, x.right);
+ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseNot& x) {
+  ExpressionInfo inner = Check(*environment_, x.inner);
+  if (auto* x = std::get_if<Constant>(&inner.value)) {
+    return ExpressionInfo{.value = Constant(~x->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::Dereference& x) {
+  ExpressionInfo inner = Check(*environment_, x.inner);
+  return ExpressionInfo{.value = DynamicValue()};
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::Add& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value + r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::Subtract& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value - r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::Multiply& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value * r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::Divide& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value / r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::Modulo& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value % r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::LessThan& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value < r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::LessOrEqual& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value <= r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::GreaterThan& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value > r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::GreaterOrEqual& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value >= r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::Equal& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value == r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::NotEqual& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value != r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::LogicalAnd& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && !l->value) {
+    // Short-circuit evaluation: it doesn't matter whether the second argument
+    // is a constant expression since the first one evaluated to false.
+    return ExpressionInfo{.value = Constant(false)};
+  } else if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value && r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::LogicalOr& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && l->value) {
+    // Short-circuit evaluation: it doesn't matter whether the second argument
+    // is a constant expression since the first one evaluated to true.
+    return ExpressionInfo{.value = Constant(true)};
+  } else if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value || r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseAnd& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value & r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseOr& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value | r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseXor& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value ^ r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::ShiftLeft& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    return ExpressionInfo{.value = Constant(l->value << r->value)};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::ShiftRight& x) {
+  ExpressionInfo left = Check(*environment_, x.left);
+  ExpressionInfo right = Check(*environment_, x.right);
+  auto* l = std::get_if<Constant>(&left.value);
+  auto* r = std::get_if<Constant>(&right.value);
+  if (l && r) {
+    // >> isn't guaranteed to do arithmetic shifting in C++, so instead we
+    // convert it into a division that has the same effect as the desired
+    // arithmetic shift.
+    return ExpressionInfo{.value = Constant(l->value / (1 << r->value))};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
+  ExpressionInfo condition = Check(*environment_, x.condition);
+  ExpressionInfo then_branch = Check(*environment_, x.then_branch);
+  ExpressionInfo else_branch = Check(*environment_, x.else_branch);
+  // The ternary expression will only be a constant expression if the condition
+  // is a constant expression and the corresponding branch is also a constant
+  // expression.
+  if (auto* c = std::get_if<Constant>(&condition.value)) {
+    return ExpressionInfo{.value =
+                              c->value ? then_branch.value : else_branch.value};
+  } else {
+    return ExpressionInfo{.value = DynamicValue()};
+  }
 }
 
 void CheckBlock(Environment& parent, std::span<const ast::AnyStatement> block) {
@@ -268,17 +510,19 @@ void CheckBlock(Environment& parent, std::span<const ast::AnyStatement> block) {
 
 void StatementChecker::operator()(const ast::DeclareScalar& x) {
   environment_->Define(
-      x.name, Environment::Definition{.location = x.location,
-                                      .kind = Environment::Kind::kVariable});
+      x.name,
+      Environment::Definition{.location = x.location, .value = DynamicValue()});
 }
 
 void StatementChecker::operator()(const ast::DeclareArray& x) {
   environment_->Define(
-      x.name, Environment::Definition{.location = x.location,
-                                      .kind = Environment::Kind::kVariable});
+      x.name,
+      Environment::Definition{.location = x.location, .value = DynamicValue()});
   ExpressionChecker checker(*environment_);
-  // TODO: Confirm that the size expression is a constant expression.
-  x.size.Visit(checker);
+  ExpressionInfo size = x.size.Visit(checker);
+  if (!std::holds_alternative<Constant>(size.value)) {
+    throw Error(x.location, "array size must be a constant expression");
+  }
 }
 
 void StatementChecker::operator()(const ast::Assign& x) {
@@ -343,17 +587,19 @@ void StatementChecker::operator()(const ast::FunctionDefinition& x) {
 
 void ModuleStatementChecker::operator()(const ast::DeclareScalar& x) {
   environment_->Define(
-      x.name, Environment::Definition{.location = x.location,
-                                      .kind = Environment::Kind::kVariable});
+      x.name,
+      Environment::Definition{.location = x.location, .value = DynamicValue()});
 }
 
 void ModuleStatementChecker::operator()(const ast::DeclareArray& x) {
   environment_->Define(
-      x.name, Environment::Definition{.location = x.location,
-                                      .kind = Environment::Kind::kVariable});
-  // TODO: Confirm that the size expression is a constant expression.
+      x.name,
+      Environment::Definition{.location = x.location, .value = DynamicValue()});
   ExpressionChecker checker(*environment_);
-  x.size.Visit(checker);
+  ExpressionInfo size = x.size.Visit(checker);
+  if (!std::holds_alternative<Constant>(size.value)) {
+    throw Error(x.location, "array size must be a constant expression");
+  }
 }
 
 void ModuleStatementChecker::operator()(const ast::Assign& x) {
@@ -389,17 +635,16 @@ void ModuleStatementChecker::operator()(const ast::DiscardedExpression& x) {
 }
 
 void ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
-  environment_->Define(x.name, Environment::Definition{
-                                   .location = x.location,
-                                   .kind = Environment::Kind::kConstant,
-                               });
+  // TODO: Derive symbolic constant names in a better way.
+  environment_->Define(
+      x.name, Environment::Definition{.location = x.location,
+                                      .value = SymbolicConstant(x.name)});
   Environment function_environment(*environment_,
                                    Environment::ShadowMode::kAllow);
   for (const auto& parameter : x.parameters) {
     function_environment.Define(
-        parameter.value,
-        Environment::Definition{.location = parameter.location,
-                                .kind = Environment::Kind::kVariable});
+        parameter.value, Environment::Definition{.location = parameter.location,
+                                                 .value = DynamicValue()});
   }
   for (const auto& statement : x.body) {
     StatementChecker checker(function_environment);

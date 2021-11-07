@@ -245,6 +245,7 @@ struct ExpressionVisitor {
 template <typename T>
 T AnyExpression::Visit(ExpressionVisitor<T>& visitor) const {
   struct ProxyVisitor : ExpressionVisitor<void> {
+    ProxyVisitor(ExpressionVisitor<T>& f) noexcept : f(f) {}
     void operator()(const Name& x) override { new (result) T(f(x)); }
     void operator()(const IntegerLiteral& x) override { new (result) T(f(x)); }
     void operator()(const Call& x) override { new (result) T(f(x)); }

@@ -1,9 +1,14 @@
+var x;
+var a[1 ^ 2 * 3 & (4 % 6 == 5 ? x : ~3) / 1 + 1];
+// var b[x];  // error: array size must be a constant expression
+
 function demo(x, y) {
   if x {
-    var a;
+    var a;  // fine: shadowing globals from within a function is allowed.
     var b[42 * 42];
     a = b[0];
     while 1 {
+      // var a;  // error: redeclaration of 'a'
       break;
     }
     if a == b[1] {
