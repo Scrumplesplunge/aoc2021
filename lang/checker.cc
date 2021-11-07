@@ -98,7 +98,7 @@ class Environment {
   std::optional<Location> break_, continue_;
 };
 
-class ExpressionChecker : public ast::ExpressionVisitor {
+class ExpressionChecker : public ast::ExpressionVisitor<void> {
  public:
   ExpressionChecker(Environment& environment) noexcept
       : environment_(&environment) {}
