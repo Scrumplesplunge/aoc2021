@@ -18,11 +18,6 @@ concept Located = requires (const T& t) {
 };
 
 template <typename T>
-concept Printable = requires (const T& value, std::ostream& output) {
-  Print(value, output);
-};
-
-template <typename T>
 struct ExpressionVisitor;
 
 template <typename T>
@@ -41,7 +36,8 @@ class AnyExpression {
     return value_->Visit(visitor);
   }
 
-  template <typename T> T Visit(ExpressionVisitor<T>& visitor) const;
+  template <typename T>
+  T Visit(ExpressionVisitor<T>& visitor) const;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
 
@@ -286,42 +282,6 @@ T AnyExpression::Visit(ExpressionVisitor<T>& visitor) const {
   return std::move(v).Consume();
 }
 
-class ExpressionPrinter : public ExpressionVisitor<void> {
- public:
-  explicit ExpressionPrinter(std::ostream& output) noexcept
-      : output_(&output) {}
-  void operator()(const Name&) override;
-  void operator()(const IntegerLiteral&) override;
-  void operator()(const Call&) override;
-  void operator()(const Index&) override;
-  void operator()(const Negate&) override;
-  void operator()(const LogicalNot&) override;
-  void operator()(const BitwiseNot&) override;
-  void operator()(const Dereference&) override;
-  void operator()(const Add&) override;
-  void operator()(const Subtract&) override;
-  void operator()(const Multiply&) override;
-  void operator()(const Divide&) override;
-  void operator()(const Modulo&) override;
-  void operator()(const LessThan&) override;
-  void operator()(const LessOrEqual&) override;
-  void operator()(const GreaterThan&) override;
-  void operator()(const GreaterOrEqual&) override;
-  void operator()(const Equal&) override;
-  void operator()(const NotEqual&) override;
-  void operator()(const LogicalAnd&) override;
-  void operator()(const LogicalOr&) override;
-  void operator()(const BitwiseAnd&) override;
-  void operator()(const BitwiseOr&) override;
-  void operator()(const BitwiseXor&) override;
-  void operator()(const ShiftLeft&) override;
-  void operator()(const ShiftRight&) override;
-  void operator()(const TernaryExpression&) override;
-
- private:
-  std::ostream* output_;
-};
-
 struct StatementVisitor;
 
 template <typename T>
@@ -430,26 +390,6 @@ struct StatementVisitor {
   virtual void operator()(const DiscardedExpression&) = 0;
   virtual void operator()(const FunctionDefinition&) = 0;
 };
-
-class StatementPrinter : public StatementVisitor {
- public:
-  explicit StatementPrinter(std::ostream& output) noexcept : output_(&output) {}
-  virtual void operator()(const DeclareScalar&) override;
-  virtual void operator()(const DeclareArray&) override;
-  virtual void operator()(const Assign&) override;
-  virtual void operator()(const If&) override;
-  virtual void operator()(const While&) override;
-  virtual void operator()(const Return&) override;
-  virtual void operator()(const Break&) override;
-  virtual void operator()(const Continue&) override;
-  virtual void operator()(const DiscardedExpression&) override;
-  virtual void operator()(const FunctionDefinition&) override;
-
- private:
-  std::ostream* output_;
-};
-
-static_assert(Statement<Continue>);
 
 }  // namespace aoc2021::ast
 
