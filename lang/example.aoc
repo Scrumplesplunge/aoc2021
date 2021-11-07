@@ -3,7 +3,9 @@ function demo(x, y) {
     var a;
     var b[42 * 42];
     a = b[0];
-    break;
+    while 1 {
+      break;
+    }
     if a == b[1] {
       return;
     }
