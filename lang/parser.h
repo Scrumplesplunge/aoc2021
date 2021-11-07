@@ -10,6 +10,10 @@
 
 namespace aoc2021 {
 
+struct ParseError : public SourceError {
+  using SourceError::SourceError;
+};
+
 // A parser for an aoclang source file.
 class Parser {
  public:

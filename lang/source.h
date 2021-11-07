@@ -59,9 +59,9 @@ struct Message {
 std::ostream& operator<<(std::ostream&, Message::Type) noexcept;
 std::ostream& operator<<(std::ostream&, const Message&) noexcept;
 
-class ParseError : public std::exception {
+class SourceError : public std::exception {
  public:
-  ParseError(std::vector<Message> messages);
+  SourceError(std::vector<Message> messages);
 
   const char* what() const noexcept override { return text_.c_str(); }
 

@@ -71,7 +71,7 @@ std::ostream& operator<<(std::ostream& output,
                 << Spaces{message.location.column() - 1 + 4} << "^\n";
 }
 
-ParseError::ParseError(std::vector<Message> messages)
+SourceError::SourceError(std::vector<Message> messages)
     : messages_(std::move(messages)) {
   std::ostringstream output;
   for (const auto& message : messages_) {
