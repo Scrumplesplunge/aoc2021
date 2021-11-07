@@ -92,7 +92,7 @@ Name Parser::ParseName() {
   assert(IsAlpha(word.front()));
   const Location location = reader_.location();
   reader_.Advance(word.size());
-  return Name(location, word);
+  return Name(location, std::string(word));
 }
 
 IntegerLiteral Parser::ParseIntegerLiteral() {
@@ -470,7 +470,8 @@ AnyStatement Parser::ParseFunctionDefinition() {
     }
   }
   SkipWhitespaceAndComments();
-  return FunctionDefinition(location, name, std::move(arguments), ParseBlock());
+  return FunctionDefinition(location, std::string(name), std::move(arguments),
+                            ParseBlock());
 }
 
 AnyStatement Parser::ParseIf() {
@@ -545,9 +546,9 @@ AnyStatement Parser::ParseDeclaration() {
     SkipWhitespaceAndComments();
     // TODO: Add support for `var x[3] = {1, 2, 3};`.
     if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
-    return DeclareArray(location, name, std::move(size));
+    return DeclareArray(location, std::string(name), std::move(size));
   } else if (reader_.ConsumePrefix(";")) {
-    return DeclareScalar(location, name);
+    return DeclareScalar(location, std::string(name));
   } else {
     // TODO: Add support for `var x = 1;`
     throw Error("expected ';'");

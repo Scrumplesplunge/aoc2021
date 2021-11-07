@@ -12,502 +12,393 @@
 
 namespace aoc2021::ast {
 
-class Expression {
- public:
-  Expression(Location location) noexcept : location_(location) {}
-
-  virtual ~Expression() = default;
-  virtual void Print(std::ostream& output) const noexcept = 0;
-  const Location& location() const noexcept { return location_; }
-
- private:
-  Location location_;
+template <typename T>
+concept Located = requires (const T& t) {
+  { t.location } -> std::same_as<const Location&>;
 };
+
+template <typename T>
+concept Printable = requires (const T& value, std::ostream& output) {
+  Print(value, output);
+};
+
+struct ExpressionVisitor;
+
+template <typename T>
+concept Expression = Located<T> && std::invocable<ExpressionVisitor&, const T&>;
 
 class AnyExpression {
  public:
   // Implicit conversion from any type of expression.
-  template <typename T>
-  AnyExpression(T&& value)
-      : value_(new std::decay_t<T>(std::forward<T>(value))) {}
-  void Print(std::ostream& output) const noexcept { value_->Print(output); }
+  template <Expression T>
+  AnyExpression(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
+
   const Location& location() const noexcept { return value_->location(); }
+
+  void Visit(ExpressionVisitor& visitor) const {
+    return value_->Visit(visitor);
+  }
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
 
  private:
-  std::unique_ptr<Expression> value_;
+  struct Interface {
+    virtual ~Interface() = default;
+    virtual const Location& location() const noexcept = 0;
+    virtual void Visit(ExpressionVisitor&) const = 0;
+  };
+
+  template <Expression T>
+  class Adaptor : public Interface {
+   public:
+    explicit Adaptor(T value) noexcept : value_(std::move(value)) {}
+
+    const Location& location() const noexcept override {
+      return value_.location;
+    }
+
+    void Visit(ExpressionVisitor& visitor) const override { visitor(value_); }
+
+   private:
+    T value_;
+  };
+
+  std::unique_ptr<Interface> value_;
 };
 
-std::ostream& operator<<(std::ostream&, const Expression&) noexcept;
 std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
-class Name : public Expression {
- public:
-  Name(Location location, std::string_view value) noexcept
-      : Expression(location), value_(value) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  std::string value_;
+struct Name {
+  Location location;
+  std::string value;
 };
 
-class IntegerLiteral : public Expression {
- public:
-  IntegerLiteral(Location location, std::int64_t value) noexcept
-      : Expression(location), value_(value) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  std::int64_t value_;
+struct IntegerLiteral {
+  Location location;
+  std::int64_t value;
 };
 
-class Call : public Expression {
- public:
-  Call(Location location, AnyExpression function,
-       std::vector<AnyExpression> arguments) noexcept
-      : Expression(location),
-        function_(std::move(function)),
-        arguments_(std::move(arguments)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression function_;
-  std::vector<AnyExpression> arguments_;
+struct Call {
+  Location location;
+  AnyExpression function;
+  std::vector<AnyExpression> arguments;
 };
 
-class Index : public Expression {
- public:
-  Index(Location location, AnyExpression container,
-        AnyExpression index) noexcept
-      : Expression(location),
-        container_(std::move(container)),
-        index_(std::move(index)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression container_, index_;
+struct Index {
+  Location location;
+  AnyExpression container, index;
 };
 
-class Negate : public Expression {
- public:
-  Negate(Location location, AnyExpression inner) noexcept
-      : Expression(location), inner_(std::move(inner)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression inner_;
+struct Negate {
+  Location location;
+  AnyExpression inner;
 };
 
-class LogicalNot : public Expression {
- public:
-  LogicalNot(Location location, AnyExpression inner) noexcept
-      : Expression(location), inner_(std::move(inner)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression inner_;
+struct LogicalNot {
+  Location location;
+  AnyExpression inner;
 };
 
-class BitwiseNot : public Expression {
- public:
-  BitwiseNot(Location location, AnyExpression inner) noexcept
-      : Expression(location), inner_(std::move(inner)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression inner_;
+struct BitwiseNot {
+  Location location;
+  AnyExpression inner;
 };
 
-class Dereference : public Expression {
- public:
-  Dereference(Location location, AnyExpression inner) noexcept
-      : Expression(location), inner_(std::move(inner)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression inner_;
+struct Dereference {
+  Location location;
+  AnyExpression inner;
 };
 
-class Add : public Expression {
- public:
-  Add(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct Add {
+  Location location;
+  AnyExpression left, right;
 };
 
-class Subtract : public Expression {
- public:
-  Subtract(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct Subtract {
+  Location location;
+  AnyExpression left, right;
 };
 
-class Multiply : public Expression {
- public:
-  Multiply(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct Multiply {
+  Location location;
+  AnyExpression left, right;
 };
 
-class Divide : public Expression {
- public:
-  Divide(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct Divide {
+  Location location;
+  AnyExpression left, right;
 };
 
-class Modulo : public Expression {
- public:
-  Modulo(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct Modulo {
+  Location location;
+  AnyExpression left, right;
 };
 
-class LessThan : public Expression {
- public:
-  LessThan(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct LessThan {
+  Location location;
+  AnyExpression left, right;
 };
 
-class LessOrEqual : public Expression {
- public:
-  LessOrEqual(Location location, AnyExpression left,
-              AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct LessOrEqual {
+  Location location;
+  AnyExpression left, right;
 };
 
-class GreaterThan : public Expression {
- public:
-  GreaterThan(Location location, AnyExpression left,
-              AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct GreaterThan {
+  Location location;
+  AnyExpression left, right;
 };
 
-class GreaterOrEqual : public Expression {
- public:
-  GreaterOrEqual(Location location, AnyExpression left,
-                 AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct GreaterOrEqual {
+  Location location;
+  AnyExpression left, right;
 };
 
-class Equal : public Expression {
- public:
-  Equal(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct Equal {
+  Location location;
+  AnyExpression left, right;
 };
 
-class NotEqual : public Expression {
- public:
-  NotEqual(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct NotEqual {
+  Location location;
+  AnyExpression left, right;
 };
 
-class LogicalAnd : public Expression {
- public:
-  LogicalAnd(Location location, AnyExpression left,
-             AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct LogicalAnd {
+  Location location;
+  AnyExpression left, right;
 };
 
-class LogicalOr : public Expression {
- public:
-  LogicalOr(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct LogicalOr {
+  Location location;
+  AnyExpression left, right;
 };
 
-class BitwiseAnd : public Expression {
- public:
-  BitwiseAnd(Location location, AnyExpression left,
-             AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct BitwiseAnd {
+  Location location;
+  AnyExpression left, right;
 };
 
-class BitwiseOr : public Expression {
- public:
-  BitwiseOr(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct BitwiseOr {
+  Location location;
+  AnyExpression left, right;
 };
 
-class BitwiseXor : public Expression {
- public:
-  BitwiseXor(Location location, AnyExpression left,
-             AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct BitwiseXor {
+  Location location;
+  AnyExpression left, right;
 };
 
-class ShiftLeft : public Expression {
- public:
-  ShiftLeft(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct ShiftLeft {
+  Location location;
+  AnyExpression left, right;
 };
 
-class ShiftRight : public Expression {
- public:
-  ShiftRight(Location location, AnyExpression left,
-             AnyExpression right) noexcept
-      : Expression(location),
-        left_(std::move(left)),
-        right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
+struct ShiftRight {
+  Location location;
+  AnyExpression left, right;
 };
 
-class TernaryExpression : public Expression {
- public:
-  TernaryExpression(Location location, AnyExpression condition,
-                    AnyExpression then_branch,
-                    AnyExpression else_branch) noexcept
-      : Expression(location),
-        condition_(std::move(condition)),
-        then_branch_(std::move(then_branch)),
-        else_branch_(std::move(else_branch)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression condition_, then_branch_, else_branch_;
+struct TernaryExpression {
+  Location location;
+  AnyExpression condition, then_branch, else_branch;
 };
 
-class Statement {
- public:
-  Statement(Location location) noexcept : location_(location) {}
+struct ExpressionVisitor {
+  virtual ~ExpressionVisitor() = default;
+  virtual void operator()(const Name&) = 0;
+  virtual void operator()(const IntegerLiteral&) = 0;
+  virtual void operator()(const Call&) = 0;
+  virtual void operator()(const Index&) = 0;
+  virtual void operator()(const Negate&) = 0;
+  virtual void operator()(const LogicalNot&) = 0;
+  virtual void operator()(const BitwiseNot&) = 0;
+  virtual void operator()(const Dereference&) = 0;
+  virtual void operator()(const Add&) = 0;
+  virtual void operator()(const Subtract&) = 0;
+  virtual void operator()(const Multiply&) = 0;
+  virtual void operator()(const Divide&) = 0;
+  virtual void operator()(const Modulo&) = 0;
+  virtual void operator()(const LessThan&) = 0;
+  virtual void operator()(const LessOrEqual&) = 0;
+  virtual void operator()(const GreaterThan&) = 0;
+  virtual void operator()(const GreaterOrEqual&) = 0;
+  virtual void operator()(const Equal&) = 0;
+  virtual void operator()(const NotEqual&) = 0;
+  virtual void operator()(const LogicalAnd&) = 0;
+  virtual void operator()(const LogicalOr&) = 0;
+  virtual void operator()(const BitwiseAnd&) = 0;
+  virtual void operator()(const BitwiseOr&) = 0;
+  virtual void operator()(const BitwiseXor&) = 0;
+  virtual void operator()(const ShiftLeft&) = 0;
+  virtual void operator()(const ShiftRight&) = 0;
+  virtual void operator()(const TernaryExpression&) = 0;
+};
 
-  virtual ~Statement() = default;
-  virtual void Print(std::ostream& output) const noexcept = 0;
-  const Location& location() const noexcept { return location_; }
+class ExpressionPrinter : public ExpressionVisitor {
+ public:
+  explicit ExpressionPrinter(std::ostream& output) noexcept
+      : output_(&output) {}
+  void operator()(const Name&) override;
+  void operator()(const IntegerLiteral&) override;
+  void operator()(const Call&) override;
+  void operator()(const Index&) override;
+  void operator()(const Negate&) override;
+  void operator()(const LogicalNot&) override;
+  void operator()(const BitwiseNot&) override;
+  void operator()(const Dereference&) override;
+  void operator()(const Add&) override;
+  void operator()(const Subtract&) override;
+  void operator()(const Multiply&) override;
+  void operator()(const Divide&) override;
+  void operator()(const Modulo&) override;
+  void operator()(const LessThan&) override;
+  void operator()(const LessOrEqual&) override;
+  void operator()(const GreaterThan&) override;
+  void operator()(const GreaterOrEqual&) override;
+  void operator()(const Equal&) override;
+  void operator()(const NotEqual&) override;
+  void operator()(const LogicalAnd&) override;
+  void operator()(const LogicalOr&) override;
+  void operator()(const BitwiseAnd&) override;
+  void operator()(const BitwiseOr&) override;
+  void operator()(const BitwiseXor&) override;
+  void operator()(const ShiftLeft&) override;
+  void operator()(const ShiftRight&) override;
+  void operator()(const TernaryExpression&) override;
 
  private:
-  Location location_;
+  std::ostream* output_;
 };
+
+struct StatementVisitor;
+
+template <typename T>
+concept Statement = Located<T> && std::invocable<StatementVisitor&, const T&>;
 
 class AnyStatement {
  public:
-  // Implicit conversion from any type of expression.
-  template <typename T>
-  AnyStatement(T&& value)
-      : value_(new std::decay_t<T>(std::forward<T>(value))) {}
-  void Print(std::ostream& output) const noexcept { value_->Print(output); }
-  const Location& location() const noexcept { return value_->location(); }
+  // Implicit conversion from any type of statement.
+  template <Statement T>
+  AnyStatement(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
 
+  const Location& location() const noexcept { return value_->location(); }
+  void Visit(StatementVisitor& visitor) const { return value_->Visit(visitor); }
   explicit operator bool() const noexcept { return value_ != nullptr; }
 
  private:
-  std::unique_ptr<Statement> value_;
+  struct Interface {
+    virtual ~Interface() = default;
+    virtual const Location& location() const noexcept = 0;
+    virtual void Visit(StatementVisitor&) const = 0;
+  };
+
+  template <Statement T>
+  class Adaptor : public Interface {
+   public:
+    explicit Adaptor(T value) noexcept : value_(std::move(value)) {}
+
+    const Location& location() const noexcept override {
+      return value_.location;
+    }
+
+    void Visit(StatementVisitor& visitor) const override { visitor(value_); }
+
+   private:
+    T value_;
+  };
+
+  std::unique_ptr<Interface> value_;
 };
 
-std::ostream& operator<<(std::ostream&, const Statement&) noexcept;
 std::ostream& operator<<(std::ostream&, const AnyStatement&) noexcept;
 
-class DeclareScalar : public Statement {
+struct DeclareScalar {
+  Location location;
+  std::string name;
+};
+
+struct DeclareArray {
+  Location location;
+  std::string name;
+  AnyExpression size;
+};
+
+struct Assign {
+  Location location;
+  AnyExpression left, right;
+};
+
+struct If {
+  Location location;
+  AnyExpression condition;
+  std::vector<AnyStatement> then_branch, else_branch;
+};
+
+struct While {
+  Location location;
+  AnyExpression condition;
+  std::vector<AnyStatement> body;
+};
+
+struct Return {
+  Location location;
+  std::optional<AnyExpression> value = std::nullopt;
+};
+
+struct Break {
+  Location location;
+};
+
+struct Continue {
+  Location location;
+};
+
+struct DiscardedExpression {
+  AnyExpression expression;
+  Location location = expression.location();
+};
+
+struct FunctionDefinition {
+  Location location;
+  std::string name;
+  std::vector<Name> arguments;
+  std::vector<AnyStatement> body;
+};
+
+struct StatementVisitor {
+  virtual ~StatementVisitor() = default;
+  virtual void operator()(const DeclareScalar&) = 0;
+  virtual void operator()(const DeclareArray&) = 0;
+  virtual void operator()(const Assign&) = 0;
+  virtual void operator()(const If&) = 0;
+  virtual void operator()(const While&) = 0;
+  virtual void operator()(const Return&) = 0;
+  virtual void operator()(const Break&) = 0;
+  virtual void operator()(const Continue&) = 0;
+  virtual void operator()(const DiscardedExpression&) = 0;
+  virtual void operator()(const FunctionDefinition&) = 0;
+};
+
+class StatementPrinter : public StatementVisitor {
  public:
-  DeclareScalar(Location location, std::string_view name) noexcept
-      : Statement(location), name_(name) {}
-  void Print(std::ostream& output) const noexcept override;
+  explicit StatementPrinter(std::ostream& output) noexcept : output_(&output) {}
+  virtual void operator()(const DeclareScalar&) override;
+  virtual void operator()(const DeclareArray&) override;
+  virtual void operator()(const Assign&) override;
+  virtual void operator()(const If&) override;
+  virtual void operator()(const While&) override;
+  virtual void operator()(const Return&) override;
+  virtual void operator()(const Break&) override;
+  virtual void operator()(const Continue&) override;
+  virtual void operator()(const DiscardedExpression&) override;
+  virtual void operator()(const FunctionDefinition&) override;
 
  private:
-  std::string name_;
+  std::ostream* output_;
 };
 
-class DeclareArray : public Statement {
- public:
-  DeclareArray(Location location, std::string_view name,
-               AnyExpression size) noexcept
-      : Statement(location), name_(name), size_(std::move(size)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  std::string name_;
-  AnyExpression size_;
-};
-
-class Assign : public Statement {
- public:
-  Assign(Location location, AnyExpression left, AnyExpression right) noexcept
-      : Statement(location), left_(std::move(left)), right_(std::move(right)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression left_, right_;
-};
-
-class If : public Statement {
- public:
-  If(Location location, AnyExpression condition,
-     std::vector<AnyStatement> then_branch,
-     std::vector<AnyStatement> else_branch) noexcept
-      : Statement(location),
-        condition_(std::move(condition)),
-        then_branch_(std::move(then_branch)),
-        else_branch_(std::move(else_branch)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression condition_;
-  std::vector<AnyStatement> then_branch_, else_branch_;
-};
-
-class While : public Statement {
- public:
-  While(Location location, AnyExpression condition,
-        std::vector<AnyStatement> body) noexcept
-      : Statement(location),
-        condition_(std::move(condition)),
-        body_(std::move(body)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression condition_;
-  std::vector<AnyStatement> body_;
-};
-
-class Return : public Statement {
- public:
-  Return(Location location,
-         std::optional<AnyExpression> value = std::nullopt) noexcept
-      : Statement(location), value_(std::move(value)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  std::optional<AnyExpression> value_;
-};
-
-class Break : public Statement {
- public:
-  Break(Location location) noexcept : Statement(location) {}
-  void Print(std::ostream& output) const noexcept override;
-};
-
-class Continue : public Statement {
- public:
-  Continue(Location location) noexcept : Statement(location) {}
-  void Print(std::ostream& output) const noexcept override;
-};
-
-class DiscardedExpression : public Statement {
- public:
-  DiscardedExpression(AnyExpression expression) noexcept
-      : Statement(expression.location()), expression_(std::move(expression)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  AnyExpression expression_;
-};
-
-class FunctionDefinition : public Statement {
- public:
-  FunctionDefinition(Location location, std::string_view name,
-                     std::vector<Name> arguments,
-                     std::vector<AnyStatement> body) noexcept
-      : Statement(location),
-        name_(name),
-        arguments_(std::move(arguments)),
-        body_(std::move(body)) {}
-  void Print(std::ostream& output) const noexcept override;
-
- private:
-  std::string name_;
-  std::vector<Name> arguments_;
-  std::vector<AnyStatement> body_;
-};
+static_assert(Statement<Continue>);
 
 }  // namespace aoc2021::ast
 

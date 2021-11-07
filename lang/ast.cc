@@ -31,182 +31,167 @@ template <typename T> List(T) -> List<T>;
 }  // namespace
 
 std::ostream& operator<<(std::ostream& output,
-                         const Expression& expression) noexcept {
-  expression.Print(output);
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output,
                          const AnyExpression& expression) noexcept {
-  expression.Print(output);
+  ExpressionPrinter printer(output);
+  expression.Visit(printer);
   return output;
 }
 
-void Name::Print(std::ostream& output) const noexcept {
-  output << "Name(" << std::quoted(value_) << ")";
+void ExpressionPrinter::operator()(const Name& x) {
+  *output_ << "Name(" << std::quoted(x.value) << ")";
 }
 
-void IntegerLiteral::Print(std::ostream& output) const noexcept {
-  output << "IntegerLiteral(" << value_ << ")";
+void ExpressionPrinter::operator()(const IntegerLiteral& x) {
+  *output_ << "IntegerLiteral(" << x.value << ")";
 }
 
-void Call::Print(std::ostream& output) const noexcept {
-  output << "Call(" << function_ << ", " << List(arguments_) << ")";
+void ExpressionPrinter::operator()(const Call& x) {
+  *output_ << "Call(" << x.function << ", " << List(x.arguments) << ")";
 }
 
-void Index::Print(std::ostream& output) const noexcept {
-  output << "Index(" << container_ << ", " << index_ << ")";
+void ExpressionPrinter::operator()(const Index& x) {
+  *output_ << "Index(" << x.container << ", " << x.index << ")";
 }
 
-void Negate::Print(std::ostream& output) const noexcept {
-  output << "Negate(" << inner_ << ")";
+void ExpressionPrinter::operator()(const Negate& x) {
+  *output_ << "Negate(" << x.inner << ")";
 }
 
-void LogicalNot::Print(std::ostream& output) const noexcept {
-  output << "LogicalNot(" << inner_ << ")";
+void ExpressionPrinter::operator()(const LogicalNot& x) {
+  *output_ << "LogicalNot(" << x.inner << ")";
 }
 
-void BitwiseNot::Print(std::ostream& output) const noexcept {
-  output << "BitwiseNot(" << inner_ << ")";
+void ExpressionPrinter::operator()(const BitwiseNot& x) {
+  *output_ << "BitwiseNot(" << x.inner << ")";
 }
 
-void Dereference::Print(std::ostream& output) const noexcept {
-  output << "Dereference(" << inner_ << ")";
+void ExpressionPrinter::operator()(const Dereference& x) {
+  *output_ << "Dereference(" << x.inner << ")";
 }
 
-void Add::Print(std::ostream& output) const noexcept {
-  output << "Add(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const Add& x) {
+  *output_ << "Add(" << x.left << ", " << x.right << ")";
 }
 
-void Subtract::Print(std::ostream& output) const noexcept {
-  output << "Subtract(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const Subtract& x) {
+  *output_ << "Subtract(" << x.left << ", " << x.right << ")";
 }
 
-void Multiply::Print(std::ostream& output) const noexcept {
-  output << "Multiply(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const Multiply& x) {
+  *output_ << "Multiply(" << x.left << ", " << x.right << ")";
 }
 
-void Divide::Print(std::ostream& output) const noexcept {
-  output << "Divide(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const Divide& x) {
+  *output_ << "Divide(" << x.left << ", " << x.right << ")";
 }
 
-void Modulo::Print(std::ostream& output) const noexcept {
-  output << "Modulo(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const Modulo& x) {
+  *output_ << "Modulo(" << x.left << ", " << x.right << ")";
 }
 
-void LessThan::Print(std::ostream& output) const noexcept {
-  output << "LessThan(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const LessThan& x) {
+  *output_ << "LessThan(" << x.left << ", " << x.right << ")";
 }
 
-void LessOrEqual::Print(std::ostream& output) const noexcept {
-  output << "LessOrEqual(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const LessOrEqual& x) {
+  *output_ << "LessOrEqual(" << x.left << ", " << x.right << ")";
 }
 
-void GreaterThan::Print(std::ostream& output) const noexcept {
-  output << "GreaterThan(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const GreaterThan& x) {
+  *output_ << "GreaterThan(" << x.left << ", " << x.right << ")";
 }
 
-void GreaterOrEqual::Print(std::ostream& output) const noexcept {
-  output << "GreaterOrEqual(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const GreaterOrEqual& x) {
+  *output_ << "GreaterOrEqual(" << x.left << ", " << x.right << ")";
 }
 
-void Equal::Print(std::ostream& output) const noexcept {
-  output << "Equal(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const Equal& x) {
+  *output_ << "Equal(" << x.left << ", " << x.right << ")";
 }
 
-void NotEqual::Print(std::ostream& output) const noexcept {
-  output << "NotEqual(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const NotEqual& x) {
+  *output_ << "NotEqual(" << x.left << ", " << x.right << ")";
 }
 
-void LogicalAnd::Print(std::ostream& output) const noexcept {
-  output << "LogicalAnd(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const LogicalAnd& x) {
+  *output_ << "LogicalAnd(" << x.left << ", " << x.right << ")";
 }
 
-void LogicalOr::Print(std::ostream& output) const noexcept {
-  output << "LogicalOr(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const LogicalOr& x) {
+  *output_ << "LogicalOr(" << x.left << ", " << x.right << ")";
 }
 
-void BitwiseAnd::Print(std::ostream& output) const noexcept {
-  output << "BitwiseAnd(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const BitwiseAnd& x) {
+  *output_ << "BitwiseAnd(" << x.left << ", " << x.right << ")";
 }
 
-void BitwiseOr::Print(std::ostream& output) const noexcept {
-  output << "BitwiseOr(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const BitwiseOr& x) {
+  *output_ << "BitwiseOr(" << x.left << ", " << x.right << ")";
 }
 
-void BitwiseXor::Print(std::ostream& output) const noexcept {
-  output << "BitwiseXor(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const BitwiseXor& x) {
+  *output_ << "BitwiseXor(" << x.left << ", " << x.right << ")";
 }
 
-void ShiftLeft::Print(std::ostream& output) const noexcept {
-  output << "ShiftLeft(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const ShiftLeft& x) {
+  *output_ << "ShiftLeft(" << x.left << ", " << x.right << ")";
 }
 
-void ShiftRight::Print(std::ostream& output) const noexcept {
-  output << "ShiftRight(" << left_ << ", " << right_ << ")";
+void ExpressionPrinter::operator()(const ShiftRight& x) {
+  *output_ << "ShiftRight(" << x.left << ", " << x.right << ")";
 }
 
-void TernaryExpression::Print(std::ostream& output) const noexcept {
-  output << "TernaryExpression(" << condition_ << ", " << then_branch_ << ", "
-         << else_branch_ << ")";
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const Statement& statement) noexcept {
-  statement.Print(output);
-  return output;
+void ExpressionPrinter::operator()(const TernaryExpression& x) {
+  *output_ << "TernaryExpression(" << x.condition << ", " << x.then_branch
+           << ", " << x.else_branch << ")";
 }
 
 std::ostream& operator<<(std::ostream& output,
                          const AnyStatement& statement) noexcept {
-  statement.Print(output);
+  StatementPrinter printer(output);
+  statement.Visit(printer);
   return output;
 }
 
-void DeclareScalar::Print(std::ostream& output) const noexcept {
-  output << "DeclareScalar(" << std::quoted(name_) << ")";
+void StatementPrinter::operator()(const DeclareScalar& x) {
+  *output_ << "DeclareScalar(" << std::quoted(x.name) << ")";
 }
 
-void DeclareArray::Print(std::ostream& output) const noexcept {
-  output << "DeclareArray(" << std::quoted(name_) << ", " << size_ << ")";
+void StatementPrinter::operator()(const DeclareArray& x) {
+  *output_ << "DeclareArray(" << std::quoted(x.name) << ", " << x.size << ")";
 }
 
-void Assign::Print(std::ostream& output) const noexcept {
-  output << "Assign(" << left_ << ", " << right_ << ")";
+void StatementPrinter::operator()(const Assign& x) {
+  *output_ << "Assign(" << x.left << ", " << x.right << ")";
 }
 
-void If::Print(std::ostream& output) const noexcept {
-  output << "If(" << condition_ << ", " << List(then_branch_) << ", "
-         << List(else_branch_) << ")";
+void StatementPrinter::operator()(const If& x) {
+  *output_ << "If(" << x.condition << ", " << List(x.then_branch) << ", "
+           << List(x.else_branch) << ")";
 }
 
-void While::Print(std::ostream& output) const noexcept {
-  output << "While(" << condition_ << ", " << List(body_) << ")";
+void StatementPrinter::operator()(const While& x) {
+  *output_ << "While(" << x.condition << ", " << List(x.body) << ")";
 }
 
-void Return::Print(std::ostream& output) const noexcept {
-  if (value_) {
-    output << "Return(" << *value_ << ")";
+void StatementPrinter::operator()(const Return& x) {
+  if (x.value) {
+    *output_ << "Return(" << *x.value << ")";
   } else {
-    output << "Return()";
+    *output_ << "Return()";
   }
 }
 
-void Break::Print(std::ostream& output) const noexcept {
-  output << "Break()";
+void StatementPrinter::operator()(const Break&) { *output_ << "Break()"; }
+void StatementPrinter::operator()(const Continue&) { *output_ << "Continue()"; }
+
+void StatementPrinter::operator()(const DiscardedExpression& x) {
+  *output_ << "DiscardedExpression(" << x.expression << ")";
 }
 
-void Continue::Print(std::ostream& output) const noexcept {
-  output << "Continue()";
-}
-
-void DiscardedExpression::Print(std::ostream& output) const noexcept {
-  output << "DiscardedExpression(" << expression_ << ")";
-}
-
-void FunctionDefinition::Print(std::ostream& output) const noexcept {
-  output << "FunctionDefinition(" << std::quoted(name_) << ", "
-         << List(arguments_) << ", " << List(body_) << ")";
+void StatementPrinter::operator()(const FunctionDefinition& x) {
+  *output_ << "FunctionDefinition(" << std::quoted(x.name) << ", "
+           << List(x.arguments) << ", " << List(x.body) << ")";
 }
 
 }  // namespace aoc2021::ast
