@@ -362,7 +362,7 @@ struct DiscardedExpression {
 struct FunctionDefinition {
   Location location;
   std::string name;
-  std::vector<Name> arguments;
+  std::vector<Name> parameters;
   std::vector<AnyStatement> body;
 };
 

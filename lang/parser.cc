@@ -459,10 +459,10 @@ AnyStatement Parser::ParseFunctionDefinition() {
   SkipWhitespaceAndComments();
   if (!reader_.ConsumePrefix("(")) throw Error("expected '('");
   SkipWhitespaceAndComments();
-  std::vector<Name> arguments;
+  std::vector<Name> parameters;
   if (!reader_.ConsumePrefix(")")) {
     while (true) {
-      arguments.push_back(ParseName());
+      parameters.push_back(ParseName());
       SkipWhitespaceAndComments();
       if (reader_.ConsumePrefix(")")) break;
       if (!reader_.ConsumePrefix(",")) throw Error("expected ','");
@@ -470,7 +470,7 @@ AnyStatement Parser::ParseFunctionDefinition() {
     }
   }
   SkipWhitespaceAndComments();
-  return FunctionDefinition(location, std::string(name), std::move(arguments),
+  return FunctionDefinition(location, std::string(name), std::move(parameters),
                             ParseBlock());
 }
 

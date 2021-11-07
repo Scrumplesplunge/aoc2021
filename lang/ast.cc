@@ -191,7 +191,7 @@ void StatementPrinter::operator()(const DiscardedExpression& x) {
 
 void StatementPrinter::operator()(const FunctionDefinition& x) {
   *output_ << "FunctionDefinition(" << std::quoted(x.name) << ", "
-           << List(x.arguments) << ", " << List(x.body) << ")";
+           << List(x.parameters) << ", " << List(x.body) << ")";
 }
 
 }  // namespace aoc2021::ast
