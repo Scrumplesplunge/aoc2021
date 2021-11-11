@@ -282,10 +282,12 @@ T AnyExpression::Visit(ExpressionVisitor<T>& visitor) const {
   return std::move(v).Consume();
 }
 
+template <typename T>
 struct StatementVisitor;
 
 template <typename T>
-concept Statement = Located<T> && std::invocable<StatementVisitor&, const T&>;
+concept Statement =
+    Located<T> && std::invocable<StatementVisitor<void>&, const T&>;
 
 class AnyStatement {
  public:
@@ -294,14 +296,21 @@ class AnyStatement {
   AnyStatement(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
 
   const Location& location() const noexcept { return value_->location(); }
-  void Visit(StatementVisitor& visitor) const { return value_->Visit(visitor); }
+
+  void Visit(StatementVisitor<void>& visitor) const {
+    return value_->Visit(visitor);
+  }
+
+  template <typename T>
+  T Visit(StatementVisitor<T>& visitor) const;
+
   explicit operator bool() const noexcept { return value_ != nullptr; }
 
  private:
   struct Interface {
     virtual ~Interface() = default;
     virtual const Location& location() const noexcept = 0;
-    virtual void Visit(StatementVisitor&) const = 0;
+    virtual void Visit(StatementVisitor<void>&) const = 0;
   };
 
   template <Statement T>
@@ -313,7 +322,9 @@ class AnyStatement {
       return value_.location;
     }
 
-    void Visit(StatementVisitor& visitor) const override { visitor(value_); }
+    void Visit(StatementVisitor<void>& visitor) const override {
+      visitor(value_);
+    }
 
    private:
     T value_;
@@ -377,19 +388,49 @@ struct FunctionDefinition {
   std::vector<AnyStatement> body;
 };
 
+template <typename T>
 struct StatementVisitor {
   virtual ~StatementVisitor() = default;
-  virtual void operator()(const DeclareScalar&) = 0;
-  virtual void operator()(const DeclareArray&) = 0;
-  virtual void operator()(const Assign&) = 0;
-  virtual void operator()(const If&) = 0;
-  virtual void operator()(const While&) = 0;
-  virtual void operator()(const Return&) = 0;
-  virtual void operator()(const Break&) = 0;
-  virtual void operator()(const Continue&) = 0;
-  virtual void operator()(const DiscardedExpression&) = 0;
-  virtual void operator()(const FunctionDefinition&) = 0;
+  virtual T operator()(const DeclareScalar&) = 0;
+  virtual T operator()(const DeclareArray&) = 0;
+  virtual T operator()(const Assign&) = 0;
+  virtual T operator()(const If&) = 0;
+  virtual T operator()(const While&) = 0;
+  virtual T operator()(const Return&) = 0;
+  virtual T operator()(const Break&) = 0;
+  virtual T operator()(const Continue&) = 0;
+  virtual T operator()(const DiscardedExpression&) = 0;
+  virtual T operator()(const FunctionDefinition&) = 0;
 };
+
+template <typename T>
+T AnyStatement::Visit(StatementVisitor<T>& visitor) const {
+  struct ProxyVisitor : StatementVisitor<void> {
+    ProxyVisitor(StatementVisitor<T>& f) noexcept : f(f) {}
+    void operator()(const DeclareScalar& x) override { new (result) T(f(x)); }
+    void operator()(const DeclareArray& x) override { new (result) T(f(x)); }
+    void operator()(const Assign& x) override { new (result) T(f(x)); }
+    void operator()(const If& x) override { new (result) T(f(x)); }
+    void operator()(const While& x) override { new (result) T(f(x)); }
+    void operator()(const Return& x) override { new (result) T(f(x)); }
+    void operator()(const Break& x) override { new (result) T(f(x)); }
+    void operator()(const Continue& x) override { new (result) T(f(x)); }
+    void operator()(const DiscardedExpression& x) override {
+      new (result) T(f(x));
+    }
+    void operator()(const FunctionDefinition& x) override {
+      new (result) T(f(x));
+    }
+
+    T Consume() && { return std::move(*(T*)result); }
+
+    StatementVisitor<T>& f;
+    alignas(T) char result[sizeof(T)];
+  };
+  ProxyVisitor v{visitor};
+  Visit(v);
+  return std::move(v).Consume();
+}
 
 }  // namespace aoc2021::ast
 

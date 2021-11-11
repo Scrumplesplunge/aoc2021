@@ -2,6 +2,7 @@
 #define CHECKER_H_
 
 #include "ast.h"
+#include "ir.h"
 #include "source.h"
 
 #include <span>
@@ -12,11 +13,7 @@ struct CheckError : public SourceError {
   using SourceError::SourceError;
 };
 
-// Eventually, the checker will emit IR as it checks the program. For now, it
-// just checks the correctness of the input.
-struct TODO {};
-
-TODO Check(std::span<const ast::AnyStatement> program);
+ir::Sequence Check(std::span<const ast::AnyStatement> program);
 
 }  // namespace aoc2021
 

@@ -31,11 +31,14 @@ template <typename T> List(T) -> List<T>;
 class ExpressionPrinter : public ExpressionVisitor<void> {
  public:
   ExpressionPrinter(std::ostream& output) noexcept : output_(&output) {}
+  void operator()(const Label& x) override {
+    *output_ << "Label{" << static_cast<std::int64_t>(x) << "}";
+  }
   void operator()(const Global& x) override {
-    *output_ << "Global(" << std::quoted(x.name) << ")";
+    *output_ << "Global{" << static_cast<std::int64_t>(x) << "}";
   }
   void operator()(const Local& x) override {
-    *output_ << "Local(Id{" << static_cast<int>(x.id) << "})";
+    *output_ << "Local(Offset{" << static_cast<std::int64_t>(x.offset) << "})";
   }
   void operator()(const Load64& x) override {
     *output_ << "Load64(" << x.address << ")";
@@ -102,12 +105,32 @@ class ExpressionPrinter : public ExpressionVisitor<void> {
 class CodePrinter : public CodeVisitor<void> {
  public:
   CodePrinter(std::ostream& output) noexcept : output_(&output) {}
+  void operator()(const Label& x) override {
+    *output_ << "Label{" << static_cast<int>(x) << "}";
+  }
   void operator()(const Store64& x) override {
     *output_ << "Store64(" << x.address << ", " << x.value << ")";
   }
   void operator()(const StoreCall64& x) override {
     *output_ << "StoreCall64(" << x.result_address << ", " << x.function_address
              << ", " << List(x.arguments) << ")";
+  }
+  void operator()(const AdjustStack& x) override {
+    *output_ << "AdjustStack(" << x.delta << ")";
+  }
+  void operator()(const Return& x) override {
+    *output_ << "Return(" << x.value << ")";
+  }
+  void operator()(const Jump& x) override {
+    *output_ << "Jump(Label{" << static_cast<int>(x.target) << "})";
+  }
+  void operator()(const JumpIf& x) override {
+    *output_ << "JumpIf(" << x.condition << ", Label{"
+             << static_cast<int>(x.target) << "})";
+  }
+  void operator()(const JumpUnless& x) override {
+    *output_ << "JumpUnless(" << x.condition << ", Label{"
+             << static_cast<int>(x.target) << "})";
   }
   void operator()(const Sequence& x) override {
     *output_ << "Sequence(" << List(x.value) << ")";
@@ -120,12 +143,16 @@ class CodePrinter : public CodeVisitor<void> {
 class CodeFlattener : public CodeVisitor<void> {
  public:
   CodeFlattener(Sequence& result) noexcept : result_(&result) {}
-  void operator()(const Store64& x) override {
-    result_->value.push_back(x);
-  }
+  void operator()(const Label& x) override { result_->value.push_back(x); }
+  void operator()(const Store64& x) override { result_->value.push_back(x); }
   void operator()(const StoreCall64& x) override {
     result_->value.push_back(x);
   }
+  void operator()(const AdjustStack& x) override { result_->value.push_back(x); }
+  void operator()(const Return& x) override { result_->value.push_back(x); }
+  void operator()(const Jump& x) override { result_->value.push_back(x); }
+  void operator()(const JumpIf& x) override { result_->value.push_back(x); }
+  void operator()(const JumpUnless& x) override { result_->value.push_back(x); }
   void operator()(const Sequence& x) override {
     for (const auto& y : x.value) y.Visit(*this);
   }

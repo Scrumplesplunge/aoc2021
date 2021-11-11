@@ -18,7 +18,8 @@ int main(int argc, char* argv[]) {
       std::cout << statement << ',';
     }
     std::cout << "});\n";
-    [[maybe_unused]] const auto code = aoc2021::Check(program);
+    const auto code = aoc2021::Check(program);
+    std::cout << '\n' << code << '\n';
   } catch (const aoc2021::ParseError& error) {
     std::cerr << error.what() << '\n';
   }

@@ -145,7 +145,7 @@ class ExpressionPrinter : public ExpressionVisitor<void> {
   std::ostream* output_;
 };
 
-class StatementPrinter : public StatementVisitor {
+class StatementPrinter : public StatementVisitor<void> {
  public:
   StatementPrinter(std::ostream& output) noexcept : output_(&output) {}
 
