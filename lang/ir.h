@@ -3,44 +3,59 @@
 
 #include <concepts>
 #include <memory>
+#include <vector>
 
 namespace aoc2021::ir {
 
 template <typename T>
-struct StepVisitor;
+struct ExpressionVisitor;
 
 template <typename T>
-concept Step = std::invocable<StepVisitor<void>&, const T&>;
+concept Expression =
+    std::copy_constructible<T> &&
+    std::invocable<ExpressionVisitor<void>&, const T&>;
 
-class AnyStep {
+class AnyExpression {
  public:
   // Implicit conversion from any type of expression.
-  template <Step T>
-  AnyStep(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
+  template <Expression T>
+  AnyExpression(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
 
-  void Visit(StepVisitor<void>& visitor) const {
+  AnyExpression(AnyExpression&&) noexcept = default;
+  AnyExpression& operator=(AnyExpression&&) noexcept = default;
+
+  AnyExpression(const AnyExpression& other) : value_(other.value_->Copy()) {}
+  AnyExpression& operator=(const AnyExpression& other) {
+    if (this != &other) value_.reset(other.value_->Copy());
+    return *this;
+  }
+
+  void Visit(ExpressionVisitor<void>& visitor) const {
     return value_->Visit(visitor);
   }
 
   template <typename T>
-  T Visit(StepVisitor<T>& visitor) const;
+  T Visit(ExpressionVisitor<T>& visitor) const;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
 
  private:
   struct Interface {
     virtual ~Interface() = default;
-    virtual void Visit(StepVisitor<void>&) const = 0;
+    virtual void Visit(ExpressionVisitor<void>&) const = 0;
+    virtual Interface* Copy() const = 0;
   };
 
-  template <Step T>
+  template <Expression T>
   class Adaptor : public Interface {
    public:
     explicit Adaptor(T value) noexcept : value_(std::move(value)) {}
 
-    void Visit(StepVisitor<void>& visitor) const override {
+    void Visit(ExpressionVisitor<void>& visitor) const override {
       visitor(value_);
     }
+
+    Adaptor* Copy() const override { return new Adaptor(value_); }
 
    private:
     T value_;
@@ -49,56 +64,50 @@ class AnyStep {
   std::unique_ptr<Interface> value_;
 };
 
-std::ostream& operator<<(std::ostream&, const AnyStep&) noexcept;
+std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
 // Represents the address of a global variable.
 struct Global { std::string name; };
 
-// Represents the address of a local variable as its offset from the frame
-// pointer.
-struct Local { std::int64_t offset; };
+// Represents the address of a local variable, identified by its ID. IDs are
+// unique within the scope of a single function.
+struct Local {
+  enum class Id : int {};
+  Id id;
+};
 
-// Pops an address and loads a 64-bit value from it.
-struct Load64 {};
+// Loads a 64-bit value from the given address.
+struct Load64 { AnyExpression address; };
 
-// Pops an address, pops a 64-bit value, stores the value to the address.
-struct Store64 {};
-
-// Push a constant integer.
+// Represents a literal value.
 struct IntegerLiteral { std::int64_t value; };
 
-// Pop a function pointer, call it with the given number of arguments.
-struct Call { std::int64_t num_arguments; };
-
-// Pure calculation. Unary expressions pop an argument and push a result. Binary
-// expressions pop b, then a, then push f(a, b).
-struct Negate {};
-struct LogicalNot {};
-struct BitwiseNot {};
-struct Add {};
-struct Subtract {};
-struct Multiply {};
-struct Divide {};
-struct Modulo {};
-struct LessThan {};
-struct LessOrEqual {};
-struct Equal {};
-struct NotEqual {};
-struct BitwiseAnd {};
-struct BitwiseOr {};
-struct BitwiseXor {};
-struct ShiftLeft {};
-struct ShiftRight {};
+// Pure calculation.
+struct Negate { AnyExpression inner; };
+struct LogicalNot { AnyExpression inner; };
+struct BitwiseNot { AnyExpression inner; };
+struct Add { AnyExpression left, right; };
+struct Subtract { AnyExpression left, right; };
+struct Multiply { AnyExpression left, right; };
+struct Divide { AnyExpression left, right; };
+struct Modulo { AnyExpression left, right; };
+struct LessThan { AnyExpression left, right; };
+struct LessOrEqual { AnyExpression left, right; };
+struct Equal { AnyExpression left, right; };
+struct NotEqual { AnyExpression left, right; };
+struct BitwiseAnd { AnyExpression left, right; };
+struct BitwiseOr { AnyExpression left, right; };
+struct BitwiseXor { AnyExpression left, right; };
+struct ShiftLeft { AnyExpression left, right; };
+struct ShiftRight { AnyExpression left, right; };
 
 template <typename T>
-struct StepVisitor {
-  virtual ~StepVisitor() = default;
+struct ExpressionVisitor {
+  virtual ~ExpressionVisitor() = default;
   virtual T operator()(const Global&) = 0;
   virtual T operator()(const Local&) = 0;
   virtual T operator()(const Load64&) = 0;
-  virtual T operator()(const Store64&) = 0;
   virtual T operator()(const IntegerLiteral&) = 0;
-  virtual T operator()(const Call&) = 0;
   virtual T operator()(const Negate&) = 0;
   virtual T operator()(const LogicalNot&) = 0;
   virtual T operator()(const BitwiseNot&) = 0;
@@ -117,6 +126,112 @@ struct StepVisitor {
   virtual T operator()(const ShiftLeft&) = 0;
   virtual T operator()(const ShiftRight&) = 0;
 };
+
+template <typename T>
+T AnyExpression::Visit(ExpressionVisitor<T>& visitor) const {
+  struct ProxyVisitor : ExpressionVisitor<void> {
+    ProxyVisitor(ExpressionVisitor<T>& f) noexcept : f(f) {}
+    void operator()(const Global& x) override { new (result) T(f(x)); }
+    void operator()(const Local& x) override { new (result) T(f(x)); }
+    void operator()(const Load64& x) override { new (result) T(f(x)); }
+    void operator()(const IntegerLiteral& x) override { new (result) T(f(x)); }
+    void operator()(const Negate& x) override { new (result) T(f(x)); }
+    void operator()(const LogicalNot& x) override { new (result) T(f(x)); }
+    void operator()(const BitwiseNot& x) override { new (result) T(f(x)); }
+    void operator()(const Add& x) override { new (result) T(f(x)); }
+    void operator()(const Subtract& x) override { new (result) T(f(x)); }
+    void operator()(const Multiply& x) override { new (result) T(f(x)); }
+    void operator()(const Divide& x) override { new (result) T(f(x)); }
+    void operator()(const Modulo& x) override { new (result) T(f(x)); }
+    void operator()(const LessThan& x) override { new (result) T(f(x)); }
+    void operator()(const LessOrEqual& x) override { new (result) T(f(x)); }
+    void operator()(const Equal& x) override { new (result) T(f(x)); }
+    void operator()(const NotEqual& x) override { new (result) T(f(x)); }
+    void operator()(const BitwiseAnd& x) override { new (result) T(f(x)); }
+    void operator()(const BitwiseOr& x) override { new (result) T(f(x)); }
+    void operator()(const BitwiseXor& x) override { new (result) T(f(x)); }
+    void operator()(const ShiftLeft& x) override { new (result) T(f(x)); }
+    void operator()(const ShiftRight& x) override { new (result) T(f(x)); }
+
+    T Consume() && { return std::move(*(T*)result); }
+
+    ExpressionVisitor<T>& f;
+    alignas(T) char result[sizeof(T)];
+  };
+  ProxyVisitor v{visitor};
+  Visit(v);
+  return std::move(v).Consume();
+}
+
+template <typename T>
+struct CodeVisitor;
+
+template <typename T>
+concept Code = std::invocable<CodeVisitor<void>&, const T&>;
+
+class AnyCode {
+ public:
+  // Implicit conversion from any type of expression.
+  template <Code T>
+  AnyCode(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
+
+  void Visit(CodeVisitor<void>& visitor) const {
+    return value_->Visit(visitor);
+  }
+
+  template <typename T>
+  T Visit(CodeVisitor<T>& visitor) const;
+
+  explicit operator bool() const noexcept { return value_ != nullptr; }
+
+ private:
+  struct Interface {
+    virtual ~Interface() = default;
+    virtual void Visit(CodeVisitor<void>&) const = 0;
+  };
+
+  template <Code T>
+  class Adaptor : public Interface {
+   public:
+    explicit Adaptor(T value) noexcept : value_(std::move(value)) {}
+
+    void Visit(CodeVisitor<void>& visitor) const override {
+      visitor(value_);
+    }
+
+   private:
+    T value_;
+  };
+
+  std::unique_ptr<Interface> value_;
+};
+
+std::ostream& operator<<(std::ostream&, const AnyCode&) noexcept;
+
+// Pops an address, pops a 64-bit value, stores the value to the address.
+struct Store64 { AnyExpression address, value; };
+
+// Call a function with the given arguments, store the 64-bit result to the
+// given address.
+struct StoreCall64 {
+  AnyExpression result_address;
+  AnyExpression function_address;
+  std::vector<AnyExpression> arguments;
+};
+
+struct Sequence {
+  std::vector<AnyCode> value;
+};
+
+template <typename T>
+struct CodeVisitor {
+  virtual ~CodeVisitor() = default;
+  virtual T operator()(const Store64&) = 0;
+  virtual T operator()(const StoreCall64&) = 0;
+  virtual T operator()(const Sequence&) = 0;
+};
+
+Sequence Flatten(const AnyCode& code);
 
 }  // namespace aoc2021::ir
 
