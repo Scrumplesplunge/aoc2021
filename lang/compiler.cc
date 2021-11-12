@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "checker.h"
+#include "codegen.h"
 
 #include <exception>
 #include <iostream>
@@ -13,13 +14,14 @@ int main(int argc, char* argv[]) {
   aoc2021::Parser parser(source);
   try {
     const auto program = parser.ParseProgram();
-    std::cout << "Check({";
+    std::cerr << "Check({";
     for (const auto& statement : program) {
-      std::cout << statement << ',';
+      std::cerr << statement << ',';
     }
-    std::cout << "});\n";
+    std::cerr << "});\n";
     const auto code = aoc2021::Check(program);
-    std::cout << '\n' << code << '\n';
+    std::cerr << '\n' << code << '\n';
+    std::cout << aoc2021::Generate(code) << '\n';
   } catch (const aoc2021::ParseError& error) {
     std::cerr << error.what() << '\n';
   }
