@@ -251,6 +251,40 @@ class FrameAllocator {
   std::int64_t max_size_ = 0;
 };
 
+using Value = std::variant<std::int64_t, ir::Label, ir::Global, ir::Local>;
+
+ir::AnyExpression AsAddress(Location location, std::int64_t x) {
+  throw Error(location, "constant is not an lvalue");
+}
+
+ir::AnyExpression AsAddress(Location location, ir::Label x) { return x; }
+ir::AnyExpression AsAddress(Location location, ir::Global x) { return x; }
+ir::AnyExpression AsAddress(Location location, ir::Local x) { return x; }
+
+ir::AnyExpression AsAddress(Location location, const Value& v) {
+  return std::visit([&](auto& x) { return AsAddress(location, x); }, v);
+}
+
+ir::AnyExpression AsValue(Location location, std::int64_t x) {
+  return ir::IntegerLiteral(x);
+}
+
+ir::AnyExpression AsValue(Location location, ir::Label x) {
+  return ir::Load64(x);
+}
+
+ir::AnyExpression AsValue(Location location, ir::Global x) {
+  return ir::Load64(x);
+}
+
+ir::AnyExpression AsValue(Location location, ir::Local x) {
+  return ir::Load64(x);
+}
+
+ir::AnyExpression AsValue(Location location, const Value& v) {
+  return std::visit([&](auto& x) { return AsValue(location, x); }, v);
+}
+
 class Environment {
  public:
   enum class ShadowMode {
@@ -260,7 +294,7 @@ class Environment {
 
   struct Definition {
     Location location;
-    ir::AnyExpression value;
+    Value value;
   };
 
   Environment() noexcept : parent_(nullptr), shadow_mode_(ShadowMode::kDeny) {}
@@ -471,7 +505,7 @@ class ModuleStatementChecker : public ast::StatementVisitor<ir::AnyCode> {
 ExpressionInfo ExpressionChecker::operator()(const ast::Name& x) {
   auto* definition = environment_->Lookup(x.value);
   if (!definition) throw UndeclaredError(x.value, x.location);
-  return ExpressionInfo{.value = definition->value};
+  return ExpressionInfo{.value = AsValue(x.location, definition->value)};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::IntegerLiteral& x) {
@@ -744,7 +778,7 @@ ExpressionInfo ExpressionChecker::CheckValue(const ast::AnyExpression& x) {
 ExpressionInfo AddressChecker::operator()(const ast::Name& x) {
   auto* definition = environment_->Lookup(x.value);
   if (!definition) throw UndeclaredError(x.value, x.location);
-  return ExpressionInfo{.value = definition->value};
+  return ExpressionInfo{.value = AsAddress(x.location, definition->value)};
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::IntegerLiteral& x) {
@@ -1029,9 +1063,9 @@ ir::AnyCode CheckBlock(Context& context, Environment& parent_environment,
 
 ir::AnyCode StatementChecker::operator()(const ast::DeclareScalar& x) {
   const ir::Local::Offset offset = frame_->Allocate(1);
-  environment_->Define(
-      x.name, Environment::Definition{.location = x.location,
-                                      .value = ir::Load64(ir::Local(offset))});
+  environment_->Define(x.name,
+                       Environment::Definition{.location = x.location,
+                                               .value = ir::Local(offset)});
   return ir::Sequence();
 }
 
@@ -1136,9 +1170,8 @@ ir::AnyCode StatementChecker::CheckBlock(
 
 ir::AnyCode ModuleStatementChecker::operator()(const ast::DeclareScalar& x) {
   const ir::Global global = context_->Global(1);
-  environment_->Define(x.name,
-                       Environment::Definition{.location = x.location,
-                                               .value = ir::Load64(global)});
+  environment_->Define(
+      x.name, Environment::Definition{.location = x.location, .value = global});
   return ir::Sequence();
 }
 
@@ -1208,9 +1241,8 @@ ir::AnyCode ModuleStatementChecker::operator()(
     const auto& parameter = x.parameters[i];
     const ir::Local::Offset offset{i + 2};
     function_environment.Define(
-        parameter.value,
-        Environment::Definition{.location = parameter.location,
-                                .value = ir::Load64(ir::Local(offset))});
+        parameter.value, Environment::Definition{.location = parameter.location,
+                                                 .value = ir::Local(offset)});
   }
 
   FrameAllocator frame;

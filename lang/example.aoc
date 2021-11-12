@@ -22,3 +22,9 @@ function demo(x, y) {
     return 4;
   }
 }
+
+function demo2(x) {
+  x = 1;
+  var y;
+  y = x;
+}
