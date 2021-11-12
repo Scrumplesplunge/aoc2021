@@ -1,5 +1,7 @@
 #include "ir.h"
 
+#include "string_utils.h"
+
 #include <iomanip>
 
 namespace aoc2021::ir {
@@ -32,10 +34,10 @@ class ExpressionPrinter : public ExpressionVisitor<void> {
  public:
   ExpressionPrinter(std::ostream& output) noexcept : output_(&output) {}
   void operator()(const Label& x) override {
-    *output_ << "Label{" << static_cast<std::int64_t>(x) << "}";
+    *output_ << "Label(" << std::quoted(x.value) << ")";
   }
   void operator()(const Global& x) override {
-    *output_ << "Global{" << static_cast<std::int64_t>(x) << "}";
+    *output_ << "Global(" << std::quoted(x.value) << ")";
   }
   void operator()(const Local& x) override {
     *output_ << "Local(Offset{" << static_cast<std::int64_t>(x.offset) << "})";
@@ -106,7 +108,7 @@ class CodePrinter : public CodeVisitor<void> {
  public:
   CodePrinter(std::ostream& output) noexcept : output_(&output) {}
   void operator()(const Label& x) override {
-    *output_ << "Label{" << static_cast<int>(x) << "}";
+    *output_ << "Label(" << std::quoted(x.value) << ")";
   }
   void operator()(const Store64& x) override {
     *output_ << "Store64(" << x.address << ", " << x.value << ")";
@@ -122,15 +124,15 @@ class CodePrinter : public CodeVisitor<void> {
     *output_ << "Return(" << x.value << ")";
   }
   void operator()(const Jump& x) override {
-    *output_ << "Jump(Label{" << static_cast<int>(x.target) << "})";
+    *output_ << "Jump(Label(" << std::quoted(x.target.value) << "))";
   }
   void operator()(const JumpIf& x) override {
-    *output_ << "JumpIf(" << x.condition << ", Label{"
-             << static_cast<int>(x.target) << "})";
+    *output_ << "JumpIf(" << x.condition << ", Label("
+             << std::quoted(x.target.value) << "))";
   }
   void operator()(const JumpUnless& x) override {
-    *output_ << "JumpUnless(" << x.condition << ", Label{"
-             << static_cast<int>(x.target) << "})";
+    *output_ << "JumpUnless(" << x.condition << ", Label("
+             << std::quoted(x.target.value) << "))";
   }
   void operator()(const Sequence& x) override {
     *output_ << "Sequence(" << List(x.value) << ")";
@@ -169,6 +171,12 @@ std::ostream& operator<<(std::ostream& output,
   step.Visit(printer);
   return output;
 }
+
+Label::Label(std::string_view prefix, std::int64_t suffix)
+    : value(StrCat("label_", prefix, '_', suffix)) {}
+
+Global::Global(std::string_view prefix, std::int64_t suffix)
+    : value(StrCat("global_", prefix, '_', suffix)) {}
 
 std::ostream& operator<<(std::ostream& output,
                          const AnyCode& step) noexcept {

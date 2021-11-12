@@ -67,10 +67,16 @@ class AnyExpression {
 std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
 // Represents an instruction address, such as a function address or jump target.
-enum class Label : std::int64_t {};
+struct Label {
+  Label(std::string_view prefix, std::int64_t suffix);
+  std::string value;
+};
 
 // Represents the address of a global variable with the given ID.
-enum class Global : std::int64_t {};
+struct Global {
+  Global(std::string_view prefix, std::int64_t suffix);
+  std::string value;
+};
 
 // Represents the address of a local variable, identified by its offset from the
 // frame pointer.

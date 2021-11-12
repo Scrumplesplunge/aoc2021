@@ -208,12 +208,12 @@ std::optional<std::int64_t> Evaluate(const ir::AnyExpression& expression) {
 
 class Context {
  public:
-  ir::Label Label() {
-    return ir::Label(next_label_index_++);
+  ir::Label Label(std::string_view prefix) {
+    return ir::Label(prefix, next_label_index_++);
   }
 
-  ir::Global Global(std::int64_t size) {
-    const ir::Global result{next_global_offset_};
+  ir::Global Global(std::string_view prefix, std::int64_t size) {
+    const ir::Global result(prefix, next_global_offset_);
     next_global_offset_ += size;
     return result;
   }
@@ -660,7 +660,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalAnd& x) {
   ExpressionInfo right = CheckValue(x.right);
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label end = context_->Label();
+  const ir::Label end = context_->Label("logical_end");
   // a && b compiles into:
   //   temp = a
   //   if (!temp) goto end
@@ -682,7 +682,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalOr& x) {
   ExpressionInfo right = CheckValue(x.right);
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label end = context_->Label();
+  const ir::Label end = context_->Label("logical_or_end");
   // a || b compiles into:
   //   temp = a
   //   if (temp) goto end
@@ -745,8 +745,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
   ExpressionInfo else_branch = CheckValue(x.else_branch);
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label if_false = context_->Label();
-  const ir::Label end = context_->Label();
+  const ir::Label if_false = context_->Label("ternary_else");
+  const ir::Label end = context_->Label("ternary_end");
   // cond ? a : b compiles into:
   //   cond
   //   if (!cond) goto if_false
@@ -933,7 +933,7 @@ ExpressionInfo AddressChecker::operator()(const ast::LogicalAnd& x) {
   ExpressionInfo right = CheckValue(x.right);
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label end = context_->Label();
+  const ir::Label end = context_->Label("logical_and_end");
   // a && b compiles into:
   //   temp = a
   //   if (!temp) goto end
@@ -955,7 +955,7 @@ ExpressionInfo AddressChecker::operator()(const ast::LogicalOr& x) {
   ExpressionInfo right = CheckValue(x.right);
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label end = context_->Label();
+  const ir::Label end = context_->Label("logical_or_end");
   // a || b compiles into:
   //   temp = a
   //   if (temp) goto end
@@ -1018,8 +1018,8 @@ ExpressionInfo AddressChecker::operator()(const ast::TernaryExpression& x) {
   ExpressionInfo else_branch = CheckValue(x.else_branch);
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label if_false = context_->Label();
-  const ir::Label end = context_->Label();
+  const ir::Label if_false = context_->Label("ternary_else");
+  const ir::Label end = context_->Label("ternary_end");
   // cond ? a : b compiles into:
   //   cond
   //   if (!cond) goto if_false
@@ -1093,8 +1093,8 @@ ir::AnyCode StatementChecker::operator()(const ast::If& x) {
   ExpressionInfo condition = CheckValue(x.condition);
   ir::AnyCode then_branch = CheckBlock(x.then_branch);
   ir::AnyCode else_branch = CheckBlock(x.else_branch);
-  const ir::Label if_false = context_->Label();
-  const ir::Label end = context_->Label();
+  const ir::Label if_false = context_->Label("if_false");
+  const ir::Label end = context_->Label("if_end");
   return ir::Sequence({std::move(condition.code),
                        ir::JumpUnless(std::move(condition.value), if_false),
                        std::move(then_branch), ir::Jump(end), if_false,
@@ -1102,9 +1102,9 @@ ir::AnyCode StatementChecker::operator()(const ast::If& x) {
 }
 
 ir::AnyCode StatementChecker::operator()(const ast::While& x) {
-  const ir::Label loop_start = context_->Label();
-  const ir::Label loop_condition = context_->Label();
-  const ir::Label loop_end = context_->Label();
+  const ir::Label loop_start = context_->Label("while_start");
+  const ir::Label loop_condition = context_->Label("while_condition");
+  const ir::Label loop_end = context_->Label("while_end");
   ExpressionInfo condition = CheckValue(x.condition);
   Environment while_environment(*environment_, Environment::ShadowMode::kDeny);
   while_environment.SetBreak(loop_end);
@@ -1169,7 +1169,7 @@ ir::AnyCode StatementChecker::CheckBlock(
 }
 
 ir::AnyCode ModuleStatementChecker::operator()(const ast::DeclareScalar& x) {
-  const ir::Global global = context_->Global(1);
+  const ir::Global global = context_->Global(x.name, 1);
   environment_->Define(
       x.name, Environment::Definition{.location = x.location, .value = global});
   return ir::Sequence();
@@ -1180,7 +1180,7 @@ ir::AnyCode ModuleStatementChecker::operator()(const ast::DeclareArray& x) {
   if (!size) {
     throw Error(x.location, "array size must be a constant expression");
   }
-  const ir::Global global = context_->Global(*size);
+  const ir::Global global = context_->Global(x.name, *size);
   environment_->Define(
       x.name, Environment::Definition{.location = x.location, .value = global});
   return ir::Sequence();
@@ -1221,7 +1221,7 @@ ir::AnyCode ModuleStatementChecker::operator()(
 
 ir::AnyCode ModuleStatementChecker::operator()(
     const ast::FunctionDefinition& x) {
-  const ir::Label function = context_->Label();
+  const ir::Label function = context_->Label("function");
   // TODO: Derive symbolic constant names in a better way.
   environment_->Define(x.name, Environment::Definition{.location = x.location,
                                                        .value = function});

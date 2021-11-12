@@ -5,18 +5,12 @@
 namespace aoc2021 {
 namespace {
 
-struct Label { ir::Label value; };
-
-std::ostream& operator<<(std::ostream& output, const Label& l) {
-  return output << "label" << (std::int64_t)l.value;
-}
-
 class CodeGenerator : public ir::CodeVisitor<void> {
  public:
   CodeGenerator(std::ostream& output) noexcept : output_(&output) {}
 
   void operator()(const ir::Label& x) override {
-    *output_ << Label(x) << ":\n";
+    *output_ << x.value << ":\n";
   }
 
   void operator()(const ir::Store64&) override {
@@ -40,15 +34,15 @@ class CodeGenerator : public ir::CodeVisitor<void> {
   }
 
   void operator()(const ir::Jump& x) override {
-    *output_ << "  jmp " << Label(x.target) << "\n";
+    *output_ << "  jmp " << x.target.value << "\n";
   }
 
   void operator()(const ir::JumpIf& x) override {
-    *output_ << "  <JUMP IF CONDITION> " << Label(x.target) << "\n";
+    *output_ << "  <JUMP IF CONDITION> " << x.target.value << "\n";
   }
 
   void operator()(const ir::JumpUnless& x) override {
-    *output_ << "  <JUMP UNLESS CONDITION> " << Label(x.target) << "\n";
+    *output_ << "  <JUMP UNLESS CONDITION> " << x.target.value << "\n";
   }
 
   void operator()(const ir::Sequence& x) override {
