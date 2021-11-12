@@ -270,7 +270,7 @@ ir::AnyExpression AsValue(Location location, std::int64_t x) {
 }
 
 ir::AnyExpression AsValue(Location location, ir::Label x) {
-  return ir::Load64(x);
+  return x;
 }
 
 ir::AnyExpression AsValue(Location location, ir::Global x) {
@@ -529,7 +529,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
   code.push_back(ir::StoreCall64(ir::Local(offset), std::move(function.value),
                                  std::move(arguments)));
   return ExpressionInfo{.code = ir::Sequence{std::move(code)},
-                        .value = ir::Local(offset)};
+                        .value = ir::Load64(ir::Local(offset))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Index& x) {
@@ -1112,7 +1112,8 @@ ir::AnyCode StatementChecker::operator()(const ast::While& x) {
   ir::AnyCode body = CheckBlock(while_environment, x.body);
   return ir::Sequence({ir::Jump(loop_condition), loop_start, std::move(body),
                        loop_condition, std::move(condition.code),
-                       ir::JumpIf(std::move(condition.value), loop_start)});
+                       ir::JumpIf(std::move(condition.value), loop_start),
+                       loop_end});
 }
 
 ir::AnyCode StatementChecker::operator()(const ast::Return& x) {
@@ -1247,7 +1248,7 @@ ir::AnyCode ModuleStatementChecker::operator()(
 
   FrameAllocator frame;
   ir::AnyCode code = CheckBlock(*context_, function_environment, frame, x.body);
-  return ir::Sequence({function, ir::AdjustStack(-frame.max_size()),
+  return ir::Sequence({function, ir::BeginFrame(frame.max_size()),
                        std::move(code), ir::Return(ir::IntegerLiteral(0))});
 }
 

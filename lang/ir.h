@@ -242,9 +242,8 @@ struct StoreCall64 {
   std::vector<AnyExpression> arguments;
 };
 
-// Reserve (or return) stack space by adjusting the stack pointer. A negative
-// delta reserves space, while a positive delta returns it.
-struct AdjustStack { std::int64_t delta; };
+// Start a function stack frame: set up the frame pointer and adjust the stack.
+struct BeginFrame { std::int64_t size; };
 
 struct Return { AnyExpression value; };
 
@@ -270,7 +269,7 @@ struct CodeVisitor {
   virtual T operator()(const Label&) = 0;
   virtual T operator()(const Store64&) = 0;
   virtual T operator()(const StoreCall64&) = 0;
-  virtual T operator()(const AdjustStack&) = 0;
+  virtual T operator()(const BeginFrame&) = 0;
   virtual T operator()(const Return&) = 0;
   virtual T operator()(const Jump&) = 0;
   virtual T operator()(const JumpIf&) = 0;

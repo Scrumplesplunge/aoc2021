@@ -117,8 +117,8 @@ class CodePrinter : public CodeVisitor<void> {
     *output_ << "StoreCall64(" << x.result_address << ", " << x.function_address
              << ", " << List(x.arguments) << ")";
   }
-  void operator()(const AdjustStack& x) override {
-    *output_ << "AdjustStack(" << x.delta << ")";
+  void operator()(const BeginFrame& x) override {
+    *output_ << "BeginFrame(" << x.size << ")";
   }
   void operator()(const Return& x) override {
     *output_ << "Return(" << x.value << ")";
@@ -150,7 +150,7 @@ class CodeFlattener : public CodeVisitor<void> {
   void operator()(const StoreCall64& x) override {
     result_->value.push_back(x);
   }
-  void operator()(const AdjustStack& x) override { result_->value.push_back(x); }
+  void operator()(const BeginFrame& x) override { result_->value.push_back(x); }
   void operator()(const Return& x) override { result_->value.push_back(x); }
   void operator()(const Jump& x) override { result_->value.push_back(x); }
   void operator()(const JumpIf& x) override { result_->value.push_back(x); }
