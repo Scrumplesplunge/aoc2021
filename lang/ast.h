@@ -313,57 +313,90 @@ class Statement {
   const StatementVariant& operator*() const noexcept;
   const StatementVariant* operator->() const noexcept { return &**this; }
 
+  bool operator==(const Statement&) const;
+  std::strong_ordering operator<=>(const Statement&) const;
+
  private:
   std::shared_ptr<const StatementVariant> value_;
 };
 
 struct DeclareScalar {
+  bool operator==(const DeclareScalar&) const = default;
+  auto operator<=>(const DeclareScalar&) const = default;
+
   Location location;
   std::string name;
 };
 
 struct DeclareArray {
+  bool operator==(const DeclareArray&) const = default;
+  auto operator<=>(const DeclareArray&) const = default;
+
   Location location;
   std::string name;
   Expression size;
 };
 
 struct Assign {
+  bool operator==(const Assign&) const = default;
+  auto operator<=>(const Assign&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct If {
+  bool operator==(const If&) const = default;
+  auto operator<=>(const If&) const = default;
+
   Location location;
   Expression condition;
   std::vector<Statement> then_branch, else_branch;
 };
 
 struct While {
+  bool operator==(const While&) const = default;
+  auto operator<=>(const While&) const = default;
+
   Location location;
   Expression condition;
   std::vector<Statement> body;
 };
 
 struct Return {
+  bool operator==(const Return&) const = default;
+  auto operator<=>(const Return&) const = default;
+
   Location location;
   std::optional<Expression> value = std::nullopt;
 };
 
 struct Break {
+  bool operator==(const Break&) const = default;
+  auto operator<=>(const Break&) const = default;
+
   Location location;
 };
 
 struct Continue {
+  bool operator==(const Continue&) const = default;
+  auto operator<=>(const Continue&) const = default;
+
   Location location;
 };
 
 struct DiscardedExpression {
+  bool operator==(const DiscardedExpression&) const = default;
+  auto operator<=>(const DiscardedExpression&) const = default;
+
   Expression expression;
   Location location = expression.location();
 };
 
 struct FunctionDefinition {
+  bool operator==(const FunctionDefinition&) const = default;
+  auto operator<=>(const FunctionDefinition&) const = default;
+
   Location location;
   std::string name;
   std::vector<Name> parameters;
@@ -371,6 +404,7 @@ struct FunctionDefinition {
 };
 
 struct StatementVariant {
+  bool operator==(const StatementVariant&) const = default;
   auto operator<=>(const StatementVariant&) const = default;
 
   std::variant<DeclareScalar, DeclareArray, Assign, If, While, Return, Break,
