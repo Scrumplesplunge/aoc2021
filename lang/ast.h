@@ -31,147 +31,232 @@ class Expression {
   const ExpressionVariant& operator*() const noexcept;
   const ExpressionVariant* operator->() const noexcept { return &**this; }
 
+  bool operator==(const Expression&) const;
+  std::strong_ordering operator<=>(const Expression&) const;
+
  private:
   std::shared_ptr<const ExpressionVariant> value_;
 };
 
 struct Name {
+  bool operator==(const Name&) const = default;
+  auto operator<=>(const Name&) const = default;
+
   Location location;
   std::string value;
 };
 
 struct IntegerLiteral {
+  bool operator==(const IntegerLiteral&) const = default;
+  auto operator<=>(const IntegerLiteral&) const = default;
+
   Location location;
   std::int64_t value;
 };
 
 struct Call {
+  bool operator==(const Call&) const = default;
+  auto operator<=>(const Call&) const = default;
+
   Location location;
   Expression function;
   std::vector<Expression> arguments;
 };
 
 struct Index {
+  bool operator==(const Index&) const = default;
+  auto operator<=>(const Index&) const = default;
+
   Location location;
   Expression container, index;
 };
 
 struct Negate {
+  bool operator==(const Negate&) const = default;
+  auto operator<=>(const Negate&) const = default;
+
   Location location;
   Expression inner;
 };
 
 struct LogicalNot {
+  bool operator==(const LogicalNot&) const = default;
+  auto operator<=>(const LogicalNot&) const = default;
+
   Location location;
   Expression inner;
 };
 
 struct BitwiseNot {
+  bool operator==(const BitwiseNot&) const = default;
+  auto operator<=>(const BitwiseNot&) const = default;
+
   Location location;
   Expression inner;
 };
 
 struct Dereference {
+  bool operator==(const Dereference&) const = default;
+  auto operator<=>(const Dereference&) const = default;
+
   Location location;
   Expression inner;
 };
 
 struct Add {
+  bool operator==(const Add&) const = default;
+  auto operator<=>(const Add&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct Subtract {
+  bool operator==(const Subtract&) const = default;
+  auto operator<=>(const Subtract&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct Multiply {
+  bool operator==(const Multiply&) const = default;
+  auto operator<=>(const Multiply&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct Divide {
+  bool operator==(const Divide&) const = default;
+  auto operator<=>(const Divide&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct Modulo {
+  bool operator==(const Modulo&) const = default;
+  auto operator<=>(const Modulo&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct LessThan {
+  bool operator==(const LessThan&) const = default;
+  auto operator<=>(const LessThan&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct LessOrEqual {
+  bool operator==(const LessOrEqual&) const = default;
+  auto operator<=>(const LessOrEqual&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct GreaterThan {
+  bool operator==(const GreaterThan&) const = default;
+  auto operator<=>(const GreaterThan&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct GreaterOrEqual {
+  bool operator==(const GreaterOrEqual&) const = default;
+  auto operator<=>(const GreaterOrEqual&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct Equal {
+  bool operator==(const Equal&) const = default;
+  auto operator<=>(const Equal&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct NotEqual {
+  bool operator==(const NotEqual&) const = default;
+  auto operator<=>(const NotEqual&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct LogicalAnd {
+  bool operator==(const LogicalAnd&) const = default;
+  auto operator<=>(const LogicalAnd&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct LogicalOr {
+  bool operator==(const LogicalOr&) const = default;
+  auto operator<=>(const LogicalOr&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct BitwiseAnd {
+  bool operator==(const BitwiseAnd&) const = default;
+  auto operator<=>(const BitwiseAnd&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct BitwiseOr {
+  bool operator==(const BitwiseOr&) const = default;
+  auto operator<=>(const BitwiseOr&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct BitwiseXor {
+  bool operator==(const BitwiseXor&) const = default;
+  auto operator<=>(const BitwiseXor&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct ShiftLeft {
+  bool operator==(const ShiftLeft&) const = default;
+  auto operator<=>(const ShiftLeft&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct ShiftRight {
+  bool operator==(const ShiftRight&) const = default;
+  auto operator<=>(const ShiftRight&) const = default;
+
   Location location;
   Expression left, right;
 };
 
 struct TernaryExpression {
+  bool operator==(const TernaryExpression&) const = default;
+  auto operator<=>(const TernaryExpression&) const = default;
+
   Location location;
   Expression condition, then_branch, else_branch;
 };
 
 struct ExpressionVariant {
+  bool operator==(const ExpressionVariant&) const = default;
   auto operator<=>(const ExpressionVariant&) const = default;
 
   std::variant<Name, IntegerLiteral, Call, Index, Negate, LogicalNot,

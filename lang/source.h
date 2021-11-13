@@ -36,6 +36,8 @@ class Location {
   int column() const noexcept { return column_; }
   std::string_view LineContents() const noexcept;
 
+  auto operator<=>(const Location& other) const = default;
+
  private:
   const Source* source_;
   const char* offset_;

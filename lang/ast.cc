@@ -39,6 +39,20 @@ const ExpressionVariant& Expression::operator*() const noexcept {
   return *value_;
 }
 
+bool Expression::operator==(const Expression& other) const {
+  // Order by pointer value if one is null.
+  if (!value_ && !other.value_) return true;
+  if (*value_ == *other.value_) return true;
+  return false;
+}
+
+std::strong_ordering Expression::operator<=>(const Expression& other) const {
+  // Order by pointer value if one is null.
+  if (!value_ || !other.value_) return value_ <=> other.value_;
+  // Otherwise, order by contents.
+  return *value_ <=> *other.value_;
+}
+
 std::ostream& operator<<(std::ostream& output, const Name& x) noexcept {
   return output << "Name(" << std::quoted(x.value) << ")";
 }
