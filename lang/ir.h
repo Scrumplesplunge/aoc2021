@@ -3,6 +3,7 @@
 
 #include <concepts>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace aoc2021::ir {
@@ -278,6 +279,11 @@ struct CodeVisitor {
 };
 
 Sequence Flatten(const AnyCode& code);
+
+struct Unit {
+  std::optional<ir::Label> main;
+  ir::AnyCode code;
+};
 
 }  // namespace aoc2021::ir
 

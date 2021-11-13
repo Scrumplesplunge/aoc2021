@@ -1,5 +1,6 @@
 #include "codegen.h"
 
+#include <cassert>
 #include <sstream>
 #include <variant>
 
@@ -345,27 +346,26 @@ class CodeGenerator : public ir::CodeVisitor<void> {
   std::ostream* output_;
 };
 
-constexpr char kPrelude[] = R"(
-.section .text
-.global _start
-_start:
-  sub $8, %rsp
-  push %rsp
-  call label_function_3
-  add $8, %rsp
-  // exit
-  pop %rdi
-  mov $60, %rax
-  syscall
-)";
-
 }  // namespace
 
-std::string Generate(ir::AnyCode code) {
+std::string Generate(const ir::Unit& unit) {
+  assert(unit.main.has_value());
   std::ostringstream result;
-  result << kPrelude;
+  result << ".section .text\n"
+            ".global _start\n"
+            "_start:\n"
+            "  sub $8, %rsp\n"
+            "  push %rsp\n"
+            "  call "
+         << unit.main->value
+         << "\n"
+            "  add $8, %rsp\n"
+            "  // exit\n"
+            "  pop %rdi\n"
+            "  mov $60, %rax\n"
+            "  syscall\n";
   CodeGenerator generator(result);
-  code.Visit(generator);
+  unit.code.Visit(generator);
   return result.str();
 }
 

@@ -19,10 +19,14 @@ int main(int argc, char* argv[]) {
       std::cerr << statement << ',';
     }
     std::cerr << "});\n";
-    const auto code = aoc2021::Check(program);
-    std::cerr << '\n' << code << '\n';
-    std::cout << aoc2021::Generate(code) << '\n';
-  } catch (const aoc2021::ParseError& error) {
+    const aoc2021::ir::Unit unit = aoc2021::Check(program);
+    std::cerr << '\n' << unit.code << '\n';
+    if (!unit.main) {
+      std::cerr << "Program does not contain a main function.\n";
+      return 1;
+    }
+    std::cout << aoc2021::Generate(unit) << '\n';
+  } catch (const aoc2021::CheckError& error) {
     std::cerr << error.what() << '\n';
   }
 }

@@ -218,7 +218,11 @@ class Context {
     return result;
   }
 
+  void SetMain(ir::Label label) { main_ = std::move(label); }
+  const std::optional<ir::Label>& Main() const { return main_; }
+
  private:
+  std::optional<ir::Label> main_;
   std::int64_t next_label_index_ = 0;
   std::int64_t next_global_offset_ = 0;
 };
@@ -1226,6 +1230,7 @@ ir::AnyCode ModuleStatementChecker::operator()(
   // TODO: Derive symbolic constant names in a better way.
   environment_->Define(x.name, Environment::Definition{.location = x.location,
                                                        .value = function});
+  if (x.name == "main") context_->SetMain(function);
   Environment function_environment(*environment_,
                                    Environment::ShadowMode::kAllow);
   const int n = x.parameters.size();
@@ -1262,7 +1267,7 @@ ExpressionInfo ModuleStatementChecker::CheckValue(const ast::AnyExpression& x) {
 
 }  // namespace
 
-ir::Sequence Check(std::span<const ast::AnyStatement> program) {
+ir::Unit Check(std::span<const ast::AnyStatement> program) {
   Context context;
   Environment global;
   std::vector<ir::AnyCode> code;
@@ -1270,7 +1275,7 @@ ir::Sequence Check(std::span<const ast::AnyStatement> program) {
     ModuleStatementChecker checker(context, global);
     code.push_back(statement.Visit(checker));
   }
-  return Flatten(ir::Sequence(code));
+  return ir::Unit{.main = context.Main(), .code = ir::Sequence(code)};
 }
 
 }  // namespace aoc2021

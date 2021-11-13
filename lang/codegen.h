@@ -8,7 +8,7 @@
 
 namespace aoc2021 {
 
-std::string Generate(ir::AnyCode code);
+std::string Generate(const ir::Unit& unit);
 
 }  // namespace aoc2021
 
