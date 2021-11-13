@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "source.h"
+#include "variant_utils.h"
 
 namespace aoc2021::ast {
 
@@ -21,8 +22,7 @@ concept Located = requires (const T& t) {
 struct ExpressionVariant;
 
 template <typename T>
-concept Expression =
-    Located<T> && std::constructible_from<ExpressionVariant, T>;
+concept Expression = Located<T> && ValueCanHold<ExpressionVariant, T>;
 
 class AnyExpression {
  public:
@@ -185,6 +185,8 @@ struct ExpressionVariant {
       value;
 };
 
+static_assert(ValueCanHold<ExpressionVariant, IntegerLiteral>);
+
 template <Expression T>
 AnyExpression::AnyExpression(T value) noexcept
     : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
@@ -221,7 +223,7 @@ std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 struct StatementVariant;
 
 template <typename T>
-concept Statement = Located<T> && std::constructible_from<StatementVariant, T>;
+concept Statement = Located<T> && ValueCanHold<StatementVariant, T>;
 
 class AnyStatement {
  public:
