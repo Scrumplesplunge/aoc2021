@@ -3,8 +3,19 @@
 // $ ld example.o -o example
 // $ ./example
 
+function fib(out, n) {
+  if n < 2 {
+    *out = n;
+  } else {
+    fib(out, n - 1);
+    var temp[1];
+    fib(temp, n - 2);
+    *out = *out + temp[0];
+  }
+}
+
 function main() {
   var result[1];
-  *result = 1;
+  fib(result, 10);
   return result[0];
 }
