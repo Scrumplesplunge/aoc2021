@@ -13,14 +13,10 @@ namespace aoc2021::ir {
 
 struct ExpressionVariant;
 
-template <typename T>
-concept Expression =
-    std::copy_constructible<T> && HoldableBy<T, ExpressionVariant>;
-
 class AnyExpression {
  public:
   // Implicit conversion from any type of expression.
-  template <Expression T>
+  template <HoldableBy<ExpressionVariant> T>
   AnyExpression(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
@@ -85,7 +81,7 @@ struct ExpressionVariant {
       value;
 };
 
-template <Expression T>
+template <HoldableBy<ExpressionVariant> T>
 AnyExpression::AnyExpression(T value) noexcept
     : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
 
@@ -115,13 +111,10 @@ std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
 struct CodeVariant;
 
-template <typename T>
-concept Code = HoldableBy<T, CodeVariant>;
-
 class AnyCode {
  public:
   // Implicit conversion from any type of expression.
-  template <Code T>
+  template <HoldableBy<CodeVariant> T>
   AnyCode(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
@@ -172,7 +165,7 @@ struct CodeVariant {
       value;
 };
 
-template <Code T>
+template <HoldableBy<CodeVariant> T>
 AnyCode::AnyCode(T value) noexcept
     : value_(std::make_shared<CodeVariant>(std::move(value))) {}
 

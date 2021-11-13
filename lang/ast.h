@@ -21,12 +21,9 @@ concept Located = requires (const T& t) {
 
 struct ExpressionVariant;
 
-template <typename T>
-concept Expression = Located<T> && HoldableBy<T, ExpressionVariant>;
-
 class AnyExpression {
  public:
-  template <Expression T>
+  template <HoldableBy<ExpressionVariant> T>
   AnyExpression(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
@@ -185,7 +182,7 @@ struct ExpressionVariant {
       value;
 };
 
-template <Expression T>
+template <HoldableBy<ExpressionVariant> T>
 AnyExpression::AnyExpression(T value) noexcept
     : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
 
@@ -220,13 +217,10 @@ std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
 struct StatementVariant;
 
-template <typename T>
-concept Statement = Located<T> && HoldableBy<T, StatementVariant>;
-
 class AnyStatement {
  public:
   // Implicit conversion from any type of statement.
-  template <Statement T>
+  template <HoldableBy<StatementVariant> T>
   AnyStatement(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
@@ -299,7 +293,7 @@ struct StatementVariant {
       value;
 };
 
-template <Statement T>
+template <HoldableBy<StatementVariant> T>
 AnyStatement::AnyStatement(T value) noexcept
     : value_(std::make_shared<StatementVariant>(std::move(value))) {}
 
