@@ -9,3 +9,4 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_compile_options(-Werror -Wall -Wextra -Wno-unused-parameter -pedantic -g3)
 
 add_executable(compiler compiler.cc ast.cc checker.cc codegen.cc source.cc ir.cc parser.cc)
+add_executable(source_test source_test.cc test.cc source.cc)
