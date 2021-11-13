@@ -54,6 +54,20 @@ const ExpressionVariant& Expression::operator*() const noexcept {
   return *value_;
 }
 
+bool Expression::operator==(const Expression& other) const {
+  // Order by pointer value if one is null.
+  if (!value_ && !other.value_) return true;
+  if (*value_ == *other.value_) return true;
+  return false;
+}
+
+std::strong_ordering Expression::operator<=>(const Expression& other) const {
+  // Order by pointer value if one is null.
+  if (!value_ || !other.value_) return value_ <=> other.value_;
+  // Otherwise, order by contents.
+  return *value_ <=> *other.value_;
+}
+
 std::ostream& operator<<(std::ostream& output, const Label& x) noexcept {
   return output << "Label(" << std::quoted(x.value) << ")";
 }
@@ -149,6 +163,20 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 const CodeVariant& Code::operator*() const noexcept { return *value_; }
+
+bool Code::operator==(const Code& other) const {
+  // Order by pointer value if one is null.
+  if (!value_ && !other.value_) return true;
+  if (*value_ == *other.value_) return true;
+  return false;
+}
+
+std::strong_ordering Code::operator<=>(const Code& other) const {
+  // Order by pointer value if one is null.
+  if (!value_ || !other.value_) return value_ <=> other.value_;
+  // Otherwise, order by contents.
+  return *value_ <=> *other.value_;
+}
 
 std::ostream& operator<<(std::ostream& output, const Store64& x) noexcept {
   return output << "Store64(" << x.address << ", " << x.value << ")";

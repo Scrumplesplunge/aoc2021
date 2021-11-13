@@ -23,18 +23,27 @@ class Expression {
   const ExpressionVariant& operator*() const noexcept;
   const ExpressionVariant* operator->() const noexcept { return &**this; }
 
+  bool operator==(const Expression&) const;
+  std::strong_ordering operator<=>(const Expression&) const;
+
  private:
   std::shared_ptr<const ExpressionVariant> value_;
 };
 
 // Represents an instruction address, such as a function address or jump target.
 struct Label {
+  bool operator==(const Label&) const = default;
+  auto operator<=>(const Label&) const = default;
+
   Label(std::string_view prefix, std::int64_t suffix);
   std::string value;
 };
 
 // Represents the address of a global variable with the given ID.
 struct Global {
+  bool operator==(const Global&) const = default;
+  auto operator<=>(const Global&) const = default;
+
   Global(std::string_view prefix, std::int64_t suffix);
   std::string value;
 };
@@ -42,36 +51,151 @@ struct Global {
 // Represents the address of a local variable, identified by its offset from the
 // frame pointer.
 struct Local {
+  bool operator==(const Local&) const = default;
+  auto operator<=>(const Local&) const = default;
+
   enum class Offset : std::int64_t {};
   Offset offset;
 };
 
 // Loads a 64-bit value from the given address.
-struct Load64 { Expression address; };
+struct Load64 {
+  bool operator==(const Load64&) const = default;
+  auto operator<=>(const Load64&) const = default;
+
+  Expression address;
+};
 
 // Represents a literal value.
-struct IntegerLiteral { std::int64_t value; };
+struct IntegerLiteral {
+  bool operator==(const IntegerLiteral&) const = default;
+  auto operator<=>(const IntegerLiteral&) const = default;
+
+  std::int64_t value;
+};
 
 // Pure calculation.
-struct Negate { Expression inner; };
-struct LogicalNot { Expression inner; };
-struct BitwiseNot { Expression inner; };
-struct Add { Expression left, right; };
-struct Subtract { Expression left, right; };
-struct Multiply { Expression left, right; };
-struct Divide { Expression left, right; };
-struct Modulo { Expression left, right; };
-struct LessThan { Expression left, right; };
-struct LessOrEqual { Expression left, right; };
-struct Equal { Expression left, right; };
-struct NotEqual { Expression left, right; };
-struct BitwiseAnd { Expression left, right; };
-struct BitwiseOr { Expression left, right; };
-struct BitwiseXor { Expression left, right; };
-struct ShiftLeft { Expression left, right; };
-struct ShiftRight { Expression left, right; };
+struct Negate {
+  bool operator==(const Negate&) const = default;
+  auto operator<=>(const Negate&) const = default;
+
+  Expression inner;
+};
+
+struct LogicalNot {
+  bool operator==(const LogicalNot&) const = default;
+  auto operator<=>(const LogicalNot&) const = default;
+
+  Expression inner;
+};
+
+struct BitwiseNot {
+  bool operator==(const BitwiseNot&) const = default;
+  auto operator<=>(const BitwiseNot&) const = default;
+
+  Expression inner;
+};
+
+struct Add {
+  bool operator==(const Add&) const = default;
+  auto operator<=>(const Add&) const = default;
+
+  Expression left, right;
+};
+
+struct Subtract {
+  bool operator==(const Subtract&) const = default;
+  auto operator<=>(const Subtract&) const = default;
+
+  Expression left, right;
+};
+
+struct Multiply {
+  bool operator==(const Multiply&) const = default;
+  auto operator<=>(const Multiply&) const = default;
+
+  Expression left, right;
+};
+
+struct Divide {
+  bool operator==(const Divide&) const = default;
+  auto operator<=>(const Divide&) const = default;
+
+  Expression left, right;
+};
+
+struct Modulo {
+  bool operator==(const Modulo&) const = default;
+  auto operator<=>(const Modulo&) const = default;
+
+  Expression left, right;
+};
+
+struct LessThan {
+  bool operator==(const LessThan&) const = default;
+  auto operator<=>(const LessThan&) const = default;
+
+  Expression left, right;
+};
+
+struct LessOrEqual {
+  bool operator==(const LessOrEqual&) const = default;
+  auto operator<=>(const LessOrEqual&) const = default;
+
+  Expression left, right;
+};
+
+struct Equal {
+  bool operator==(const Equal&) const = default;
+  auto operator<=>(const Equal&) const = default;
+
+  Expression left, right;
+};
+
+struct NotEqual {
+  bool operator==(const NotEqual&) const = default;
+  auto operator<=>(const NotEqual&) const = default;
+
+  Expression left, right;
+};
+
+struct BitwiseAnd {
+  bool operator==(const BitwiseAnd&) const = default;
+  auto operator<=>(const BitwiseAnd&) const = default;
+
+  Expression left, right;
+};
+
+struct BitwiseOr {
+  bool operator==(const BitwiseOr&) const = default;
+  auto operator<=>(const BitwiseOr&) const = default;
+
+  Expression left, right;
+};
+
+struct BitwiseXor {
+  bool operator==(const BitwiseXor&) const = default;
+  auto operator<=>(const BitwiseXor&) const = default;
+
+  Expression left, right;
+};
+
+struct ShiftLeft {
+  bool operator==(const ShiftLeft&) const = default;
+  auto operator<=>(const ShiftLeft&) const = default;
+
+  Expression left, right;
+};
+
+struct ShiftRight {
+  bool operator==(const ShiftRight&) const = default;
+  auto operator<=>(const ShiftRight&) const = default;
+
+  Expression left, right;
+};
 
 struct ExpressionVariant {
+  bool operator==(const ExpressionVariant&) const = default;
   auto operator<=>(const ExpressionVariant&) const = default;
 
   std::variant<Label, Global, Local, Load64, IntegerLiteral, Negate, LogicalNot,
@@ -121,43 +245,79 @@ class Code {
   const CodeVariant& operator*() const noexcept;
   const CodeVariant* operator->() const noexcept { return &**this; }
 
+  bool operator==(const Code&) const;
+  std::strong_ordering operator<=>(const Code&) const;
+
  private:
   std::shared_ptr<const CodeVariant> value_;
 };
 
 // Pops an address, pops a 64-bit value, stores the value to the address.
-struct Store64 { Expression address, value; };
+struct Store64 {
+  bool operator==(const Store64&) const = default;
+  auto operator<=>(const Store64&) const = default;
+
+  Expression address, value;
+};
 
 // Call a function with the given arguments, store the 64-bit result to the
 // given address.
 struct StoreCall64 {
+  bool operator==(const StoreCall64&) const = default;
+  auto operator<=>(const StoreCall64&) const = default;
+
   Expression result_address;
   Expression function_address;
   std::vector<Expression> arguments;
 };
 
 // Start a function stack frame: set up the frame pointer and adjust the stack.
-struct BeginFrame { std::int64_t size; };
+struct BeginFrame {
+  bool operator==(const BeginFrame&) const = default;
+  auto operator<=>(const BeginFrame&) const = default;
 
-struct Return { Expression value; };
+  std::int64_t size;
+};
 
-struct Jump { Label target; };
+struct Return {
+  bool operator==(const Return&) const = default;
+  auto operator<=>(const Return&) const = default;
+
+  Expression value;
+};
+
+struct Jump {
+  bool operator==(const Jump&) const = default;
+  auto operator<=>(const Jump&) const = default;
+
+  Label target;
+};
 
 struct JumpIf {
+  bool operator==(const JumpIf&) const = default;
+  auto operator<=>(const JumpIf&) const = default;
+
   Expression condition;
   Label target;
 };
 
 struct JumpUnless {
+  bool operator==(const JumpUnless&) const = default;
+  auto operator<=>(const JumpUnless&) const = default;
+
   Expression condition;
   Label target;
 };
 
 struct Sequence {
+  bool operator==(const Sequence&) const = default;
+  auto operator<=>(const Sequence&) const = default;
+
   std::vector<Code> value;
 };
 
 struct CodeVariant {
+  bool operator==(const CodeVariant&) const = default;
   auto operator<=>(const CodeVariant&) const = default;
 
   std::variant<Label, Store64, StoreCall64, BeginFrame, Return, Jump, JumpIf,
