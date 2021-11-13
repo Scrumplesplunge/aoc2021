@@ -365,38 +365,38 @@ struct ExpressionInfo {
   ir::AnyExpression value;
 };
 
-class ExpressionChecker : public ast::ExpressionVisitor<ExpressionInfo> {
+class ExpressionChecker {
  public:
   ExpressionChecker(Context& context, Environment& environment,
                     FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
-  ExpressionInfo operator()(const ast::Name&) override;
-  ExpressionInfo operator()(const ast::IntegerLiteral&) override;
-  ExpressionInfo operator()(const ast::Call&) override;
-  ExpressionInfo operator()(const ast::Index&) override;
-  ExpressionInfo operator()(const ast::Negate&) override;
-  ExpressionInfo operator()(const ast::LogicalNot&) override;
-  ExpressionInfo operator()(const ast::BitwiseNot&) override;
-  ExpressionInfo operator()(const ast::Dereference&) override;
-  ExpressionInfo operator()(const ast::Add&) override;
-  ExpressionInfo operator()(const ast::Subtract&) override;
-  ExpressionInfo operator()(const ast::Multiply&) override;
-  ExpressionInfo operator()(const ast::Divide&) override;
-  ExpressionInfo operator()(const ast::Modulo&) override;
-  ExpressionInfo operator()(const ast::LessThan&) override;
-  ExpressionInfo operator()(const ast::LessOrEqual&) override;
-  ExpressionInfo operator()(const ast::GreaterThan&) override;
-  ExpressionInfo operator()(const ast::GreaterOrEqual&) override;
-  ExpressionInfo operator()(const ast::Equal&) override;
-  ExpressionInfo operator()(const ast::NotEqual&) override;
-  ExpressionInfo operator()(const ast::LogicalAnd&) override;
-  ExpressionInfo operator()(const ast::LogicalOr&) override;
-  ExpressionInfo operator()(const ast::BitwiseAnd&) override;
-  ExpressionInfo operator()(const ast::BitwiseOr&) override;
-  ExpressionInfo operator()(const ast::BitwiseXor&) override;
-  ExpressionInfo operator()(const ast::ShiftLeft&) override;
-  ExpressionInfo operator()(const ast::ShiftRight&) override;
-  ExpressionInfo operator()(const ast::TernaryExpression&) override;
+  ExpressionInfo operator()(const ast::Name&);
+  ExpressionInfo operator()(const ast::IntegerLiteral&);
+  ExpressionInfo operator()(const ast::Call&);
+  ExpressionInfo operator()(const ast::Index&);
+  ExpressionInfo operator()(const ast::Negate&);
+  ExpressionInfo operator()(const ast::LogicalNot&);
+  ExpressionInfo operator()(const ast::BitwiseNot&);
+  ExpressionInfo operator()(const ast::Dereference&);
+  ExpressionInfo operator()(const ast::Add&);
+  ExpressionInfo operator()(const ast::Subtract&);
+  ExpressionInfo operator()(const ast::Multiply&);
+  ExpressionInfo operator()(const ast::Divide&);
+  ExpressionInfo operator()(const ast::Modulo&);
+  ExpressionInfo operator()(const ast::LessThan&);
+  ExpressionInfo operator()(const ast::LessOrEqual&);
+  ExpressionInfo operator()(const ast::GreaterThan&);
+  ExpressionInfo operator()(const ast::GreaterOrEqual&);
+  ExpressionInfo operator()(const ast::Equal&);
+  ExpressionInfo operator()(const ast::NotEqual&);
+  ExpressionInfo operator()(const ast::LogicalAnd&);
+  ExpressionInfo operator()(const ast::LogicalOr&);
+  ExpressionInfo operator()(const ast::BitwiseAnd&);
+  ExpressionInfo operator()(const ast::BitwiseOr&);
+  ExpressionInfo operator()(const ast::BitwiseXor&);
+  ExpressionInfo operator()(const ast::ShiftLeft&);
+  ExpressionInfo operator()(const ast::ShiftRight&);
+  ExpressionInfo operator()(const ast::TernaryExpression&);
 
  private:
   ExpressionInfo CheckValue(const ast::AnyExpression& expression);
@@ -410,41 +410,41 @@ ExpressionInfo CheckValue(Context& context, Environment& environment,
                           FrameAllocator& frame,
                           const ast::AnyExpression& expression) {
   ExpressionChecker checker(context, environment, frame);
-  return expression.Visit(checker);
+  return std::visit(checker, expression->value);
 }
 
-class AddressChecker : public ast::ExpressionVisitor<ExpressionInfo> {
+class AddressChecker {
  public:
   AddressChecker(Context& context, Environment& environment,
                  FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
-  ExpressionInfo operator()(const ast::Name&) override;
-  ExpressionInfo operator()(const ast::IntegerLiteral&) override;
-  ExpressionInfo operator()(const ast::Call&) override;
-  ExpressionInfo operator()(const ast::Index&) override;
-  ExpressionInfo operator()(const ast::Negate&) override;
-  ExpressionInfo operator()(const ast::LogicalNot&) override;
-  ExpressionInfo operator()(const ast::BitwiseNot&) override;
-  ExpressionInfo operator()(const ast::Dereference&) override;
-  ExpressionInfo operator()(const ast::Add&) override;
-  ExpressionInfo operator()(const ast::Subtract&) override;
-  ExpressionInfo operator()(const ast::Multiply&) override;
-  ExpressionInfo operator()(const ast::Divide&) override;
-  ExpressionInfo operator()(const ast::Modulo&) override;
-  ExpressionInfo operator()(const ast::LessThan&) override;
-  ExpressionInfo operator()(const ast::LessOrEqual&) override;
-  ExpressionInfo operator()(const ast::GreaterThan&) override;
-  ExpressionInfo operator()(const ast::GreaterOrEqual&) override;
-  ExpressionInfo operator()(const ast::Equal&) override;
-  ExpressionInfo operator()(const ast::NotEqual&) override;
-  ExpressionInfo operator()(const ast::LogicalAnd&) override;
-  ExpressionInfo operator()(const ast::LogicalOr&) override;
-  ExpressionInfo operator()(const ast::BitwiseAnd&) override;
-  ExpressionInfo operator()(const ast::BitwiseOr&) override;
-  ExpressionInfo operator()(const ast::BitwiseXor&) override;
-  ExpressionInfo operator()(const ast::ShiftLeft&) override;
-  ExpressionInfo operator()(const ast::ShiftRight&) override;
-  ExpressionInfo operator()(const ast::TernaryExpression&) override;
+  ExpressionInfo operator()(const ast::Name&);
+  ExpressionInfo operator()(const ast::IntegerLiteral&);
+  ExpressionInfo operator()(const ast::Call&);
+  ExpressionInfo operator()(const ast::Index&);
+  ExpressionInfo operator()(const ast::Negate&);
+  ExpressionInfo operator()(const ast::LogicalNot&);
+  ExpressionInfo operator()(const ast::BitwiseNot&);
+  ExpressionInfo operator()(const ast::Dereference&);
+  ExpressionInfo operator()(const ast::Add&);
+  ExpressionInfo operator()(const ast::Subtract&);
+  ExpressionInfo operator()(const ast::Multiply&);
+  ExpressionInfo operator()(const ast::Divide&);
+  ExpressionInfo operator()(const ast::Modulo&);
+  ExpressionInfo operator()(const ast::LessThan&);
+  ExpressionInfo operator()(const ast::LessOrEqual&);
+  ExpressionInfo operator()(const ast::GreaterThan&);
+  ExpressionInfo operator()(const ast::GreaterOrEqual&);
+  ExpressionInfo operator()(const ast::Equal&);
+  ExpressionInfo operator()(const ast::NotEqual&);
+  ExpressionInfo operator()(const ast::LogicalAnd&);
+  ExpressionInfo operator()(const ast::LogicalOr&);
+  ExpressionInfo operator()(const ast::BitwiseAnd&);
+  ExpressionInfo operator()(const ast::BitwiseOr&);
+  ExpressionInfo operator()(const ast::BitwiseXor&);
+  ExpressionInfo operator()(const ast::ShiftLeft&);
+  ExpressionInfo operator()(const ast::ShiftRight&);
+  ExpressionInfo operator()(const ast::TernaryExpression&);
 
  private:
   ExpressionInfo CheckAddress(const ast::AnyExpression& expression);
@@ -459,7 +459,7 @@ ExpressionInfo CheckAddress(Context& context, Environment& environment,
                             FrameAllocator& frame,
                             const ast::AnyExpression& expression) {
   AddressChecker checker(context, environment, frame);
-  return expression.Visit(checker);
+  return std::visit(checker, expression->value);
 }
 
 class StatementChecker : public ast::StatementVisitor<ir::AnyCode> {

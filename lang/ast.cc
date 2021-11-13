@@ -28,123 +28,6 @@ struct List {
 
 template <typename T> List(T) -> List<T>;
 
-class ExpressionPrinter : public ExpressionVisitor<void> {
- public:
-  ExpressionPrinter(std::ostream& output) noexcept : output_(&output) {}
-
-  void operator()(const Name& x) override {
-    *output_ << "Name(" << std::quoted(x.value) << ")";
-  }
-
-  void operator()(const IntegerLiteral& x) override {
-    *output_ << "IntegerLiteral(" << x.value << ")";
-  }
-
-  void operator()(const Call& x) override {
-    *output_ << "Call(" << x.function << ", " << List(x.arguments) << ")";
-  }
-
-  void operator()(const Index& x) override {
-    *output_ << "Index(" << x.container << ", " << x.index << ")";
-  }
-
-  void operator()(const Negate& x) override {
-    *output_ << "Negate(" << x.inner << ")";
-  }
-
-  void operator()(const LogicalNot& x) override {
-    *output_ << "LogicalNot(" << x.inner << ")";
-  }
-
-  void operator()(const BitwiseNot& x) override {
-    *output_ << "BitwiseNot(" << x.inner << ")";
-  }
-
-  void operator()(const Dereference& x) override {
-    *output_ << "Dereference(" << x.inner << ")";
-  }
-
-  void operator()(const Add& x) override {
-    *output_ << "Add(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const Subtract& x) override {
-    *output_ << "Subtract(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const Multiply& x) override {
-    *output_ << "Multiply(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const Divide& x) override {
-    *output_ << "Divide(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const Modulo& x) override {
-    *output_ << "Modulo(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const LessThan& x) override {
-    *output_ << "LessThan(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const LessOrEqual& x) override {
-    *output_ << "LessOrEqual(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const GreaterThan& x) override {
-    *output_ << "GreaterThan(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const GreaterOrEqual& x) override {
-    *output_ << "GreaterOrEqual(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const Equal& x) override {
-    *output_ << "Equal(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const NotEqual& x) override {
-    *output_ << "NotEqual(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const LogicalAnd& x) override {
-    *output_ << "LogicalAnd(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const LogicalOr& x) override {
-    *output_ << "LogicalOr(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const BitwiseAnd& x) override {
-    *output_ << "BitwiseAnd(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const BitwiseOr& x) override {
-    *output_ << "BitwiseOr(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const BitwiseXor& x) override {
-    *output_ << "BitwiseXor(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const ShiftLeft& x) override {
-    *output_ << "ShiftLeft(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const ShiftRight& x) override {
-    *output_ << "ShiftRight(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const TernaryExpression& x) override {
-    *output_ << "TernaryExpression(" << x.condition << ", " << x.then_branch
-             << ", " << x.else_branch << ")";
-  }
-
- private:
-  std::ostream* output_;
-};
-
 class StatementPrinter : public StatementVisitor<void> {
  public:
   StatementPrinter(std::ostream& output) noexcept : output_(&output) {}
@@ -201,11 +84,131 @@ class StatementPrinter : public StatementVisitor<void> {
 
 }  // namespace
 
+const Location& AnyExpression::location() const {
+  return std::visit([](const auto& x) -> const Location& { return x.location; },
+                    value_->value);
+}
+
+const ExpressionVariant& AnyExpression::operator*() const noexcept {
+  return *value_;
+}
+
+std::ostream& operator<<(std::ostream& output, const Name& x) noexcept {
+  return output << "Name(" << std::quoted(x.value) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const IntegerLiteral& x) noexcept {
+  return output << "IntegerLiteral(" << x.value << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Call& x) noexcept {
+  return output << "Call(" << x.function << ", " << List(x.arguments) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Index& x) noexcept {
+  return output << "Index(" << x.container << ", " << x.index << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Negate& x) noexcept {
+  return output << "Negate(" << x.inner << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const LogicalNot& x) noexcept {
+  return output << "LogicalNot(" << x.inner << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const BitwiseNot& x) noexcept {
+  return output << "BitwiseNot(" << x.inner << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Dereference& x) noexcept {
+  return output << "Dereference(" << x.inner << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Add& x) noexcept {
+  return output << "Add(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Subtract& x) noexcept {
+  return output << "Subtract(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Multiply& x) noexcept {
+  return output << "Multiply(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Divide& x) noexcept {
+  return output << "Divide(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Modulo& x) noexcept {
+  return output << "Modulo(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const LessThan& x) noexcept {
+  return output << "LessThan(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const LessOrEqual& x) noexcept {
+  return output << "LessOrEqual(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const GreaterThan& x) noexcept {
+  return output << "GreaterThan(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const GreaterOrEqual& x) noexcept {
+  return output << "GreaterOrEqual(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Equal& x) noexcept {
+  return output << "Equal(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const NotEqual& x) noexcept {
+  return output << "NotEqual(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const LogicalAnd& x) noexcept {
+  return output << "LogicalAnd(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const LogicalOr& x) noexcept {
+  return output << "LogicalOr(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const BitwiseAnd& x) noexcept {
+  return output << "BitwiseAnd(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const BitwiseOr& x) noexcept {
+  return output << "BitwiseOr(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const BitwiseXor& x) noexcept {
+  return output << "BitwiseXor(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const ShiftLeft& x) noexcept {
+  return output << "ShiftLeft(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const ShiftRight& x) noexcept {
+  return output << "ShiftRight(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const TernaryExpression& x) noexcept {
+  return output << "TernaryExpression(" << x.condition << ", " << x.then_branch
+                << ", " << x.else_branch << ")";
+}
+
 std::ostream& operator<<(std::ostream& output,
                          const AnyExpression& expression) noexcept {
-  ExpressionPrinter printer(output);
-  expression.Visit(printer);
-  return output;
+  return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
+                    expression->value);
 }
 
 std::ostream& operator<<(std::ostream& output,

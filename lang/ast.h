@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include "source.h"
@@ -17,58 +18,25 @@ concept Located = requires (const T& t) {
   { t.location } -> std::same_as<const Location&>;
 };
 
-template <typename T>
-struct ExpressionVisitor;
+struct ExpressionVariant;
 
 template <typename T>
 concept Expression =
-    Located<T> && std::invocable<ExpressionVisitor<void>&, const T&>;
+    Located<T> && std::constructible_from<ExpressionVariant, T>;
 
 class AnyExpression {
  public:
-  // Implicit conversion from any type of expression.
   template <Expression T>
-  AnyExpression(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
-
-  const Location& location() const noexcept { return value_->location(); }
-
-  void Visit(ExpressionVisitor<void>& visitor) const {
-    return value_->Visit(visitor);
-  }
-
-  template <typename T>
-  T Visit(ExpressionVisitor<T>& visitor) const;
+  AnyExpression(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
+  const Location& location() const;
+  const ExpressionVariant& operator*() const noexcept;
+  const ExpressionVariant* operator->() const noexcept { return &**this; }
 
  private:
-  struct Interface {
-    virtual ~Interface() = default;
-    virtual const Location& location() const noexcept = 0;
-    virtual void Visit(ExpressionVisitor<void>&) const = 0;
-  };
-
-  template <Expression T>
-  class Adaptor : public Interface {
-   public:
-    explicit Adaptor(T value) noexcept : value_(std::move(value)) {}
-
-    const Location& location() const noexcept override {
-      return value_.location;
-    }
-
-    void Visit(ExpressionVisitor<void>& visitor) const override {
-      visitor(value_);
-    }
-
-   private:
-    T value_;
-  };
-
-  std::unique_ptr<Interface> value_;
+  std::shared_ptr<const ExpressionVariant> value_;
 };
-
-std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
 struct Name {
   Location location;
@@ -206,81 +174,49 @@ struct TernaryExpression {
   AnyExpression condition, then_branch, else_branch;
 };
 
-template <typename T>
-struct ExpressionVisitor {
-  virtual ~ExpressionVisitor() = default;
-  virtual T operator()(const Name&) = 0;
-  virtual T operator()(const IntegerLiteral&) = 0;
-  virtual T operator()(const Call&) = 0;
-  virtual T operator()(const Index&) = 0;
-  virtual T operator()(const Negate&) = 0;
-  virtual T operator()(const LogicalNot&) = 0;
-  virtual T operator()(const BitwiseNot&) = 0;
-  virtual T operator()(const Dereference&) = 0;
-  virtual T operator()(const Add&) = 0;
-  virtual T operator()(const Subtract&) = 0;
-  virtual T operator()(const Multiply&) = 0;
-  virtual T operator()(const Divide&) = 0;
-  virtual T operator()(const Modulo&) = 0;
-  virtual T operator()(const LessThan&) = 0;
-  virtual T operator()(const LessOrEqual&) = 0;
-  virtual T operator()(const GreaterThan&) = 0;
-  virtual T operator()(const GreaterOrEqual&) = 0;
-  virtual T operator()(const Equal&) = 0;
-  virtual T operator()(const NotEqual&) = 0;
-  virtual T operator()(const LogicalAnd&) = 0;
-  virtual T operator()(const LogicalOr&) = 0;
-  virtual T operator()(const BitwiseAnd&) = 0;
-  virtual T operator()(const BitwiseOr&) = 0;
-  virtual T operator()(const BitwiseXor&) = 0;
-  virtual T operator()(const ShiftLeft&) = 0;
-  virtual T operator()(const ShiftRight&) = 0;
-  virtual T operator()(const TernaryExpression&) = 0;
+struct ExpressionVariant {
+  auto operator<=>(const ExpressionVariant&) const = default;
+
+  std::variant<Name, IntegerLiteral, Call, Index, Negate, LogicalNot,
+               BitwiseNot, Dereference, Add, Subtract, Multiply, Divide, Modulo,
+               LessThan, LessOrEqual, GreaterThan, GreaterOrEqual, Equal,
+               NotEqual, LogicalAnd, LogicalOr, BitwiseAnd, BitwiseOr,
+               BitwiseXor, ShiftLeft, ShiftRight, TernaryExpression>
+      value;
 };
 
-template <typename T>
-T AnyExpression::Visit(ExpressionVisitor<T>& visitor) const {
-  struct ProxyVisitor : ExpressionVisitor<void> {
-    ProxyVisitor(ExpressionVisitor<T>& f) noexcept : f(f) {}
-    void operator()(const Name& x) override { new (result) T(f(x)); }
-    void operator()(const IntegerLiteral& x) override { new (result) T(f(x)); }
-    void operator()(const Call& x) override { new (result) T(f(x)); }
-    void operator()(const Index& x) override { new (result) T(f(x)); }
-    void operator()(const Negate& x) override { new (result) T(f(x)); }
-    void operator()(const LogicalNot& x) override { new (result) T(f(x)); }
-    void operator()(const BitwiseNot& x) override { new (result) T(f(x)); }
-    void operator()(const Dereference& x) override { new (result) T(f(x)); }
-    void operator()(const Add& x) override { new (result) T(f(x)); }
-    void operator()(const Subtract& x) override { new (result) T(f(x)); }
-    void operator()(const Multiply& x) override { new (result) T(f(x)); }
-    void operator()(const Divide& x) override { new (result) T(f(x)); }
-    void operator()(const Modulo& x) override { new (result) T(f(x)); }
-    void operator()(const LessThan& x) override { new (result) T(f(x)); }
-    void operator()(const LessOrEqual& x) override { new (result) T(f(x)); }
-    void operator()(const GreaterThan& x) override { new (result) T(f(x)); }
-    void operator()(const GreaterOrEqual& x) override { new (result) T(f(x)); }
-    void operator()(const Equal& x) override { new (result) T(f(x)); }
-    void operator()(const NotEqual& x) override { new (result) T(f(x)); }
-    void operator()(const LogicalAnd& x) override { new (result) T(f(x)); }
-    void operator()(const LogicalOr& x) override { new (result) T(f(x)); }
-    void operator()(const BitwiseAnd& x) override { new (result) T(f(x)); }
-    void operator()(const BitwiseOr& x) override { new (result) T(f(x)); }
-    void operator()(const BitwiseXor& x) override { new (result) T(f(x)); }
-    void operator()(const ShiftLeft& x) override { new (result) T(f(x)); }
-    void operator()(const ShiftRight& x) override { new (result) T(f(x)); }
-    void operator()(const TernaryExpression& x) override {
-      new (result) T(f(x));
-    }
+template <Expression T>
+AnyExpression::AnyExpression(T value) noexcept
+    : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
 
-    T Consume() && { return std::move(*(T*)result); }
-
-    ExpressionVisitor<T>& f;
-    alignas(T) char result[sizeof(T)];
-  };
-  ProxyVisitor v{visitor};
-  Visit(v);
-  return std::move(v).Consume();
-}
+std::ostream& operator<<(std::ostream&, const Name&) noexcept;
+std::ostream& operator<<(std::ostream&, const IntegerLiteral&) noexcept;
+std::ostream& operator<<(std::ostream&, const Call&) noexcept;
+std::ostream& operator<<(std::ostream&, const Index&) noexcept;
+std::ostream& operator<<(std::ostream&, const Negate&) noexcept;
+std::ostream& operator<<(std::ostream&, const LogicalNot&) noexcept;
+std::ostream& operator<<(std::ostream&, const BitwiseNot&) noexcept;
+std::ostream& operator<<(std::ostream&, const Dereference&) noexcept;
+std::ostream& operator<<(std::ostream&, const Add&) noexcept;
+std::ostream& operator<<(std::ostream&, const Subtract&) noexcept;
+std::ostream& operator<<(std::ostream&, const Multiply&) noexcept;
+std::ostream& operator<<(std::ostream&, const Divide&) noexcept;
+std::ostream& operator<<(std::ostream&, const Modulo&) noexcept;
+std::ostream& operator<<(std::ostream&, const LessThan&) noexcept;
+std::ostream& operator<<(std::ostream&, const LessOrEqual&) noexcept;
+std::ostream& operator<<(std::ostream&, const GreaterThan&) noexcept;
+std::ostream& operator<<(std::ostream&, const GreaterOrEqual&) noexcept;
+std::ostream& operator<<(std::ostream&, const Equal&) noexcept;
+std::ostream& operator<<(std::ostream&, const NotEqual&) noexcept;
+std::ostream& operator<<(std::ostream&, const LogicalAnd&) noexcept;
+std::ostream& operator<<(std::ostream&, const LogicalOr&) noexcept;
+std::ostream& operator<<(std::ostream&, const BitwiseAnd&) noexcept;
+std::ostream& operator<<(std::ostream&, const BitwiseOr&) noexcept;
+std::ostream& operator<<(std::ostream&, const BitwiseXor&) noexcept;
+std::ostream& operator<<(std::ostream&, const ShiftLeft&) noexcept;
+std::ostream& operator<<(std::ostream&, const ShiftRight&) noexcept;
+std::ostream& operator<<(std::ostream&, const TernaryExpression&) noexcept;
+std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
 template <typename T>
 struct StatementVisitor;
