@@ -33,8 +33,8 @@ struct CanHoldImpl<std::variant<Ts...>, T> {
   static constexpr bool value = ElementOf<T, Ts...>;
 };
 
-template <typename Variant, typename T>
-concept ValueCanHold =
+template <typename T, typename Variant>
+concept HoldableBy =
     CanHoldImpl<std::decay_t<decltype(std::declval<Variant>().value)>,
                 T>::value;
 

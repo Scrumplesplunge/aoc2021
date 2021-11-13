@@ -22,7 +22,7 @@ concept Located = requires (const T& t) {
 struct ExpressionVariant;
 
 template <typename T>
-concept Expression = Located<T> && ValueCanHold<ExpressionVariant, T>;
+concept Expression = Located<T> && HoldableBy<T, ExpressionVariant>;
 
 class AnyExpression {
  public:
@@ -185,8 +185,6 @@ struct ExpressionVariant {
       value;
 };
 
-static_assert(ValueCanHold<ExpressionVariant, IntegerLiteral>);
-
 template <Expression T>
 AnyExpression::AnyExpression(T value) noexcept
     : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
@@ -223,7 +221,7 @@ std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 struct StatementVariant;
 
 template <typename T>
-concept Statement = Located<T> && ValueCanHold<StatementVariant, T>;
+concept Statement = Located<T> && HoldableBy<T, StatementVariant>;
 
 class AnyStatement {
  public:

@@ -15,7 +15,7 @@ struct ExpressionVariant;
 
 template <typename T>
 concept Expression =
-    std::copy_constructible<T> && ValueCanHold<ExpressionVariant, T>;
+    std::copy_constructible<T> && HoldableBy<T, ExpressionVariant>;
 
 class AnyExpression {
  public:
@@ -116,7 +116,7 @@ std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 struct CodeVariant;
 
 template <typename T>
-concept Code = ValueCanHold<CodeVariant, T>;
+concept Code = HoldableBy<T, CodeVariant>;
 
 class AnyCode {
  public:
