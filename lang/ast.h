@@ -21,10 +21,10 @@ concept Located = requires (const T& t) {
 
 struct ExpressionVariant;
 
-class AnyExpression {
+class Expression {
  public:
   template <HoldableBy<ExpressionVariant> T>
-  AnyExpression(T value) noexcept;
+  Expression(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
   const Location& location() const;
@@ -47,128 +47,128 @@ struct IntegerLiteral {
 
 struct Call {
   Location location;
-  AnyExpression function;
-  std::vector<AnyExpression> arguments;
+  Expression function;
+  std::vector<Expression> arguments;
 };
 
 struct Index {
   Location location;
-  AnyExpression container, index;
+  Expression container, index;
 };
 
 struct Negate {
   Location location;
-  AnyExpression inner;
+  Expression inner;
 };
 
 struct LogicalNot {
   Location location;
-  AnyExpression inner;
+  Expression inner;
 };
 
 struct BitwiseNot {
   Location location;
-  AnyExpression inner;
+  Expression inner;
 };
 
 struct Dereference {
   Location location;
-  AnyExpression inner;
+  Expression inner;
 };
 
 struct Add {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct Subtract {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct Multiply {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct Divide {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct Modulo {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct LessThan {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct LessOrEqual {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct GreaterThan {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct GreaterOrEqual {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct Equal {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct NotEqual {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct LogicalAnd {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct LogicalOr {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct BitwiseAnd {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct BitwiseOr {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct BitwiseXor {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct ShiftLeft {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct ShiftRight {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct TernaryExpression {
   Location location;
-  AnyExpression condition, then_branch, else_branch;
+  Expression condition, then_branch, else_branch;
 };
 
 struct ExpressionVariant {
@@ -183,7 +183,7 @@ struct ExpressionVariant {
 };
 
 template <HoldableBy<ExpressionVariant> T>
-AnyExpression::AnyExpression(T value) noexcept
+Expression::Expression(T value) noexcept
     : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
 
 std::ostream& operator<<(std::ostream&, const Name&) noexcept;
@@ -213,7 +213,7 @@ std::ostream& operator<<(std::ostream&, const BitwiseXor&) noexcept;
 std::ostream& operator<<(std::ostream&, const ShiftLeft&) noexcept;
 std::ostream& operator<<(std::ostream&, const ShiftRight&) noexcept;
 std::ostream& operator<<(std::ostream&, const TernaryExpression&) noexcept;
-std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
+std::ostream& operator<<(std::ostream&, const Expression&) noexcept;
 
 struct StatementVariant;
 
@@ -240,29 +240,29 @@ struct DeclareScalar {
 struct DeclareArray {
   Location location;
   std::string name;
-  AnyExpression size;
+  Expression size;
 };
 
 struct Assign {
   Location location;
-  AnyExpression left, right;
+  Expression left, right;
 };
 
 struct If {
   Location location;
-  AnyExpression condition;
+  Expression condition;
   std::vector<AnyStatement> then_branch, else_branch;
 };
 
 struct While {
   Location location;
-  AnyExpression condition;
+  Expression condition;
   std::vector<AnyStatement> body;
 };
 
 struct Return {
   Location location;
-  std::optional<AnyExpression> value = std::nullopt;
+  std::optional<Expression> value = std::nullopt;
 };
 
 struct Break {
@@ -274,7 +274,7 @@ struct Continue {
 };
 
 struct DiscardedExpression {
-  AnyExpression expression;
+  Expression expression;
   Location location = expression.location();
 };
 

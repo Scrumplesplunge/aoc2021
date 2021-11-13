@@ -48,7 +48,7 @@ constexpr bool IsAlphaNumeric(char c) { return IsDigit(c) || IsAlpha(c); }
 
 }  // namespace
 
-AnyExpression Parser::ParseExpression() { return ParseTernary(); }
+Expression Parser::ParseExpression() { return ParseTernary(); }
 
 AnyStatement Parser::ParseStatement() {
   const std::string_view keyword = PeekWord();
@@ -59,7 +59,7 @@ AnyStatement Parser::ParseStatement() {
   if (keyword == "return") return ParseReturn();
   if (keyword == "var") return ParseDeclaration();
   if (keyword == "while") return ParseWhile();
-  AnyExpression expression = ParseExpression();
+  Expression expression = ParseExpression();
   SkipWhitespaceAndComments();
   if (reader_.ConsumePrefix(";")) {
     return DiscardedExpression(std::move(expression));
@@ -67,7 +67,7 @@ AnyStatement Parser::ParseStatement() {
   const Location location = reader_.location();
   if (ConsumeOperator("=")) {
     SkipWhitespaceAndComments();
-    AnyExpression value = ParseExpression();
+    Expression value = ParseExpression();
     SkipWhitespaceAndComments();
     if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
     return Assign(location, std::move(expression), std::move(value));
@@ -115,7 +115,7 @@ IntegerLiteral Parser::ParseIntegerLiteral() {
   return IntegerLiteral(location, value);
 }
 
-AnyExpression Parser::ParseTerm() {
+Expression Parser::ParseTerm() {
   if (reader_.empty()) throw Error("expected expression");
   const char lookahead = reader_.front();
   if (lookahead == '(') {
@@ -123,7 +123,7 @@ AnyExpression Parser::ParseTerm() {
     reader_.Advance(1);
     SkipWhitespaceAndComments();
     // This term is a bracketed expression.
-    AnyExpression term = ParseExpression();
+    Expression term = ParseExpression();
     SkipWhitespaceAndComments();
     if (!reader_.ConsumePrefix(")")) {
       // The inner expression is not followed by a ')' to match the '(' that
@@ -148,15 +148,15 @@ AnyExpression Parser::ParseTerm() {
   throw Error("expected term");
 }
 
-AnyExpression Parser::ParseSuffix() {
-  AnyExpression term = ParseTerm();
+Expression Parser::ParseSuffix() {
+  Expression term = ParseTerm();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
     if (reader_.ConsumePrefix("(")) {
       // Function call.
       SkipWhitespaceAndComments();
-      std::vector<AnyExpression> arguments;
+      std::vector<Expression> arguments;
       if (!reader_.ConsumePrefix(")")) {
         while (true) {
           arguments.push_back(ParseExpression());
@@ -183,7 +183,7 @@ AnyExpression Parser::ParseSuffix() {
     } else if (reader_.ConsumePrefix("[")) {
       // Index expression.
       SkipWhitespaceAndComments();
-      AnyExpression index = ParseExpression();
+      Expression index = ParseExpression();
       SkipWhitespaceAndComments();
       if (!reader_.ConsumePrefix("]")) {
         std::vector<Message> messages;
@@ -206,7 +206,7 @@ AnyExpression Parser::ParseSuffix() {
   }
 }
 
-AnyExpression Parser::ParsePrefix() {
+Expression Parser::ParsePrefix() {
   const Location location = reader_.location();
   // This function does not use ConsumeOperator: unary prefix operators are
   // frequently used together (e.g. -*x or !!y) and it would be inconvenient to
@@ -224,8 +224,8 @@ AnyExpression Parser::ParsePrefix() {
   }
 }
 
-AnyExpression Parser::ParseProduct() {
-  AnyExpression expression = ParsePrefix();
+Expression Parser::ParseProduct() {
+  Expression expression = ParsePrefix();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -244,8 +244,8 @@ AnyExpression Parser::ParseProduct() {
   }
 }
 
-AnyExpression Parser::ParseSum() {
-  AnyExpression expression = ParseProduct();
+Expression Parser::ParseSum() {
+  Expression expression = ParseProduct();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -261,8 +261,8 @@ AnyExpression Parser::ParseSum() {
   }
 }
 
-AnyExpression Parser::ParseShift() {
-  AnyExpression expression = ParseSum();
+Expression Parser::ParseShift() {
+  Expression expression = ParseSum();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -278,8 +278,8 @@ AnyExpression Parser::ParseShift() {
   }
 }
 
-AnyExpression Parser::ParseOrder() {
-  AnyExpression expression = ParseShift();
+Expression Parser::ParseOrder() {
+  Expression expression = ParseShift();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -302,8 +302,8 @@ AnyExpression Parser::ParseOrder() {
   }
 }
 
-AnyExpression Parser::ParseEqual() {
-  AnyExpression expression = ParseOrder();
+Expression Parser::ParseEqual() {
+  Expression expression = ParseOrder();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -319,8 +319,8 @@ AnyExpression Parser::ParseEqual() {
   }
 }
 
-AnyExpression Parser::ParseBitwiseAnd() {
-  AnyExpression expression = ParseEqual();
+Expression Parser::ParseBitwiseAnd() {
+  Expression expression = ParseEqual();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -333,8 +333,8 @@ AnyExpression Parser::ParseBitwiseAnd() {
   }
 }
 
-AnyExpression Parser::ParseBitwiseXor() {
-  AnyExpression expression = ParseBitwiseAnd();
+Expression Parser::ParseBitwiseXor() {
+  Expression expression = ParseBitwiseAnd();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -348,8 +348,8 @@ AnyExpression Parser::ParseBitwiseXor() {
   }
 }
 
-AnyExpression Parser::ParseBitwiseOr() {
-  AnyExpression expression = ParseBitwiseXor();
+Expression Parser::ParseBitwiseOr() {
+  Expression expression = ParseBitwiseXor();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -363,8 +363,8 @@ AnyExpression Parser::ParseBitwiseOr() {
   }
 }
 
-AnyExpression Parser::ParseConjunction() {
-  AnyExpression expression = ParseBitwiseOr();
+Expression Parser::ParseConjunction() {
+  Expression expression = ParseBitwiseOr();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -378,8 +378,8 @@ AnyExpression Parser::ParseConjunction() {
   }
 }
 
-AnyExpression Parser::ParseDisjunction() {
-  AnyExpression expression = ParseConjunction();
+Expression Parser::ParseDisjunction() {
+  Expression expression = ParseConjunction();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
@@ -393,13 +393,13 @@ AnyExpression Parser::ParseDisjunction() {
   }
 }
 
-AnyExpression Parser::ParseTernary() {
-  AnyExpression expression = ParseDisjunction();
+Expression Parser::ParseTernary() {
+  Expression expression = ParseDisjunction();
   SkipWhitespaceAndComments();
   const Location start = reader_.location();
   if (!ConsumeOperator("?")) return expression;
   SkipWhitespaceAndComments();
-  AnyExpression then_branch = ParseTernary();
+  Expression then_branch = ParseTernary();
   SkipWhitespaceAndComments();
   if (!ConsumeOperator(":")) {
     // The then expression is not followed by a ':'
@@ -418,7 +418,7 @@ AnyExpression Parser::ParseTernary() {
     throw ParseError(std::move(messages));
   }
   SkipWhitespaceAndComments();
-  AnyExpression else_branch = ParseTernary();
+  Expression else_branch = ParseTernary();
   return TernaryExpression(start, std::move(expression), std::move(then_branch),
                            std::move(else_branch));
 }
@@ -478,7 +478,7 @@ AnyStatement Parser::ParseIf() {
   const Location location = reader_.location();
   if (!ConsumeWord("if")) throw Error("expected if statement");
   SkipWhitespaceAndComments();
-  AnyExpression condition = ParseExpression();
+  Expression condition = ParseExpression();
   SkipWhitespaceAndComments();
   std::vector<AnyStatement> then_branch = ParseBlock();
   SkipWhitespaceAndComments();
@@ -505,7 +505,7 @@ AnyStatement Parser::ParseReturn() {
   if (!ConsumeWord("return")) throw Error("expected return statement");
   SkipWhitespaceAndComments();
   if (reader_.ConsumePrefix(";")) return Return(location);
-  AnyExpression value = ParseExpression();
+  Expression value = ParseExpression();
   SkipWhitespaceAndComments();
   if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
   return Return(location, std::move(value));
@@ -527,7 +527,7 @@ AnyStatement Parser::ParseDeclaration() {
   SkipWhitespaceAndComments();
   const Location bracket_position = reader_.location();
   if (reader_.ConsumePrefix("[")) {
-    AnyExpression size = ParseExpression();
+    Expression size = ParseExpression();
     SkipWhitespaceAndComments();
     if (!reader_.ConsumePrefix("]")) {
       std::vector<Message> messages;
@@ -559,7 +559,7 @@ AnyStatement Parser::ParseWhile() {
   const Location location = reader_.location();
   if (!ConsumeWord("while")) throw Error("expected while statement");
   SkipWhitespaceAndComments();
-  AnyExpression condition = ParseExpression();
+  Expression condition = ParseExpression();
   SkipWhitespaceAndComments();
   return While(location, std::move(condition), ParseBlock());
 }

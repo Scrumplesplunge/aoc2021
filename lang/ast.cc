@@ -30,12 +30,12 @@ template <typename T> List(T) -> List<T>;
 
 }  // namespace
 
-const Location& AnyExpression::location() const {
+const Location& Expression::location() const {
   return std::visit([](const auto& x) -> const Location& { return x.location; },
                     value_->value);
 }
 
-const ExpressionVariant& AnyExpression::operator*() const noexcept {
+const ExpressionVariant& Expression::operator*() const noexcept {
   return *value_;
 }
 
@@ -152,7 +152,7 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 std::ostream& operator<<(std::ostream& output,
-                         const AnyExpression& expression) noexcept {
+                         const Expression& expression) noexcept {
   return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
                     expression->value);
 }

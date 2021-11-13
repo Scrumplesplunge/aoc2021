@@ -19,27 +19,27 @@ class Parser {
  public:
   explicit Parser(const Source& source) noexcept : reader_(source) {}
 
-  ast::AnyExpression ParseExpression();
+  ast::Expression ParseExpression();
   ast::AnyStatement ParseStatement();
   std::vector<ast::AnyStatement> ParseProgram();
 
  private:
   ast::Name ParseName();
   ast::IntegerLiteral ParseIntegerLiteral();
-  ast::AnyExpression ParseTerm();
-  ast::AnyExpression ParseSuffix();
-  ast::AnyExpression ParsePrefix();
-  ast::AnyExpression ParseProduct();
-  ast::AnyExpression ParseSum();
-  ast::AnyExpression ParseShift();
-  ast::AnyExpression ParseOrder();
-  ast::AnyExpression ParseEqual();
-  ast::AnyExpression ParseBitwiseAnd();
-  ast::AnyExpression ParseBitwiseXor();
-  ast::AnyExpression ParseBitwiseOr();
-  ast::AnyExpression ParseConjunction();
-  ast::AnyExpression ParseDisjunction();
-  ast::AnyExpression ParseTernary();
+  ast::Expression ParseTerm();
+  ast::Expression ParseSuffix();
+  ast::Expression ParsePrefix();
+  ast::Expression ParseProduct();
+  ast::Expression ParseSum();
+  ast::Expression ParseShift();
+  ast::Expression ParseOrder();
+  ast::Expression ParseEqual();
+  ast::Expression ParseBitwiseAnd();
+  ast::Expression ParseBitwiseXor();
+  ast::Expression ParseBitwiseOr();
+  ast::Expression ParseConjunction();
+  ast::Expression ParseDisjunction();
+  ast::Expression ParseTernary();
 
   std::vector<ast::AnyStatement> ParseBlock();
 

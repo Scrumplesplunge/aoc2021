@@ -399,7 +399,7 @@ class ExpressionChecker {
   ExpressionInfo operator()(const ast::TernaryExpression&);
 
  private:
-  ExpressionInfo CheckValue(const ast::AnyExpression& expression);
+  ExpressionInfo CheckValue(const ast::Expression& expression);
 
   Context* context_;
   Environment* environment_;
@@ -408,7 +408,7 @@ class ExpressionChecker {
 
 ExpressionInfo CheckValue(Context& context, Environment& environment,
                           FrameAllocator& frame,
-                          const ast::AnyExpression& expression) {
+                          const ast::Expression& expression) {
   ExpressionChecker checker(context, environment, frame);
   return std::visit(checker, expression->value);
 }
@@ -426,8 +426,8 @@ class AddressChecker {
   }
 
  private:
-  ExpressionInfo CheckAddress(const ast::AnyExpression& expression);
-  ExpressionInfo CheckValue(const ast::AnyExpression& expression);
+  ExpressionInfo CheckAddress(const ast::Expression& expression);
+  ExpressionInfo CheckValue(const ast::Expression& expression);
 
   Context* context_;
   Environment* environment_;
@@ -436,7 +436,7 @@ class AddressChecker {
 
 ExpressionInfo CheckAddress(Context& context, Environment& environment,
                             FrameAllocator& frame,
-                            const ast::AnyExpression& expression) {
+                            const ast::Expression& expression) {
   AddressChecker checker(context, environment, frame);
   return std::visit(checker, expression->value);
 }
@@ -458,8 +458,8 @@ class StatementChecker {
   ir::AnyCode operator()(const ast::FunctionDefinition&);
 
  private:
-  ExpressionInfo CheckAddress(const ast::AnyExpression& expression);
-  ExpressionInfo CheckValue(const ast::AnyExpression& expression);
+  ExpressionInfo CheckAddress(const ast::Expression& expression);
+  ExpressionInfo CheckValue(const ast::Expression& expression);
   ir::AnyCode CheckBlock(Environment& parent_environment,
                          std::span<const ast::AnyStatement> block);
   ir::AnyCode CheckBlock(std::span<const ast::AnyStatement> block);
@@ -485,8 +485,8 @@ class ModuleStatementChecker {
   ir::AnyCode operator()(const ast::FunctionDefinition&);
 
  private:
-  ExpressionInfo CheckAddress(const ast::AnyExpression& expression);
-  ExpressionInfo CheckValue(const ast::AnyExpression& expression);
+  ExpressionInfo CheckAddress(const ast::Expression& expression);
+  ExpressionInfo CheckValue(const ast::Expression& expression);
 
   Context* context_;
   Environment* environment_;
@@ -758,7 +758,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
       .value = ir::Load64(ir::Local(offset))};
 }
 
-ExpressionInfo ExpressionChecker::CheckValue(const ast::AnyExpression& x) {
+ExpressionInfo ExpressionChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
 }
 
@@ -784,11 +784,11 @@ ExpressionInfo AddressChecker::operator()(const ast::Dereference& x) {
                         .value = std::move(inner.value)};
 }
 
-ExpressionInfo AddressChecker::CheckAddress(const ast::AnyExpression& x) {
+ExpressionInfo AddressChecker::CheckAddress(const ast::Expression& x) {
   return aoc2021::CheckAddress(*context_, *environment_, *frame_, x);
 }
 
-ExpressionInfo AddressChecker::CheckValue(const ast::AnyExpression& x) {
+ExpressionInfo AddressChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
 }
 
@@ -895,11 +895,11 @@ ir::AnyCode StatementChecker::operator()(const ast::FunctionDefinition& x) {
 }
 
 ExpressionInfo StatementChecker::CheckAddress(
-    const ast::AnyExpression& x) {
+    const ast::Expression& x) {
   return aoc2021::CheckAddress(*context_, *environment_, *frame_, x);
 }
 
-ExpressionInfo StatementChecker::CheckValue(const ast::AnyExpression& x) {
+ExpressionInfo StatementChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
 }
 
@@ -998,7 +998,7 @@ ir::AnyCode ModuleStatementChecker::operator()(
                        std::move(code), ir::Return(ir::IntegerLiteral(0))});
 }
 
-ExpressionInfo ModuleStatementChecker::CheckValue(const ast::AnyExpression& x) {
+ExpressionInfo ModuleStatementChecker::CheckValue(const ast::Expression& x) {
   // All expressions at global scope must be constant expressions, so the frame
   // is not used.
   FrameAllocator frame;
