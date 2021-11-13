@@ -217,11 +217,11 @@ std::ostream& operator<<(std::ostream&, const Expression&) noexcept;
 
 struct StatementVariant;
 
-class AnyStatement {
+class Statement {
  public:
   // Implicit conversion from any type of statement.
   template <HoldableBy<StatementVariant> T>
-  AnyStatement(T value) noexcept;
+  Statement(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
   const Location& location() const noexcept;
@@ -251,13 +251,13 @@ struct Assign {
 struct If {
   Location location;
   Expression condition;
-  std::vector<AnyStatement> then_branch, else_branch;
+  std::vector<Statement> then_branch, else_branch;
 };
 
 struct While {
   Location location;
   Expression condition;
-  std::vector<AnyStatement> body;
+  std::vector<Statement> body;
 };
 
 struct Return {
@@ -282,7 +282,7 @@ struct FunctionDefinition {
   Location location;
   std::string name;
   std::vector<Name> parameters;
-  std::vector<AnyStatement> body;
+  std::vector<Statement> body;
 };
 
 struct StatementVariant {
@@ -294,7 +294,7 @@ struct StatementVariant {
 };
 
 template <HoldableBy<StatementVariant> T>
-AnyStatement::AnyStatement(T value) noexcept
+Statement::Statement(T value) noexcept
     : value_(std::make_shared<StatementVariant>(std::move(value))) {}
 
 std::ostream& operator<<(std::ostream&, const DeclareScalar&) noexcept;
@@ -307,7 +307,7 @@ std::ostream& operator<<(std::ostream&, const Break&) noexcept;
 std::ostream& operator<<(std::ostream&, const Continue&) noexcept;
 std::ostream& operator<<(std::ostream&, const DiscardedExpression&) noexcept;
 std::ostream& operator<<(std::ostream&, const FunctionDefinition&) noexcept;
-std::ostream& operator<<(std::ostream&, const AnyStatement&) noexcept;
+std::ostream& operator<<(std::ostream&, const Statement&) noexcept;
 
 }  // namespace aoc2021::ast
 

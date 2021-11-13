@@ -20,8 +20,8 @@ class Parser {
   explicit Parser(const Source& source) noexcept : reader_(source) {}
 
   ast::Expression ParseExpression();
-  ast::AnyStatement ParseStatement();
-  std::vector<ast::AnyStatement> ParseProgram();
+  ast::Statement ParseStatement();
+  std::vector<ast::Statement> ParseProgram();
 
  private:
   ast::Name ParseName();
@@ -41,15 +41,15 @@ class Parser {
   ast::Expression ParseDisjunction();
   ast::Expression ParseTernary();
 
-  std::vector<ast::AnyStatement> ParseBlock();
+  std::vector<ast::Statement> ParseBlock();
 
-  ast::AnyStatement ParseBreak();
-  ast::AnyStatement ParseContinue();
-  ast::AnyStatement ParseFunctionDefinition();
-  ast::AnyStatement ParseIf();
-  ast::AnyStatement ParseReturn();
-  ast::AnyStatement ParseDeclaration();
-  ast::AnyStatement ParseWhile();
+  ast::Statement ParseBreak();
+  ast::Statement ParseContinue();
+  ast::Statement ParseFunctionDefinition();
+  ast::Statement ParseIf();
+  ast::Statement ParseReturn();
+  ast::Statement ParseDeclaration();
+  ast::Statement ParseWhile();
 
   std::string_view PeekWord() const noexcept;
   std::string_view PeekOperator() const noexcept;

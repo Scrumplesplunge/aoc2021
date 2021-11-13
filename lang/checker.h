@@ -13,7 +13,7 @@ struct CheckError : public SourceError {
   using SourceError::SourceError;
 };
 
-ir::Unit Check(std::span<const ast::AnyStatement> program);
+ir::Unit Check(std::span<const ast::Statement> program);
 
 }  // namespace aoc2021
 

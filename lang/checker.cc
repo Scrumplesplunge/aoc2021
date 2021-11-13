@@ -461,8 +461,8 @@ class StatementChecker {
   ExpressionInfo CheckAddress(const ast::Expression& expression);
   ExpressionInfo CheckValue(const ast::Expression& expression);
   ir::AnyCode CheckBlock(Environment& parent_environment,
-                         std::span<const ast::AnyStatement> block);
-  ir::AnyCode CheckBlock(std::span<const ast::AnyStatement> block);
+                         std::span<const ast::Statement> block);
+  ir::AnyCode CheckBlock(std::span<const ast::Statement> block);
 
   Context* context_;
   Environment* environment_;
@@ -794,7 +794,7 @@ ExpressionInfo AddressChecker::CheckValue(const ast::Expression& x) {
 
 ir::AnyCode CheckBlock(Context& context, Environment& parent_environment,
                        FrameAllocator& parent_frame,
-                       std::span<const ast::AnyStatement> block) {
+                       std::span<const ast::Statement> block) {
   std::vector<ir::AnyCode> code;
   FrameAllocator frame(&parent_frame);
   Environment environment(parent_environment, Environment::ShadowMode::kDeny);
@@ -904,12 +904,12 @@ ExpressionInfo StatementChecker::CheckValue(const ast::Expression& x) {
 }
 
 ir::AnyCode StatementChecker::CheckBlock(
-    Environment& parent_environment, std::span<const ast::AnyStatement> block) {
+    Environment& parent_environment, std::span<const ast::Statement> block) {
   return aoc2021::CheckBlock(*context_, parent_environment, *frame_, block);
 }
 
 ir::AnyCode StatementChecker::CheckBlock(
-    std::span<const ast::AnyStatement> block) {
+    std::span<const ast::Statement> block) {
   return CheckBlock(*environment_, block);
 }
 
@@ -1007,7 +1007,7 @@ ExpressionInfo ModuleStatementChecker::CheckValue(const ast::Expression& x) {
 
 }  // namespace
 
-ir::Unit Check(std::span<const ast::AnyStatement> program) {
+ir::Unit Check(std::span<const ast::Statement> program) {
   Context context;
   Environment global;
   std::vector<ir::AnyCode> code;

@@ -50,7 +50,7 @@ constexpr bool IsAlphaNumeric(char c) { return IsDigit(c) || IsAlpha(c); }
 
 Expression Parser::ParseExpression() { return ParseTernary(); }
 
-AnyStatement Parser::ParseStatement() {
+Statement Parser::ParseStatement() {
   const std::string_view keyword = PeekWord();
   if (keyword == "break") return ParseBreak();
   if (keyword == "continue") return ParseContinue();
@@ -75,8 +75,8 @@ AnyStatement Parser::ParseStatement() {
   throw Error("expected statement");
 }
 
-std::vector<AnyStatement> Parser::ParseProgram() {
-  std::vector<AnyStatement> program;
+std::vector<Statement> Parser::ParseProgram() {
+  std::vector<Statement> program;
   while (true) {
     SkipWhitespaceAndComments();
     if (reader_.empty()) return program;
@@ -423,9 +423,9 @@ Expression Parser::ParseTernary() {
                            std::move(else_branch));
 }
 
-std::vector<AnyStatement> Parser::ParseBlock() {
+std::vector<Statement> Parser::ParseBlock() {
   if (!reader_.ConsumePrefix("{")) throw Error("expected statement block");
-  std::vector<AnyStatement> body;
+  std::vector<Statement> body;
   while (true) {
     SkipWhitespaceAndComments();
     if (reader_.ConsumePrefix("}")) return body;
@@ -433,7 +433,7 @@ std::vector<AnyStatement> Parser::ParseBlock() {
   }
 }
 
-AnyStatement Parser::ParseBreak() {
+Statement Parser::ParseBreak() {
   const Location location = reader_.location();
   if (!ConsumeWord("break")) throw Error("expected break statement");
   SkipWhitespaceAndComments();
@@ -441,7 +441,7 @@ AnyStatement Parser::ParseBreak() {
   return Break(location);
 }
 
-AnyStatement Parser::ParseContinue() {
+Statement Parser::ParseContinue() {
   const Location location = reader_.location();
   if (!ConsumeWord("continue")) throw Error("expected continue statement");
   SkipWhitespaceAndComments();
@@ -449,7 +449,7 @@ AnyStatement Parser::ParseContinue() {
   return Continue(location);
 }
 
-AnyStatement Parser::ParseFunctionDefinition() {
+Statement Parser::ParseFunctionDefinition() {
   const Location location = reader_.location();
   if (!ConsumeWord("function")) throw Error("expected function definition");
   SkipWhitespaceAndComments();
@@ -474,13 +474,13 @@ AnyStatement Parser::ParseFunctionDefinition() {
                             ParseBlock());
 }
 
-AnyStatement Parser::ParseIf() {
+Statement Parser::ParseIf() {
   const Location location = reader_.location();
   if (!ConsumeWord("if")) throw Error("expected if statement");
   SkipWhitespaceAndComments();
   Expression condition = ParseExpression();
   SkipWhitespaceAndComments();
-  std::vector<AnyStatement> then_branch = ParseBlock();
+  std::vector<Statement> then_branch = ParseBlock();
   SkipWhitespaceAndComments();
   if (!ConsumeWord("else")) {
     // if .. {}
@@ -489,7 +489,7 @@ AnyStatement Parser::ParseIf() {
   SkipWhitespaceAndComments();
   if (PeekWord() == "if") {
     // if .. {} else if ..
-    std::vector<AnyStatement> else_branch;
+    std::vector<Statement> else_branch;
     else_branch.push_back(ParseIf());
     return If(location, std::move(condition), std::move(then_branch),
               std::move(else_branch));
@@ -500,7 +500,7 @@ AnyStatement Parser::ParseIf() {
   }
 }
 
-AnyStatement Parser::ParseReturn() {
+Statement Parser::ParseReturn() {
   const Location location = reader_.location();
   if (!ConsumeWord("return")) throw Error("expected return statement");
   SkipWhitespaceAndComments();
@@ -511,7 +511,7 @@ AnyStatement Parser::ParseReturn() {
   return Return(location, std::move(value));
 }
 
-AnyStatement Parser::ParseDeclaration() {
+Statement Parser::ParseDeclaration() {
   const Location location = reader_.location();
   if (!ConsumeWord("var")) throw Error("expected variable declaration");
   SkipWhitespaceAndComments();
@@ -555,7 +555,7 @@ AnyStatement Parser::ParseDeclaration() {
   }
 }
 
-AnyStatement Parser::ParseWhile() {
+Statement Parser::ParseWhile() {
   const Location location = reader_.location();
   if (!ConsumeWord("while")) throw Error("expected while statement");
   SkipWhitespaceAndComments();

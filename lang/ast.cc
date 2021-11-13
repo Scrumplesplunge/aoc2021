@@ -157,12 +157,12 @@ std::ostream& operator<<(std::ostream& output,
                     expression->value);
 }
 
-const Location& AnyStatement::location() const noexcept {
+const Location& Statement::location() const noexcept {
   return std::visit([](const auto& x) -> const Location& { return x.location; },
                     value_->value);
 }
 
-const StatementVariant& AnyStatement::operator*() const noexcept {
+const StatementVariant& Statement::operator*() const noexcept {
   return *value_;
 }
 
@@ -217,7 +217,7 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 std::ostream& operator<<(std::ostream& output,
-                         const AnyStatement& statement) noexcept {
+                         const Statement& statement) noexcept {
   return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
                     statement->value);
 }
