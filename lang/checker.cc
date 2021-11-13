@@ -255,15 +255,21 @@ class FrameAllocator {
   std::int64_t max_size_ = 0;
 };
 
-using Value = std::variant<std::int64_t, ir::Label, ir::Global, ir::Local>;
+struct Array { ir::AnyExpression address; };
+using Value =
+    std::variant<std::int64_t, ir::Label, ir::Global, ir::Local, Array>;
 
-ir::AnyExpression AsAddress(Location location, std::int64_t x) {
+ir::AnyExpression AsAddress(Location location, std::int64_t) {
   throw Error(location, "constant is not an lvalue");
 }
 
 ir::AnyExpression AsAddress(Location location, ir::Label x) { return x; }
 ir::AnyExpression AsAddress(Location location, ir::Global x) { return x; }
 ir::AnyExpression AsAddress(Location location, ir::Local x) { return x; }
+ir::AnyExpression AsAddress(Location location, Array) {
+  // TODO: Make arrays a proper value type which does deep copying.
+  throw Error(location, "array is not an lvalue");
+}
 
 ir::AnyExpression AsAddress(Location location, const Value& v) {
   return std::visit([&](auto& x) { return AsAddress(location, x); }, v);
@@ -284,6 +290,8 @@ ir::AnyExpression AsValue(Location location, ir::Global x) {
 ir::AnyExpression AsValue(Location location, ir::Local x) {
   return ir::Load64(x);
 }
+
+ir::AnyExpression AsValue(Location location, Array x) { return x.address; }
 
 ir::AnyExpression AsValue(Location location, const Value& v) {
   return std::visit([&](auto& x) { return AsValue(location, x); }, v);
@@ -391,7 +399,6 @@ class ExpressionChecker : public ast::ExpressionVisitor<ExpressionInfo> {
   ExpressionInfo operator()(const ast::TernaryExpression&) override;
 
  private:
-  ExpressionInfo CheckAddress(const ast::AnyExpression& expression);
   ExpressionInfo CheckValue(const ast::AnyExpression& expression);
 
   Context* context_;
@@ -537,12 +544,13 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Index& x) {
-  ExpressionInfo container = CheckAddress(x.container);
+  ExpressionInfo container = CheckValue(x.container);
   ExpressionInfo index = CheckValue(x.index);
   return ExpressionInfo{
       .code = ir::Sequence({std::move(container.code), std::move(index.code)}),
-      .value = ir::Load64(
-          ir::Add(std::move(container.value), std::move(index.value)))};
+      .value = ir::Load64(ir::Add(
+          std::move(container.value),
+          ir::Multiply(ir::IntegerLiteral(8), std::move(index.value))))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Negate& x) {
@@ -771,10 +779,6 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
       .value = ir::Load64(ir::Local(offset))};
 }
 
-ExpressionInfo ExpressionChecker::CheckAddress(const ast::AnyExpression& x) {
-  return aoc2021::CheckAddress(*context_, *environment_, *frame_, x);
-}
-
 ExpressionInfo ExpressionChecker::CheckValue(const ast::AnyExpression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
 }
@@ -786,27 +790,11 @@ ExpressionInfo AddressChecker::operator()(const ast::Name& x) {
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::IntegerLiteral& x) {
-  return ExpressionInfo{.value = ir::IntegerLiteral(x.value)};
+  throw Error(x.location, "integer literal is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Call& x) {
-  std::vector<ir::AnyCode> code;
-  ExpressionInfo function = CheckValue(x.function);
-  code.push_back(std::move(function.code));
-  // TODO: Check the number of arguments for the function once types are
-  // tracked.
-  std::vector<ir::AnyExpression> arguments;
-  for (const auto& argument : x.arguments) {
-    ExpressionInfo result = CheckValue(argument);
-    code.push_back(std::move(result.code));
-    arguments.push_back(std::move(result.value));
-  }
-  // Allocate space for the function result.
-  const ir::Local::Offset offset = frame_->Allocate(1);
-  code.push_back(ir::StoreCall64(ir::Local(offset), std::move(function.value),
-                                 std::move(arguments)));
-  return ExpressionInfo{.code = ir::Sequence{std::move(code)},
-                        .value = ir::Local(offset)};
+  throw Error(x.location, "function return value is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Index& x) {
@@ -814,234 +802,105 @@ ExpressionInfo AddressChecker::operator()(const ast::Index& x) {
   ExpressionInfo index = CheckValue(x.index);
   return ExpressionInfo{
       .code = ir::Sequence({std::move(container.code), std::move(index.code)}),
-      .value = ir::Load64(
-          ir::Add(std::move(container.value), std::move(index.value)))};
+      .value =
+          ir::Add(std::move(container.value),
+                  ir::Multiply(ir::IntegerLiteral(8), std::move(index.value)))};
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Negate& x) {
-  ExpressionInfo inner = CheckValue(x.inner);
-  return ExpressionInfo{.code = std::move(inner.code),
-                        .value = ir::Negate(std::move(inner.value))};
+  throw Error(x.location, "arithmetic expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::LogicalNot& x) {
-  ExpressionInfo inner = CheckValue(x.inner);
-  return ExpressionInfo{.code = std::move(inner.code),
-                        .value = ir::LogicalNot(std::move(inner.value))};
+  throw Error(x.location, "logical expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::BitwiseNot& x) {
-  ExpressionInfo inner = CheckValue(x.inner);
-  return ExpressionInfo{.code = std::move(inner.code),
-                        .value = ir::BitwiseNot(std::move(inner.value))};
+  throw Error(x.location, "bitwise expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Dereference& x) {
   ExpressionInfo inner = CheckValue(x.inner);
   return ExpressionInfo{.code = std::move(inner.code),
-                        .value = ir::Load64(std::move(inner.value))};
+                        .value = std::move(inner.value)};
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Add& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::Add(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "arithmetic expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Subtract& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::Subtract(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "arithmetic expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Multiply& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::Multiply(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "arithmetic expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Divide& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::Divide(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "arithmetic expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Modulo& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::Modulo(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "arithmetic expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::LessThan& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::LessThan(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "comparison expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::LessOrEqual& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::LessOrEqual(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "comparison expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::GreaterThan& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  // GreaterThan(left, right) is translated into LessThan(right, left).
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::LessThan(std::move(right.value), std::move(left.value))};
+  throw Error(x.location, "comparison expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::GreaterOrEqual& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  // GreaterOrEqual(left, right) is translated into LessOrEqual(right, left).
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::LessOrEqual(std::move(right.value), std::move(left.value))};
+  throw Error(x.location, "comparison expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Equal& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::Equal(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "comparison expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::NotEqual& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::NotEqual(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "comparison expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::LogicalAnd& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  // Allocate space for the function result.
-  const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label end = context_->Label("logical_and_end");
-  // a && b compiles into:
-  //   temp = a
-  //   if (!temp) goto end
-  //   temp = b
-  //  end:
-  //   yield temp
-  return ExpressionInfo{
-      .code = ir::Sequence(
-          {std::move(left.code),
-           ir::Store64(ir::Local(offset), std::move(left.value)),
-           ir::JumpUnless(ir::Load64(ir::Local(offset)), end),
-           std::move(right.code),
-           ir::Store64(ir::Local(offset), std::move(right.value)), end}),
-      .value = ir::Load64(ir::Local(offset))};
+  throw Error(x.location, "logical expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::LogicalOr& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  // Allocate space for the function result.
-  const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label end = context_->Label("logical_or_end");
-  // a || b compiles into:
-  //   temp = a
-  //   if (temp) goto end
-  //   temp = b
-  //  end:
-  //   yield temp
-  return ExpressionInfo{
-      .code = ir::Sequence(
-          {std::move(left.code),
-           ir::Store64(ir::Local(offset), std::move(left.value)),
-           ir::JumpIf(ir::Load64(ir::Local(offset)), end),
-           std::move(right.code),
-           ir::Store64(ir::Local(offset), std::move(right.value)), end}),
-      .value = ir::Load64(ir::Local(offset))};
+  throw Error(x.location, "logical expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::BitwiseAnd& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::BitwiseAnd(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "bitwise expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::BitwiseOr& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::BitwiseOr(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "bitwise expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::BitwiseXor& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::BitwiseXor(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "bitwise expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::ShiftLeft& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::ShiftLeft(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "bitwise expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::ShiftRight& x) {
-  ExpressionInfo left = CheckValue(x.left);
-  ExpressionInfo right = CheckValue(x.right);
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = ir::ShiftRight(std::move(left.value), std::move(right.value))};
+  throw Error(x.location, "bitwise expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::TernaryExpression& x) {
-  ExpressionInfo condition = CheckValue(x.condition);
-  ExpressionInfo then_branch = CheckValue(x.then_branch);
-  ExpressionInfo else_branch = CheckValue(x.else_branch);
-  // Allocate space for the function result.
-  const ir::Local::Offset offset = frame_->Allocate(1);
-  const ir::Label if_false = context_->Label("ternary_else");
-  const ir::Label end = context_->Label("ternary_end");
-  // cond ? a : b compiles into:
-  //   cond
-  //   if (!cond) goto if_false
-  //   result = a
-  //   goto end
-  //  if_false:
-  //   result = a
-  //  end:
-  //   yield result
-  return ExpressionInfo{
-      .code = ir::Sequence(
-          {std::move(condition.code),
-           ir::JumpUnless(std::move(condition.value), if_false),
-           std::move(then_branch.code),
-           ir::Store64(ir::Local(offset), std::move(then_branch.value)),
-           ir::Jump(end), if_false, std::move(else_branch.code),
-           ir::Store64(ir::Local(offset), std::move(else_branch.value)), end}),
-      .value = ir::Load64(ir::Local(offset))};
+  // TODO: Consider allowing ternary expressions where both expressions can
+  // yield addresses.
+  throw Error(x.location, "ternary expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::CheckAddress(const ast::AnyExpression& x) {
@@ -1079,9 +938,9 @@ ir::AnyCode StatementChecker::operator()(const ast::DeclareArray& x) {
     throw Error(x.location, "array size must be a constant expression");
   }
   const ir::Local::Offset offset = frame_->Allocate(*size);
-  environment_->Define(x.name,
-                       Environment::Definition{.location = x.location,
-                                               .value = ir::Local(offset)});
+  environment_->Define(
+      x.name, Environment::Definition{.location = x.location,
+                                      .value = Array(ir::Local(offset))});
   return ir::Sequence();
 }
 
@@ -1186,8 +1045,8 @@ ir::AnyCode ModuleStatementChecker::operator()(const ast::DeclareArray& x) {
     throw Error(x.location, "array size must be a constant expression");
   }
   const ir::Global global = context_->Global(x.name, *size);
-  environment_->Define(
-      x.name, Environment::Definition{.location = x.location, .value = global});
+  environment_->Define(x.name, Environment::Definition{.location = x.location,
+                                                       .value = Array(global)});
   return ir::Sequence();
 }
 
@@ -1275,7 +1134,8 @@ ir::Unit Check(std::span<const ast::AnyStatement> program) {
     ModuleStatementChecker checker(context, global);
     code.push_back(statement.Visit(checker));
   }
-  return ir::Unit{.main = context.Main(), .code = ir::Sequence(code)};
+  return ir::Unit{.main = context.Main(),
+                  .code = ir::Flatten(ir::Sequence(std::move(code)))};
 }
 
 }  // namespace aoc2021

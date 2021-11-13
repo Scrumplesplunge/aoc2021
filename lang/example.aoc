@@ -3,14 +3,8 @@
 // $ ld example.o -o example
 // $ ./example
 
-function fib(n) {
-  if n < 2 {
-    return n;
-  } else {
-    return fib(n - 1) + fib(n - 2);
-  }
-}
-
 function main() {
-  return fib(10);
+  var result[1];
+  *result = 1;
+  return result[0];
 }

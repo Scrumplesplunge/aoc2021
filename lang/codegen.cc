@@ -75,49 +75,43 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
   ExpressionGenerator(std::ostream& output) noexcept : output_(&output) {}
 
   void operator()(const ir::Label& x) override {
-    *output_ << "  // ir::Label\n"
-                "  push $"
-             << x.value << '\n';
+    *output_ << "  // " << ir::AnyExpression(x) << "\n  push $" << x.value
+             << '\n';
   }
 
   void operator()(const ir::Global& x) override {
-    *output_ << "  // ir::Global\n"
-                "  push $"
-             << x.value << '\n';
+    *output_ << "  // " << x << "\n  push $" << x.value << '\n';
   }
 
   void operator()(const ir::Local& x) override {
-    *output_ << "  // ir::Local\n"
-                "  lea "
-             << (8 * (std::int64_t)x.offset)
+    *output_ << "  // " << x << "\n  lea " << (8 * (std::int64_t)x.offset)
              << "(%rbp), %rax\n"
                 "  push %rax\n";
   }
 
   void operator()(const ir::Load64& x) override {
     x.address.Visit(*this);
-    *output_ << "  // ir::Load64\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  push (%rax)\n";
   }
 
   void operator()(const ir::IntegerLiteral& x) override {
-    *output_ << "  // ir::IntegerLiteral\n"
-                "  push $" << x.value << '\n';
+    *output_ << "  // " << x << "\n  push $" << x.value << '\n';
   }
 
   void operator()(const ir::Negate& x) override {
     x.inner.Visit(*this);
-    *output_ << "  // ir::Negate\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  neg %rax\n"
                 "  push %rax\n";
   }
 
   void operator()(const ir::LogicalNot& x) override {
     x.inner.Visit(*this);
-    *output_ << "  // ir::LogicalNot\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
                 "  test %rax, %rax\n"
                 "  sete %bl\n"
@@ -126,8 +120,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
 
   void operator()(const ir::BitwiseNot& x) override {
     x.inner.Visit(*this);
-    *output_ << "  // ir::BitwiseNot\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  not %rax\n"
                 "  push %rax\n";
   }
@@ -135,33 +129,33 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
   void operator()(const ir::Add& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::Add\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  add %rax, (%rsp)\n";
   }
 
   void operator()(const ir::Subtract& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::Subtract\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  sub %rax, (%rsp)\n";
   }
 
   void operator()(const ir::Multiply& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::Multiply\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  imul (%rsp), %rax\n"
-                "  push %rax\n";
+                "  mov %rax, (%rsp)\n";
   }
 
   void operator()(const ir::Divide& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::Divide\n"
-                "  pop %rbx\n"
+    *output_ << "  // " << x
+             << "\n  pop %rbx\n"
                 "  pop %rax\n"
                 "  xor %rdx, %rdx\n"
                 "  idiv %rbx\n"
@@ -171,8 +165,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
   void operator()(const ir::Modulo& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::Modulo\n"
-                "  pop %rbx\n"
+    *output_ << "  // " << x
+             << "\n  pop %rbx\n"
                 "  pop %rax\n"
                 "  xor %rdx, %rdx\n"
                 "  idiv %rbx\n"
@@ -182,8 +176,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
   void operator()(const ir::LessThan& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::LessThan\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
                 "  cmp %rax, (%rsp)\n"
                 "  setl %bl\n"
@@ -193,8 +187,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
   void operator()(const ir::LessOrEqual& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::LessOrEqual\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
                 "  cmp %rax, (%rsp)\n"
                 "  setle %bl\n"
@@ -204,8 +198,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
   void operator()(const ir::Equal& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::Equal\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
                 "  test %rax, (%rsp)\n"
                 "  sete %bl\n"
@@ -215,8 +209,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
   void operator()(const ir::NotEqual& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::NotEqual\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
                 "  cmp %rax, (%rsp)\n"
                 "  setne %bl\n"
@@ -226,40 +220,40 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
   void operator()(const ir::BitwiseAnd& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::BitwiseAnd\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  and %rax, (%rsp)\n";
   }
 
   void operator()(const ir::BitwiseOr& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::BitwiseOr\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  or %rax, (%rsp)\n";
   }
 
   void operator()(const ir::BitwiseXor& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::BitwiseXor\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  xor %rax, (%rsp)\n";
   }
 
   void operator()(const ir::ShiftLeft& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::BitwiseXor\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  sal %al, (%rsp)\n";
   }
 
   void operator()(const ir::ShiftRight& x) override {
     x.left.Visit(*this);
     x.right.Visit(*this);
-    *output_ << "  // ir::BitwiseXor\n"
-                "  pop %rax\n"
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
                 "  sar %al, (%rsp)\n";
   }
 

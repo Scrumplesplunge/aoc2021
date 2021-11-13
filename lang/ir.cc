@@ -64,7 +64,7 @@ class ExpressionPrinter : public ExpressionVisitor<void> {
     *output_ << "Subtract(" << x.left << ", " << x.right << ")";
   }
   void operator()(const Multiply& x) override {
-    *output_ << "Multiply(" << x.left << ", " << x.right << ");";
+    *output_ << "Multiply(" << x.left << ", " << x.right << ")";
   }
   void operator()(const Divide& x) override {
     *output_ << "Divide(" << x.left << ", " << x.right << ")";
