@@ -117,8 +117,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
     x.inner.Visit(*this);
     *output_ << "  // ir::LogicalNot\n"
                 "  pop %rax\n"
-                "  test %rax, %rax\n"
                 "  xor %rbx, %rbx\n"
+                "  test %rax, %rax\n"
                 "  sete %bl\n"
                 "  push %rbx\n";
   }
@@ -183,8 +183,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
     x.right.Visit(*this);
     *output_ << "  // ir::LessThan\n"
                 "  pop %rax\n"
-                "  cmp %rax, (%rsp)\n"
                 "  xor %rbx, %rbx\n"
+                "  cmp %rax, (%rsp)\n"
                 "  setl %bl\n"
                 "  push %rbx\n";
   }
@@ -194,8 +194,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
     x.right.Visit(*this);
     *output_ << "  // ir::LessOrEqual\n"
                 "  pop %rax\n"
-                "  cmp %rax, (%rsp)\n"
                 "  xor %rbx, %rbx\n"
+                "  cmp %rax, (%rsp)\n"
                 "  setle %bl\n"
                 "  push %rbx\n";
   }
@@ -205,8 +205,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
     x.right.Visit(*this);
     *output_ << "  // ir::Equal\n"
                 "  pop %rax\n"
-                "  test %rax, (%rsp)\n"
                 "  xor %rbx, %rbx\n"
+                "  test %rax, (%rsp)\n"
                 "  sete %bl\n"
                 "  push %rbx\n";
   }
@@ -216,8 +216,8 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
     x.right.Visit(*this);
     *output_ << "  // ir::NotEqual\n"
                 "  pop %rax\n"
-                "  cmp %rax, (%rsp)\n"
                 "  xor %rbx, %rbx\n"
+                "  cmp %rax, (%rsp)\n"
                 "  setne %bl\n"
                 "  push %rbx\n";
   }
@@ -320,6 +320,8 @@ class CodeGenerator : public ir::CodeVisitor<void> {
   }
 
   void operator()(const ir::JumpIf& x) override {
+    ExpressionGenerator generator(*output_);
+    x.condition.Visit(generator);
     *output_ << "  // ir::JumpIf\n"
                 "  pop %rax\n"
                 "  test %rax, %rax\n"
@@ -327,6 +329,8 @@ class CodeGenerator : public ir::CodeVisitor<void> {
   }
 
   void operator()(const ir::JumpUnless& x) override {
+    ExpressionGenerator generator(*output_);
+    x.condition.Visit(generator);
     *output_ << "  // ir::JumpUnless\n"
                 "  pop %rax\n"
                 "  test %rax, %rax\n"
@@ -347,7 +351,7 @@ constexpr char kPrelude[] = R"(
 _start:
   sub $8, %rsp
   push %rsp
-  call label_function_1
+  call label_function_3
   add $8, %rsp
   // exit
   pop %rdi

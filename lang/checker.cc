@@ -1233,6 +1233,7 @@ ir::AnyCode ModuleStatementChecker::operator()(
   //  ...
   //  arg2
   //  arg1
+  //  return slot
   //  return address
   //  saved frame pointer <- frame pointer points here
   //  ...
@@ -1240,7 +1241,7 @@ ir::AnyCode ModuleStatementChecker::operator()(
   //  local1
   for (int i = 0; i < n; i++) {
     const auto& parameter = x.parameters[i];
-    const ir::Local::Offset offset{i + 2};
+    const ir::Local::Offset offset{i + 3};
     function_environment.Define(
         parameter.value, Environment::Definition{.location = parameter.location,
                                                  .value = ir::Local(offset)});

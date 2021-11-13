@@ -1,13 +1,16 @@
-// $ build/compiler example.aoc 2>/dev/null |
-//   tee /dev/tty |
-//   as -o example.o
+// $ build/compiler example.aoc 2>/dev/null > example.s
+// $ as example.s -o example.o
 // $ ld example.o -o example
 // $ ./example
 
-function value() {
-  return 2;
+function fib(n) {
+  if n < 2 {
+    return n;
+  } else {
+    return fib(n - 1) + fib(n - 2);
+  }
 }
 
-function demo() {
-  return 2 * value();
+function main() {
+  return fib(10);
 }
