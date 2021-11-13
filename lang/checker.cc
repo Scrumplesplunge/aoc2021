@@ -41,7 +41,7 @@ CheckError UndeclaredError(std::string_view name, Location location) {
   return Error(location, "use of undeclared name '", name, "'");
 }
 
-std::optional<std::int64_t> Evaluate(const ir::AnyExpression& expression);
+std::optional<std::int64_t> Evaluate(const ir::Expression& expression);
 
 class Evaluator {
  public:
@@ -201,7 +201,7 @@ class Evaluator {
   std::ostream* output_;
 };
 
-std::optional<std::int64_t> Evaluate(const ir::AnyExpression& expression) {
+std::optional<std::int64_t> Evaluate(const ir::Expression& expression) {
   Evaluator evaluator;
   return std::visit(evaluator, expression->value);
 }
@@ -255,45 +255,47 @@ class FrameAllocator {
   std::int64_t max_size_ = 0;
 };
 
-struct Array { ir::AnyExpression address; };
+struct Array { ir::Expression address; };
 using Value =
     std::variant<std::int64_t, ir::Label, ir::Global, ir::Local, Array>;
 
-ir::AnyExpression AsAddress(Location location, std::int64_t) {
+ir::Expression AsAddress(Location location, std::int64_t) {
   throw Error(location, "constant is not an lvalue");
 }
 
-ir::AnyExpression AsAddress(Location location, ir::Label x) { return ir::AnyExpression(x); }
-ir::AnyExpression AsAddress(Location location, ir::Global x) { return x; }
-ir::AnyExpression AsAddress(Location location, ir::Local x) { return x; }
-ir::AnyExpression AsAddress(Location location, Array) {
+ir::Expression AsAddress(Location location, ir::Label x) {
+  return ir::Expression(x);
+}
+ir::Expression AsAddress(Location location, ir::Global x) { return x; }
+ir::Expression AsAddress(Location location, ir::Local x) { return x; }
+ir::Expression AsAddress(Location location, Array) {
   // TODO: Make arrays a proper value type which does deep copying.
   throw Error(location, "array is not an lvalue");
 }
 
-ir::AnyExpression AsAddress(Location location, const Value& v) {
+ir::Expression AsAddress(Location location, const Value& v) {
   return std::visit([&](auto& x) { return AsAddress(location, x); }, v);
 }
 
-ir::AnyExpression AsValue(Location location, std::int64_t x) {
+ir::Expression AsValue(Location location, std::int64_t x) {
   return ir::IntegerLiteral(x);
 }
 
-ir::AnyExpression AsValue(Location location, ir::Label x) {
+ir::Expression AsValue(Location location, ir::Label x) {
   return x;
 }
 
-ir::AnyExpression AsValue(Location location, ir::Global x) {
+ir::Expression AsValue(Location location, ir::Global x) {
   return ir::Load64(x);
 }
 
-ir::AnyExpression AsValue(Location location, ir::Local x) {
+ir::Expression AsValue(Location location, ir::Local x) {
   return ir::Load64(x);
 }
 
-ir::AnyExpression AsValue(Location location, Array x) { return x.address; }
+ir::Expression AsValue(Location location, Array x) { return x.address; }
 
-ir::AnyExpression AsValue(Location location, const Value& v) {
+ir::Expression AsValue(Location location, const Value& v) {
   return std::visit([&](auto& x) { return AsValue(location, x); }, v);
 }
 
@@ -362,7 +364,7 @@ class Environment {
 
 struct ExpressionInfo {
   ir::AnyCode code = ir::Sequence{};
-  ir::AnyExpression value;
+  ir::Expression value;
 };
 
 class ExpressionChecker {
@@ -508,7 +510,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
   code.push_back(std::move(function.code));
   // TODO: Check the number of arguments for the function once types are
   // tracked.
-  std::vector<ir::AnyExpression> arguments;
+  std::vector<ir::Expression> arguments;
   for (const auto& argument : x.arguments) {
     ExpressionInfo result = CheckValue(argument);
     code.push_back(std::move(result.code));

@@ -50,7 +50,7 @@ Label::Label(std::string_view prefix, std::int64_t suffix)
 Global::Global(std::string_view prefix, std::int64_t suffix)
     : value(StrCat("global_", prefix, '_', suffix)) {}
 
-const ExpressionVariant& AnyExpression::operator*() const noexcept {
+const ExpressionVariant& Expression::operator*() const noexcept {
   return *value_;
 }
 
@@ -143,7 +143,7 @@ std::ostream& operator<<(std::ostream& output, const ShiftRight& x) noexcept {
 }
 
 std::ostream& operator<<(std::ostream& output,
-                         const AnyExpression& expression) noexcept {
+                         const Expression& expression) noexcept {
   return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
                     expression->value);
 }

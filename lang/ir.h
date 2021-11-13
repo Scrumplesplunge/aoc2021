@@ -13,11 +13,11 @@ namespace aoc2021::ir {
 
 struct ExpressionVariant;
 
-class AnyExpression {
+class Expression {
  public:
   // Implicit conversion from any type of expression.
   template <HoldableBy<ExpressionVariant> T>
-  AnyExpression(T value) noexcept;
+  Expression(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
   const ExpressionVariant& operator*() const noexcept;
@@ -47,29 +47,29 @@ struct Local {
 };
 
 // Loads a 64-bit value from the given address.
-struct Load64 { AnyExpression address; };
+struct Load64 { Expression address; };
 
 // Represents a literal value.
 struct IntegerLiteral { std::int64_t value; };
 
 // Pure calculation.
-struct Negate { AnyExpression inner; };
-struct LogicalNot { AnyExpression inner; };
-struct BitwiseNot { AnyExpression inner; };
-struct Add { AnyExpression left, right; };
-struct Subtract { AnyExpression left, right; };
-struct Multiply { AnyExpression left, right; };
-struct Divide { AnyExpression left, right; };
-struct Modulo { AnyExpression left, right; };
-struct LessThan { AnyExpression left, right; };
-struct LessOrEqual { AnyExpression left, right; };
-struct Equal { AnyExpression left, right; };
-struct NotEqual { AnyExpression left, right; };
-struct BitwiseAnd { AnyExpression left, right; };
-struct BitwiseOr { AnyExpression left, right; };
-struct BitwiseXor { AnyExpression left, right; };
-struct ShiftLeft { AnyExpression left, right; };
-struct ShiftRight { AnyExpression left, right; };
+struct Negate { Expression inner; };
+struct LogicalNot { Expression inner; };
+struct BitwiseNot { Expression inner; };
+struct Add { Expression left, right; };
+struct Subtract { Expression left, right; };
+struct Multiply { Expression left, right; };
+struct Divide { Expression left, right; };
+struct Modulo { Expression left, right; };
+struct LessThan { Expression left, right; };
+struct LessOrEqual { Expression left, right; };
+struct Equal { Expression left, right; };
+struct NotEqual { Expression left, right; };
+struct BitwiseAnd { Expression left, right; };
+struct BitwiseOr { Expression left, right; };
+struct BitwiseXor { Expression left, right; };
+struct ShiftLeft { Expression left, right; };
+struct ShiftRight { Expression left, right; };
 
 struct ExpressionVariant {
   auto operator<=>(const ExpressionVariant&) const = default;
@@ -82,7 +82,7 @@ struct ExpressionVariant {
 };
 
 template <HoldableBy<ExpressionVariant> T>
-AnyExpression::AnyExpression(T value) noexcept
+Expression::Expression(T value) noexcept
     : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
 
 std::ostream& operator<<(std::ostream&, const Label&) noexcept;
@@ -107,7 +107,7 @@ std::ostream& operator<<(std::ostream&, const BitwiseOr&) noexcept;
 std::ostream& operator<<(std::ostream&, const BitwiseXor&) noexcept;
 std::ostream& operator<<(std::ostream&, const ShiftLeft&) noexcept;
 std::ostream& operator<<(std::ostream&, const ShiftRight&) noexcept;
-std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
+std::ostream& operator<<(std::ostream&, const Expression&) noexcept;
 
 struct CodeVariant;
 
@@ -126,30 +126,30 @@ class AnyCode {
 };
 
 // Pops an address, pops a 64-bit value, stores the value to the address.
-struct Store64 { AnyExpression address, value; };
+struct Store64 { Expression address, value; };
 
 // Call a function with the given arguments, store the 64-bit result to the
 // given address.
 struct StoreCall64 {
-  AnyExpression result_address;
-  AnyExpression function_address;
-  std::vector<AnyExpression> arguments;
+  Expression result_address;
+  Expression function_address;
+  std::vector<Expression> arguments;
 };
 
 // Start a function stack frame: set up the frame pointer and adjust the stack.
 struct BeginFrame { std::int64_t size; };
 
-struct Return { AnyExpression value; };
+struct Return { Expression value; };
 
 struct Jump { Label target; };
 
 struct JumpIf {
-  AnyExpression condition;
+  Expression condition;
   Label target;
 };
 
 struct JumpUnless {
-  AnyExpression condition;
+  Expression condition;
   Label target;
 };
 
