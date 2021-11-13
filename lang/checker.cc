@@ -419,32 +419,11 @@ class AddressChecker {
                  FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
   ExpressionInfo operator()(const ast::Name&);
-  ExpressionInfo operator()(const ast::IntegerLiteral&);
-  ExpressionInfo operator()(const ast::Call&);
   ExpressionInfo operator()(const ast::Index&);
-  ExpressionInfo operator()(const ast::Negate&);
-  ExpressionInfo operator()(const ast::LogicalNot&);
-  ExpressionInfo operator()(const ast::BitwiseNot&);
   ExpressionInfo operator()(const ast::Dereference&);
-  ExpressionInfo operator()(const ast::Add&);
-  ExpressionInfo operator()(const ast::Subtract&);
-  ExpressionInfo operator()(const ast::Multiply&);
-  ExpressionInfo operator()(const ast::Divide&);
-  ExpressionInfo operator()(const ast::Modulo&);
-  ExpressionInfo operator()(const ast::LessThan&);
-  ExpressionInfo operator()(const ast::LessOrEqual&);
-  ExpressionInfo operator()(const ast::GreaterThan&);
-  ExpressionInfo operator()(const ast::GreaterOrEqual&);
-  ExpressionInfo operator()(const ast::Equal&);
-  ExpressionInfo operator()(const ast::NotEqual&);
-  ExpressionInfo operator()(const ast::LogicalAnd&);
-  ExpressionInfo operator()(const ast::LogicalOr&);
-  ExpressionInfo operator()(const ast::BitwiseAnd&);
-  ExpressionInfo operator()(const ast::BitwiseOr&);
-  ExpressionInfo operator()(const ast::BitwiseXor&);
-  ExpressionInfo operator()(const ast::ShiftLeft&);
-  ExpressionInfo operator()(const ast::ShiftRight&);
-  ExpressionInfo operator()(const ast::TernaryExpression&);
+  ExpressionInfo operator()(const auto& x) {
+    throw Error(x.location, "expression is not an lvalue");
+  }
 
  private:
   ExpressionInfo CheckAddress(const ast::AnyExpression& expression);
@@ -462,21 +441,21 @@ ExpressionInfo CheckAddress(Context& context, Environment& environment,
   return std::visit(checker, expression->value);
 }
 
-class StatementChecker : public ast::StatementVisitor<ir::AnyCode> {
+class StatementChecker {
  public:
   StatementChecker(Context& context, Environment& environment,
                    FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
-  virtual ir::AnyCode operator()(const ast::DeclareScalar&) override;
-  virtual ir::AnyCode operator()(const ast::DeclareArray&) override;
-  virtual ir::AnyCode operator()(const ast::Assign&) override;
-  virtual ir::AnyCode operator()(const ast::If&) override;
-  virtual ir::AnyCode operator()(const ast::While&) override;
-  virtual ir::AnyCode operator()(const ast::Return&) override;
-  virtual ir::AnyCode operator()(const ast::Break&) override;
-  virtual ir::AnyCode operator()(const ast::Continue&) override;
-  virtual ir::AnyCode operator()(const ast::DiscardedExpression&) override;
-  virtual ir::AnyCode operator()(const ast::FunctionDefinition&) override;
+  ir::AnyCode operator()(const ast::DeclareScalar&);
+  ir::AnyCode operator()(const ast::DeclareArray&);
+  ir::AnyCode operator()(const ast::Assign&);
+  ir::AnyCode operator()(const ast::If&);
+  ir::AnyCode operator()(const ast::While&);
+  ir::AnyCode operator()(const ast::Return&);
+  ir::AnyCode operator()(const ast::Break&);
+  ir::AnyCode operator()(const ast::Continue&);
+  ir::AnyCode operator()(const ast::DiscardedExpression&);
+  ir::AnyCode operator()(const ast::FunctionDefinition&);
 
  private:
   ExpressionInfo CheckAddress(const ast::AnyExpression& expression);
@@ -490,20 +469,20 @@ class StatementChecker : public ast::StatementVisitor<ir::AnyCode> {
   FrameAllocator* frame_;
 };
 
-class ModuleStatementChecker : public ast::StatementVisitor<ir::AnyCode> {
+class ModuleStatementChecker {
  public:
   ModuleStatementChecker(Context& context, Environment& environment) noexcept
       : context_(&context), environment_(&environment) {}
-  virtual ir::AnyCode operator()(const ast::DeclareScalar&) override;
-  virtual ir::AnyCode operator()(const ast::DeclareArray&) override;
-  virtual ir::AnyCode operator()(const ast::Assign&) override;
-  virtual ir::AnyCode operator()(const ast::If&) override;
-  virtual ir::AnyCode operator()(const ast::While&) override;
-  virtual ir::AnyCode operator()(const ast::Return&) override;
-  virtual ir::AnyCode operator()(const ast::Break&) override;
-  virtual ir::AnyCode operator()(const ast::Continue&) override;
-  virtual ir::AnyCode operator()(const ast::DiscardedExpression&) override;
-  virtual ir::AnyCode operator()(const ast::FunctionDefinition&) override;
+  ir::AnyCode operator()(const ast::DeclareScalar&);
+  ir::AnyCode operator()(const ast::DeclareArray&);
+  ir::AnyCode operator()(const ast::Assign&);
+  ir::AnyCode operator()(const ast::If&);
+  ir::AnyCode operator()(const ast::While&);
+  ir::AnyCode operator()(const ast::Return&);
+  ir::AnyCode operator()(const ast::Break&);
+  ir::AnyCode operator()(const ast::Continue&);
+  ir::AnyCode operator()(const ast::DiscardedExpression&);
+  ir::AnyCode operator()(const ast::FunctionDefinition&);
 
  private:
   ExpressionInfo CheckAddress(const ast::AnyExpression& expression);
@@ -789,14 +768,6 @@ ExpressionInfo AddressChecker::operator()(const ast::Name& x) {
   return ExpressionInfo{.value = AsAddress(x.location, definition->value)};
 }
 
-ExpressionInfo AddressChecker::operator()(const ast::IntegerLiteral& x) {
-  throw Error(x.location, "integer literal is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Call& x) {
-  throw Error(x.location, "function return value is not an lvalue");
-}
-
 ExpressionInfo AddressChecker::operator()(const ast::Index& x) {
   ExpressionInfo container = CheckAddress(x.container);
   ExpressionInfo index = CheckValue(x.index);
@@ -807,100 +778,10 @@ ExpressionInfo AddressChecker::operator()(const ast::Index& x) {
                   ir::Multiply(ir::IntegerLiteral(8), std::move(index.value)))};
 }
 
-ExpressionInfo AddressChecker::operator()(const ast::Negate& x) {
-  throw Error(x.location, "arithmetic expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::LogicalNot& x) {
-  throw Error(x.location, "logical expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::BitwiseNot& x) {
-  throw Error(x.location, "bitwise expression is not an lvalue");
-}
-
 ExpressionInfo AddressChecker::operator()(const ast::Dereference& x) {
   ExpressionInfo inner = CheckValue(x.inner);
   return ExpressionInfo{.code = std::move(inner.code),
                         .value = std::move(inner.value)};
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Add& x) {
-  throw Error(x.location, "arithmetic expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Subtract& x) {
-  throw Error(x.location, "arithmetic expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Multiply& x) {
-  throw Error(x.location, "arithmetic expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Divide& x) {
-  throw Error(x.location, "arithmetic expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Modulo& x) {
-  throw Error(x.location, "arithmetic expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::LessThan& x) {
-  throw Error(x.location, "comparison expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::LessOrEqual& x) {
-  throw Error(x.location, "comparison expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::GreaterThan& x) {
-  throw Error(x.location, "comparison expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::GreaterOrEqual& x) {
-  throw Error(x.location, "comparison expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Equal& x) {
-  throw Error(x.location, "comparison expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::NotEqual& x) {
-  throw Error(x.location, "comparison expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::LogicalAnd& x) {
-  throw Error(x.location, "logical expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::LogicalOr& x) {
-  throw Error(x.location, "logical expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::BitwiseAnd& x) {
-  throw Error(x.location, "bitwise expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::BitwiseOr& x) {
-  throw Error(x.location, "bitwise expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::BitwiseXor& x) {
-  throw Error(x.location, "bitwise expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::ShiftLeft& x) {
-  throw Error(x.location, "bitwise expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::ShiftRight& x) {
-  throw Error(x.location, "bitwise expression is not an lvalue");
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::TernaryExpression& x) {
-  // TODO: Consider allowing ternary expressions where both expressions can
-  // yield addresses.
-  throw Error(x.location, "ternary expression is not an lvalue");
 }
 
 ExpressionInfo AddressChecker::CheckAddress(const ast::AnyExpression& x) {
@@ -919,7 +800,7 @@ ir::AnyCode CheckBlock(Context& context, Environment& parent_environment,
   Environment environment(parent_environment, Environment::ShadowMode::kDeny);
   for (const auto& statement : block) {
     StatementChecker checker(context, environment, frame);
-    code.push_back(statement.Visit(checker));
+    code.push_back(std::visit(checker, statement->value));
   }
   return ir::Sequence(std::move(code));
 }
@@ -1132,7 +1013,7 @@ ir::Unit Check(std::span<const ast::AnyStatement> program) {
   std::vector<ir::AnyCode> code;
   for (const auto& statement : program) {
     ModuleStatementChecker checker(context, global);
-    code.push_back(statement.Visit(checker));
+    code.push_back(std::visit(checker, statement->value));
   }
   return ir::Unit{.main = context.Main(),
                   .code = ir::Flatten(ir::Sequence(std::move(code)))};

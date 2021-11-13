@@ -218,58 +218,25 @@ std::ostream& operator<<(std::ostream&, const ShiftRight&) noexcept;
 std::ostream& operator<<(std::ostream&, const TernaryExpression&) noexcept;
 std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
-template <typename T>
-struct StatementVisitor;
+struct StatementVariant;
 
 template <typename T>
-concept Statement =
-    Located<T> && std::invocable<StatementVisitor<void>&, const T&>;
+concept Statement = Located<T> && std::constructible_from<StatementVariant, T>;
 
 class AnyStatement {
  public:
   // Implicit conversion from any type of statement.
   template <Statement T>
-  AnyStatement(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
-
-  const Location& location() const noexcept { return value_->location(); }
-
-  void Visit(StatementVisitor<void>& visitor) const {
-    return value_->Visit(visitor);
-  }
-
-  template <typename T>
-  T Visit(StatementVisitor<T>& visitor) const;
+  AnyStatement(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
+  const Location& location() const noexcept;
+  const StatementVariant& operator*() const noexcept;
+  const StatementVariant* operator->() const noexcept { return &**this; }
 
  private:
-  struct Interface {
-    virtual ~Interface() = default;
-    virtual const Location& location() const noexcept = 0;
-    virtual void Visit(StatementVisitor<void>&) const = 0;
-  };
-
-  template <Statement T>
-  class Adaptor : public Interface {
-   public:
-    explicit Adaptor(T value) noexcept : value_(std::move(value)) {}
-
-    const Location& location() const noexcept override {
-      return value_.location;
-    }
-
-    void Visit(StatementVisitor<void>& visitor) const override {
-      visitor(value_);
-    }
-
-   private:
-    T value_;
-  };
-
-  std::unique_ptr<Interface> value_;
+  std::shared_ptr<const StatementVariant> value_;
 };
-
-std::ostream& operator<<(std::ostream&, const AnyStatement&) noexcept;
 
 struct DeclareScalar {
   Location location;
@@ -324,49 +291,29 @@ struct FunctionDefinition {
   std::vector<AnyStatement> body;
 };
 
-template <typename T>
-struct StatementVisitor {
-  virtual ~StatementVisitor() = default;
-  virtual T operator()(const DeclareScalar&) = 0;
-  virtual T operator()(const DeclareArray&) = 0;
-  virtual T operator()(const Assign&) = 0;
-  virtual T operator()(const If&) = 0;
-  virtual T operator()(const While&) = 0;
-  virtual T operator()(const Return&) = 0;
-  virtual T operator()(const Break&) = 0;
-  virtual T operator()(const Continue&) = 0;
-  virtual T operator()(const DiscardedExpression&) = 0;
-  virtual T operator()(const FunctionDefinition&) = 0;
+struct StatementVariant {
+  auto operator<=>(const StatementVariant&) const = default;
+
+  std::variant<DeclareScalar, DeclareArray, Assign, If, While, Return, Break,
+               Continue, DiscardedExpression, FunctionDefinition>
+      value;
 };
 
-template <typename T>
-T AnyStatement::Visit(StatementVisitor<T>& visitor) const {
-  struct ProxyVisitor : StatementVisitor<void> {
-    ProxyVisitor(StatementVisitor<T>& f) noexcept : f(f) {}
-    void operator()(const DeclareScalar& x) override { new (result) T(f(x)); }
-    void operator()(const DeclareArray& x) override { new (result) T(f(x)); }
-    void operator()(const Assign& x) override { new (result) T(f(x)); }
-    void operator()(const If& x) override { new (result) T(f(x)); }
-    void operator()(const While& x) override { new (result) T(f(x)); }
-    void operator()(const Return& x) override { new (result) T(f(x)); }
-    void operator()(const Break& x) override { new (result) T(f(x)); }
-    void operator()(const Continue& x) override { new (result) T(f(x)); }
-    void operator()(const DiscardedExpression& x) override {
-      new (result) T(f(x));
-    }
-    void operator()(const FunctionDefinition& x) override {
-      new (result) T(f(x));
-    }
+template <Statement T>
+AnyStatement::AnyStatement(T value) noexcept
+    : value_(std::make_shared<StatementVariant>(std::move(value))) {}
 
-    T Consume() && { return std::move(*(T*)result); }
-
-    StatementVisitor<T>& f;
-    alignas(T) char result[sizeof(T)];
-  };
-  ProxyVisitor v{visitor};
-  Visit(v);
-  return std::move(v).Consume();
-}
+std::ostream& operator<<(std::ostream&, const DeclareScalar&) noexcept;
+std::ostream& operator<<(std::ostream&, const DeclareArray&) noexcept;
+std::ostream& operator<<(std::ostream&, const Assign&) noexcept;
+std::ostream& operator<<(std::ostream&, const If&) noexcept;
+std::ostream& operator<<(std::ostream&, const While&) noexcept;
+std::ostream& operator<<(std::ostream&, const Return&) noexcept;
+std::ostream& operator<<(std::ostream&, const Break&) noexcept;
+std::ostream& operator<<(std::ostream&, const Continue&) noexcept;
+std::ostream& operator<<(std::ostream&, const DiscardedExpression&) noexcept;
+std::ostream& operator<<(std::ostream&, const FunctionDefinition&) noexcept;
+std::ostream& operator<<(std::ostream&, const AnyStatement&) noexcept;
 
 }  // namespace aoc2021::ast
 

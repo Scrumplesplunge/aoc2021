@@ -28,60 +28,6 @@ struct List {
 
 template <typename T> List(T) -> List<T>;
 
-class StatementPrinter : public StatementVisitor<void> {
- public:
-  StatementPrinter(std::ostream& output) noexcept : output_(&output) {}
-
-  void operator()(const DeclareScalar& x) override {
-    *output_ << "DeclareScalar(" << std::quoted(x.name) << ")";
-  }
-
-  void operator()(const DeclareArray& x) override {
-    *output_ << "DeclareArray(" << std::quoted(x.name) << ", " << x.size << ")";
-  }
-
-  void operator()(const Assign& x) override {
-    *output_ << "Assign(" << x.left << ", " << x.right << ")";
-  }
-
-  void operator()(const If& x) override {
-    *output_ << "If(" << x.condition << ", " << List(x.then_branch) << ", "
-             << List(x.else_branch) << ")";
-  }
-
-  void operator()(const While& x) override {
-    *output_ << "While(" << x.condition << ", " << List(x.body) << ")";
-  }
-
-  void operator()(const Return& x) override {
-    if (x.value) {
-      *output_ << "Return(" << *x.value << ")";
-    } else {
-      *output_ << "Return()";
-    }
-  }
-
-  void operator()(const Break&) override {
-    *output_ << "Break()";
-  }
-
-  void operator()(const Continue&) override {
-    *output_ << "Continue()";
-  }
-
-  void operator()(const DiscardedExpression& x) override {
-    *output_ << "DiscardedExpression(" << x.expression << ")";
-  }
-
-  void operator()(const FunctionDefinition& x) override {
-    *output_ << "FunctionDefinition(" << std::quoted(x.name) << ", "
-             << List(x.parameters) << ", " << List(x.body) << ")";
-  }
-
- private:
-  std::ostream* output_;
-};
-
 }  // namespace
 
 const Location& AnyExpression::location() const {
@@ -211,11 +157,69 @@ std::ostream& operator<<(std::ostream& output,
                     expression->value);
 }
 
+const Location& AnyStatement::location() const noexcept {
+  return std::visit([](const auto& x) -> const Location& { return x.location; },
+                    value_->value);
+}
+
+const StatementVariant& AnyStatement::operator*() const noexcept {
+  return *value_;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const DeclareScalar& x) noexcept {
+  return output << "DeclareScalar(" << std::quoted(x.name) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const DeclareArray& x) noexcept {
+  return output << "DeclareArray(" << std::quoted(x.name) << ", " << x.size
+                << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Assign& x) noexcept {
+  return output << "Assign(" << x.left << ", " << x.right << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const If& x) noexcept {
+  return output << "If(" << x.condition << ", " << List(x.then_branch) << ", "
+                << List(x.else_branch) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const While& x) noexcept {
+  return output << "While(" << x.condition << ", " << List(x.body) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Return& x) noexcept {
+  if (x.value) {
+    return output << "Return(" << *x.value << ")";
+  } else {
+    return output << "Return()";
+  }
+}
+
+std::ostream& operator<<(std::ostream& output, const Break&) noexcept {
+  return output << "Break()";
+}
+
+std::ostream& operator<<(std::ostream& output, const Continue&) noexcept {
+  return output << "Continue()";
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const DiscardedExpression& x) noexcept {
+  return output << "DiscardedExpression(" << x.expression << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const FunctionDefinition& x) noexcept {
+  return output << "FunctionDefinition(" << std::quoted(x.name) << ", "
+                << List(x.parameters) << ", " << List(x.body) << ")";
+}
+
 std::ostream& operator<<(std::ostream& output,
                          const AnyStatement& statement) noexcept {
-  StatementPrinter printer(output);
-  statement.Visit(printer);
-  return output;
+  return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
+                    statement->value);
 }
 
 }  // namespace aoc2021::ast
