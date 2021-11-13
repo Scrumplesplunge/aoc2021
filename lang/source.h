@@ -2,6 +2,7 @@
 #define SOURCE_H_
 
 #include <memory>
+#include <optional>
 #include <span>
 #include <sstream>
 #include <stdexcept>
@@ -15,6 +16,7 @@ namespace aoc2021 {
 class Source {
  public:
   explicit Source(std::string_view filename);
+  explicit Source(std::string_view name, std::string_view contents);
 
   std::string_view filename() const noexcept { return filename_; }
   std::string_view contents() const noexcept;
@@ -109,6 +111,8 @@ class Reader {
   int line_ = 1;
   int column_ = 1;
 };
+
+std::optional<Location> Seek(Source& source, int line, int column);
 
 }  // namespace aoc2021
 

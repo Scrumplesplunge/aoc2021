@@ -18,6 +18,13 @@ std::ostream& operator<<(std::ostream& output, Spaces s) {
 
 }  // namespace
 
+Source::Source(std::string_view filename, std::string_view contents)
+    : filename_(filename), contents_(contents) {
+  // Unconditionally append a newline character so that we can rely on there
+  // always being one after every valid location, including EOF.
+  contents_.push_back('\n');
+}
+
 Source::Source(std::string_view filename) : filename_(filename) {
   std::ifstream file(filename_);
   contents_ = std::string(std::istreambuf_iterator<char>(file), {});
@@ -114,6 +121,24 @@ bool Reader::ConsumePrefix(std::string_view prefix) noexcept {
 
 Location Reader::location() const noexcept {
   return Location(*source_, remaining_.data(), line_, column_);
+}
+
+std::optional<Location> Seek(Source& source, int line, int column) {
+  int l = 1, c = 1;
+  for (const char& x : source.contents()) {
+    if (line == l && column == c) return Location(source, &x, line, column);
+    if (x == '\n') {
+      l++;
+      c = 1;
+    } else {
+      c++;
+    }
+  }
+  if (line == l && column == c) {
+    const char* end = source.contents().data() + source.contents().size();
+    return Location(source, end, line, column);
+  }
+  return std::nullopt;
 }
 
 }  // namespace aoc2021
