@@ -43,45 +43,45 @@ CheckError UndeclaredError(std::string_view name, Location location) {
 
 std::optional<std::int64_t> Evaluate(const ir::AnyExpression& expression);
 
-class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
+class Evaluator {
  public:
-  std::optional<std::int64_t> operator()(const ir::Label& x) override {
+  std::optional<std::int64_t> operator()(const ir::Label& x) {
     return std::nullopt;
   }
-  std::optional<std::int64_t> operator()(const ir::Global& x) override {
+  std::optional<std::int64_t> operator()(const ir::Global& x) {
     return std::nullopt;
   }
-  std::optional<std::int64_t> operator()(const ir::Local& x) override {
+  std::optional<std::int64_t> operator()(const ir::Local& x) {
     return std::nullopt;
   }
-  std::optional<std::int64_t> operator()(const ir::Load64& x) override {
+  std::optional<std::int64_t> operator()(const ir::Load64& x) {
     return std::nullopt;
   }
-  std::optional<std::int64_t> operator()(const ir::IntegerLiteral& x) override {
+  std::optional<std::int64_t> operator()(const ir::IntegerLiteral& x) {
     return x.value;
   }
-  std::optional<std::int64_t> operator()(const ir::Negate& x) override {
+  std::optional<std::int64_t> operator()(const ir::Negate& x) {
     if (auto inner = Evaluate(x.inner)) {
       return -*inner;
     } else {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::LogicalNot& x) override {
+  std::optional<std::int64_t> operator()(const ir::LogicalNot& x) {
     if (auto inner = Evaluate(x.inner)) {
       return !*inner;
     } else {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::BitwiseNot& x) override {
+  std::optional<std::int64_t> operator()(const ir::BitwiseNot& x) {
     if (auto inner = Evaluate(x.inner)) {
       return ~*inner;
     } else {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::Add& x) override {
+  std::optional<std::int64_t> operator()(const ir::Add& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left + *right;
@@ -89,7 +89,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::Subtract& x) override {
+  std::optional<std::int64_t> operator()(const ir::Subtract& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left - *right;
@@ -97,7 +97,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::Multiply& x) override {
+  std::optional<std::int64_t> operator()(const ir::Multiply& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left * *right;
@@ -105,7 +105,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::Divide& x) override {
+  std::optional<std::int64_t> operator()(const ir::Divide& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left / *right;
@@ -113,7 +113,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::Modulo& x) override {
+  std::optional<std::int64_t> operator()(const ir::Modulo& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left % *right;
@@ -121,7 +121,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::LessThan& x) override {
+  std::optional<std::int64_t> operator()(const ir::LessThan& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left < *right;
@@ -129,7 +129,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::LessOrEqual& x) override {
+  std::optional<std::int64_t> operator()(const ir::LessOrEqual& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left <= *right;
@@ -137,7 +137,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::Equal& x) override {
+  std::optional<std::int64_t> operator()(const ir::Equal& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left == *right;
@@ -145,7 +145,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::NotEqual& x) override {
+  std::optional<std::int64_t> operator()(const ir::NotEqual& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left != *right;
@@ -153,7 +153,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::BitwiseAnd& x) override {
+  std::optional<std::int64_t> operator()(const ir::BitwiseAnd& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left & *right;
@@ -161,7 +161,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::BitwiseOr& x) override {
+  std::optional<std::int64_t> operator()(const ir::BitwiseOr& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left | *right;
@@ -169,7 +169,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::BitwiseXor& x) override {
+  std::optional<std::int64_t> operator()(const ir::BitwiseXor& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left ^ *right;
@@ -177,7 +177,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::ShiftLeft& x) override {
+  std::optional<std::int64_t> operator()(const ir::ShiftLeft& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       return *left << *right;
@@ -185,7 +185,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
       return std::nullopt;
     }
   }
-  std::optional<std::int64_t> operator()(const ir::ShiftRight& x) override {
+  std::optional<std::int64_t> operator()(const ir::ShiftRight& x) {
     const auto left = Evaluate(x.left), right = Evaluate(x.right);
     if (left && right) {
       // >> isn't guaranteed to do arithmetic shifting in C++, so instead we
@@ -203,7 +203,7 @@ class Evaluator : public ir::ExpressionVisitor<std::optional<std::int64_t>> {
 
 std::optional<std::int64_t> Evaluate(const ir::AnyExpression& expression) {
   Evaluator evaluator;
-  return expression.Visit(evaluator);
+  return std::visit(evaluator, expression->value);
 }
 
 class Context {
@@ -263,7 +263,7 @@ ir::AnyExpression AsAddress(Location location, std::int64_t) {
   throw Error(location, "constant is not an lvalue");
 }
 
-ir::AnyExpression AsAddress(Location location, ir::Label x) { return x; }
+ir::AnyExpression AsAddress(Location location, ir::Label x) { return ir::AnyExpression(x); }
 ir::AnyExpression AsAddress(Location location, ir::Global x) { return x; }
 ir::AnyExpression AsAddress(Location location, ir::Local x) { return x; }
 ir::AnyExpression AsAddress(Location location, Array) {

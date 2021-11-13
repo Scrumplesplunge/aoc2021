@@ -70,46 +70,46 @@ namespace {
 //   return output;
 // }
 
-class ExpressionGenerator : public ir::ExpressionVisitor<void> {
+class ExpressionGenerator {
  public:
   ExpressionGenerator(std::ostream& output) noexcept : output_(&output) {}
 
-  void operator()(const ir::Label& x) override {
-    *output_ << "  // " << ir::AnyExpression(x) << "\n  push $" << x.value
+  void operator()(const ir::Label& x) {
+    *output_ << "  // " << x << "\n  push $" << x.value
              << '\n';
   }
 
-  void operator()(const ir::Global& x) override {
+  void operator()(const ir::Global& x) {
     *output_ << "  // " << x << "\n  push $" << x.value << '\n';
   }
 
-  void operator()(const ir::Local& x) override {
+  void operator()(const ir::Local& x) {
     *output_ << "  // " << x << "\n  lea " << (8 * (std::int64_t)x.offset)
              << "(%rbp), %rax\n"
                 "  push %rax\n";
   }
 
-  void operator()(const ir::Load64& x) override {
-    x.address.Visit(*this);
+  void operator()(const ir::Load64& x) {
+    std::visit(*this, x.address->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  push (%rax)\n";
   }
 
-  void operator()(const ir::IntegerLiteral& x) override {
+  void operator()(const ir::IntegerLiteral& x) {
     *output_ << "  // " << x << "\n  push $" << x.value << '\n';
   }
 
-  void operator()(const ir::Negate& x) override {
-    x.inner.Visit(*this);
+  void operator()(const ir::Negate& x) {
+    std::visit(*this, x.inner->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  neg %rax\n"
                 "  push %rax\n";
   }
 
-  void operator()(const ir::LogicalNot& x) override {
-    x.inner.Visit(*this);
+  void operator()(const ir::LogicalNot& x) {
+    std::visit(*this, x.inner->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
@@ -118,42 +118,42 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
                 "  push %rbx\n";
   }
 
-  void operator()(const ir::BitwiseNot& x) override {
-    x.inner.Visit(*this);
+  void operator()(const ir::BitwiseNot& x) {
+    std::visit(*this, x.inner->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  not %rax\n"
                 "  push %rax\n";
   }
 
-  void operator()(const ir::Add& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::Add& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  add %rax, (%rsp)\n";
   }
 
-  void operator()(const ir::Subtract& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::Subtract& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  sub %rax, (%rsp)\n";
   }
 
-  void operator()(const ir::Multiply& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::Multiply& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  imul (%rsp), %rax\n"
                 "  mov %rax, (%rsp)\n";
   }
 
-  void operator()(const ir::Divide& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::Divide& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rbx\n"
                 "  pop %rax\n"
@@ -162,9 +162,9 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
                 "  push %rax\n";
   }
 
-  void operator()(const ir::Modulo& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::Modulo& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rbx\n"
                 "  pop %rax\n"
@@ -173,9 +173,9 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
                 "  push %rdx\n";
   }
 
-  void operator()(const ir::LessThan& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::LessThan& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
@@ -184,9 +184,9 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
                 "  push %rbx\n";
   }
 
-  void operator()(const ir::LessOrEqual& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::LessOrEqual& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
@@ -195,9 +195,9 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
                 "  push %rbx\n";
   }
 
-  void operator()(const ir::Equal& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::Equal& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
@@ -206,9 +206,9 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
                 "  push %rbx\n";
   }
 
-  void operator()(const ir::NotEqual& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::NotEqual& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
@@ -217,41 +217,41 @@ class ExpressionGenerator : public ir::ExpressionVisitor<void> {
                 "  push %rbx\n";
   }
 
-  void operator()(const ir::BitwiseAnd& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::BitwiseAnd& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  and %rax, (%rsp)\n";
   }
 
-  void operator()(const ir::BitwiseOr& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::BitwiseOr& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  or %rax, (%rsp)\n";
   }
 
-  void operator()(const ir::BitwiseXor& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::BitwiseXor& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  xor %rax, (%rsp)\n";
   }
 
-  void operator()(const ir::ShiftLeft& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::ShiftLeft& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  sal %al, (%rsp)\n";
   }
 
-  void operator()(const ir::ShiftRight& x) override {
-    x.left.Visit(*this);
-    x.right.Visit(*this);
+  void operator()(const ir::ShiftRight& x) {
+    std::visit(*this, x.left->value);
+    std::visit(*this, x.right->value);
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  sar %al, (%rsp)\n";
@@ -271,8 +271,8 @@ class CodeGenerator : public ir::CodeVisitor<void> {
 
   void operator()(const ir::Store64& x) override {
     ExpressionGenerator generator(*output_);
-    x.value.Visit(generator);
-    x.address.Visit(generator);
+    std::visit(generator, x.value->value);
+    std::visit(generator, x.address->value);
     *output_ << "  // ir::Store64\n"
                 "  pop %rbx\n"
                 "  pop (%rbx)\n";
@@ -281,10 +281,10 @@ class CodeGenerator : public ir::CodeVisitor<void> {
   void operator()(const ir::StoreCall64& x) override {
     ExpressionGenerator generator(*output_);
     for (int i = x.arguments.size() - 1; i >= 0; i--) {
-      x.arguments[i].Visit(generator);
+      std::visit(generator, x.arguments[i]->value);
     }
-    x.result_address.Visit(generator);
-    x.function_address.Visit(generator);
+    std::visit(generator, x.result_address->value);
+    std::visit(generator, x.function_address->value);
     *output_ << "  // ir::StoreCall64\n"
                 "  pop %rax\n"
                 "  call *%rax\n"
@@ -301,7 +301,7 @@ class CodeGenerator : public ir::CodeVisitor<void> {
 
   void operator()(const ir::Return& x) override {
     ExpressionGenerator generator(*output_);
-    x.value.Visit(generator);
+    std::visit(generator, x.value->value);
     *output_ << "  // ir::Return\n"
                 "  mov 16(%rbp), %rax\n"
                 "  pop (%rax)\n"
@@ -316,7 +316,7 @@ class CodeGenerator : public ir::CodeVisitor<void> {
 
   void operator()(const ir::JumpIf& x) override {
     ExpressionGenerator generator(*output_);
-    x.condition.Visit(generator);
+    std::visit(generator, x.condition->value);
     *output_ << "  // ir::JumpIf\n"
                 "  pop %rax\n"
                 "  test %rax, %rax\n"
@@ -325,7 +325,7 @@ class CodeGenerator : public ir::CodeVisitor<void> {
 
   void operator()(const ir::JumpUnless& x) override {
     ExpressionGenerator generator(*output_);
-    x.condition.Visit(generator);
+    std::visit(generator, x.condition->value);
     *output_ << "  // ir::JumpUnless\n"
                 "  pop %rax\n"
                 "  test %rax, %rax\n"
