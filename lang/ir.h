@@ -113,62 +113,24 @@ std::ostream& operator<<(std::ostream&, const ShiftLeft&) noexcept;
 std::ostream& operator<<(std::ostream&, const ShiftRight&) noexcept;
 std::ostream& operator<<(std::ostream&, const AnyExpression&) noexcept;
 
-template <typename T>
-struct CodeVisitor;
+struct CodeVariant;
 
 template <typename T>
-concept Code = std::invocable<CodeVisitor<void>&, const T&>;
+concept Code = ValueCanHold<CodeVariant, T>;
 
 class AnyCode {
  public:
   // Implicit conversion from any type of expression.
   template <Code T>
-  AnyCode(T value) noexcept : value_(new Adaptor<T>(std::move(value))) {}
-
-  AnyCode(AnyCode&&) noexcept = default;
-  AnyCode& operator=(AnyCode&&) noexcept = default;
-
-  AnyCode(const AnyCode& other) : value_(other.value_->Copy()) {}
-  AnyCode& operator=(const AnyCode& other) {
-    if (this != &other) value_.reset(other.value_->Copy());
-    return *this;
-  }
-
-  void Visit(CodeVisitor<void>& visitor) const {
-    return value_->Visit(visitor);
-  }
-
-  template <typename T>
-  T Visit(CodeVisitor<T>& visitor) const;
+  AnyCode(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
+  const CodeVariant& operator*() const noexcept;
+  const CodeVariant* operator->() const noexcept { return &**this; }
 
  private:
-  struct Interface {
-    virtual ~Interface() = default;
-    virtual void Visit(CodeVisitor<void>&) const = 0;
-    virtual Interface* Copy() const = 0;
-  };
-
-  template <Code T>
-  class Adaptor : public Interface {
-   public:
-    explicit Adaptor(T value) noexcept : value_(std::move(value)) {}
-
-    void Visit(CodeVisitor<void>& visitor) const override {
-      visitor(value_);
-    }
-
-    Adaptor* Copy() const override { return new Adaptor(value_); }
-
-   private:
-    T value_;
-  };
-
-  std::unique_ptr<Interface> value_;
+  std::shared_ptr<const CodeVariant> value_;
 };
-
-std::ostream& operator<<(std::ostream&, const AnyCode&) noexcept;
 
 // Pops an address, pops a 64-bit value, stores the value to the address.
 struct Store64 { AnyExpression address, value; };
@@ -202,19 +164,27 @@ struct Sequence {
   std::vector<AnyCode> value;
 };
 
-template <typename T>
-struct CodeVisitor {
-  virtual ~CodeVisitor() = default;
-  virtual T operator()(const Label&) = 0;
-  virtual T operator()(const Store64&) = 0;
-  virtual T operator()(const StoreCall64&) = 0;
-  virtual T operator()(const BeginFrame&) = 0;
-  virtual T operator()(const Return&) = 0;
-  virtual T operator()(const Jump&) = 0;
-  virtual T operator()(const JumpIf&) = 0;
-  virtual T operator()(const JumpUnless&) = 0;
-  virtual T operator()(const Sequence&) = 0;
+struct CodeVariant {
+  auto operator<=>(const CodeVariant&) const = default;
+
+  std::variant<Label, Store64, StoreCall64, BeginFrame, Return, Jump, JumpIf,
+               JumpUnless, Sequence>
+      value;
 };
+
+template <Code T>
+AnyCode::AnyCode(T value) noexcept
+    : value_(std::make_shared<CodeVariant>(std::move(value))) {}
+
+std::ostream& operator<<(std::ostream&, const Store64&) noexcept;
+std::ostream& operator<<(std::ostream&, const StoreCall64&) noexcept;
+std::ostream& operator<<(std::ostream&, const BeginFrame&) noexcept;
+std::ostream& operator<<(std::ostream&, const Return&) noexcept;
+std::ostream& operator<<(std::ostream&, const Jump&) noexcept;
+std::ostream& operator<<(std::ostream&, const JumpIf&) noexcept;
+std::ostream& operator<<(std::ostream&, const JumpUnless&) noexcept;
+std::ostream& operator<<(std::ostream&, const Sequence&) noexcept;
+std::ostream& operator<<(std::ostream&, const AnyCode&) noexcept;
 
 Sequence Flatten(const AnyCode& code);
 

@@ -30,66 +30,25 @@ struct List {
 
 template <typename T> List(T) -> List<T>;
 
-class CodePrinter : public CodeVisitor<void> {
- public:
-  CodePrinter(std::ostream& output) noexcept : output_(&output) {}
-  void operator()(const Label& x) override {
-    *output_ << "Label(" << std::quoted(x.value) << ")";
-  }
-  void operator()(const Store64& x) override {
-    *output_ << "Store64(" << x.address << ", " << x.value << ")";
-  }
-  void operator()(const StoreCall64& x) override {
-    *output_ << "StoreCall64(" << x.result_address << ", " << x.function_address
-             << ", " << List(x.arguments) << ")";
-  }
-  void operator()(const BeginFrame& x) override {
-    *output_ << "BeginFrame(" << x.size << ")";
-  }
-  void operator()(const Return& x) override {
-    *output_ << "Return(" << x.value << ")";
-  }
-  void operator()(const Jump& x) override {
-    *output_ << "Jump(Label(" << std::quoted(x.target.value) << "))";
-  }
-  void operator()(const JumpIf& x) override {
-    *output_ << "JumpIf(" << x.condition << ", Label("
-             << std::quoted(x.target.value) << "))";
-  }
-  void operator()(const JumpUnless& x) override {
-    *output_ << "JumpUnless(" << x.condition << ", Label("
-             << std::quoted(x.target.value) << "))";
-  }
-  void operator()(const Sequence& x) override {
-    *output_ << "Sequence(" << List(x.value) << ")";
-  }
-
- private:
-  std::ostream* output_;
-};
-
-class CodeFlattener : public CodeVisitor<void> {
+class CodeFlattener {
  public:
   CodeFlattener(Sequence& result) noexcept : result_(&result) {}
-  void operator()(const Label& x) override { result_->value.push_back(x); }
-  void operator()(const Store64& x) override { result_->value.push_back(x); }
-  void operator()(const StoreCall64& x) override {
-    result_->value.push_back(x);
+  void operator()(const Sequence& x) {
+    for (const auto& y : x.value) std::visit(*this, y->value);
   }
-  void operator()(const BeginFrame& x) override { result_->value.push_back(x); }
-  void operator()(const Return& x) override { result_->value.push_back(x); }
-  void operator()(const Jump& x) override { result_->value.push_back(x); }
-  void operator()(const JumpIf& x) override { result_->value.push_back(x); }
-  void operator()(const JumpUnless& x) override { result_->value.push_back(x); }
-  void operator()(const Sequence& x) override {
-    for (const auto& y : x.value) y.Visit(*this);
-  }
+  void operator()(const auto& x) { result_->value.push_back(x); }
 
  private:
   Sequence* result_;
 };
 
 }  // namespace
+
+Label::Label(std::string_view prefix, std::int64_t suffix)
+    : value(StrCat("label_", prefix, '_', suffix)) {}
+
+Global::Global(std::string_view prefix, std::int64_t suffix)
+    : value(StrCat("global_", prefix, '_', suffix)) {}
 
 const ExpressionVariant& AnyExpression::operator*() const noexcept {
   return *value_;
@@ -189,23 +148,51 @@ std::ostream& operator<<(std::ostream& output,
                     expression->value);
 }
 
-Label::Label(std::string_view prefix, std::int64_t suffix)
-    : value(StrCat("label_", prefix, '_', suffix)) {}
+const CodeVariant& AnyCode::operator*() const noexcept { return *value_; }
 
-Global::Global(std::string_view prefix, std::int64_t suffix)
-    : value(StrCat("global_", prefix, '_', suffix)) {}
+std::ostream& operator<<(std::ostream& output, const Store64& x) noexcept {
+  return output << "Store64(" << x.address << ", " << x.value << ")";
+}
 
-std::ostream& operator<<(std::ostream& output,
-                         const AnyCode& step) noexcept {
-  CodePrinter printer(output);
-  step.Visit(printer);
-  return output;
+std::ostream& operator<<(std::ostream& output, const StoreCall64& x) noexcept {
+  return output << "StoreCall64(" << x.result_address << ", "
+                << x.function_address << ", " << List(x.arguments) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const BeginFrame& x) noexcept {
+  return output << "BeginFrame(" << x.size << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Return& x) noexcept {
+  return output << "Return(" << x.value << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Jump& x) noexcept {
+  return output << "Jump(Label(" << std::quoted(x.target.value) << "))";
+}
+
+std::ostream& operator<<(std::ostream& output, const JumpIf& x) noexcept {
+  return output << "JumpIf(" << x.condition << ", Label("
+                << std::quoted(x.target.value) << "))";
+}
+
+std::ostream& operator<<(std::ostream& output, const JumpUnless& x) noexcept {
+  return output << "JumpUnless(" << x.condition << ", Label("
+                << std::quoted(x.target.value) << "))";
+}
+
+std::ostream& operator<<(std::ostream& output, const Sequence& x) noexcept {
+  return output << "Sequence(" << List(x.value) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const AnyCode& code) noexcept {
+  return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
+                    code->value);
 }
 
 Sequence Flatten(const AnyCode& code) {
   Sequence sequence;
-  CodeFlattener flatten(sequence);
-  code.Visit(flatten);
+  std::visit(CodeFlattener(sequence), code->value);
   return sequence;
 }
 

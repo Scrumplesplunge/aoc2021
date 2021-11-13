@@ -261,15 +261,15 @@ class ExpressionGenerator {
   std::ostream* output_;
 };
 
-class CodeGenerator : public ir::CodeVisitor<void> {
+class CodeGenerator {
  public:
   CodeGenerator(std::ostream& output) noexcept : output_(&output) {}
 
-  void operator()(const ir::Label& x) override {
+  void operator()(const ir::Label& x) {
     *output_ << x.value << ":\n";
   }
 
-  void operator()(const ir::Store64& x) override {
+  void operator()(const ir::Store64& x) {
     ExpressionGenerator generator(*output_);
     std::visit(generator, x.value->value);
     std::visit(generator, x.address->value);
@@ -278,7 +278,7 @@ class CodeGenerator : public ir::CodeVisitor<void> {
                 "  pop (%rbx)\n";
   }
 
-  void operator()(const ir::StoreCall64& x) override {
+  void operator()(const ir::StoreCall64& x) {
     ExpressionGenerator generator(*output_);
     for (int i = x.arguments.size() - 1; i >= 0; i--) {
       std::visit(generator, x.arguments[i]->value);
@@ -291,7 +291,7 @@ class CodeGenerator : public ir::CodeVisitor<void> {
                 "  add $" << (8 * (x.arguments.size() + 1)) << ", %rsp\n";
   }
 
-  void operator()(const ir::BeginFrame& x) override {
+  void operator()(const ir::BeginFrame& x) {
     *output_ << "  // ir::BeginFrame\n"
                 "  push %rbp\n"
                 "  mov %rsp, %rbp\n"
@@ -299,7 +299,7 @@ class CodeGenerator : public ir::CodeVisitor<void> {
              << (8 * x.size) << ", %rsp\n";
   }
 
-  void operator()(const ir::Return& x) override {
+  void operator()(const ir::Return& x) {
     ExpressionGenerator generator(*output_);
     std::visit(generator, x.value->value);
     *output_ << "  // ir::Return\n"
@@ -310,11 +310,11 @@ class CodeGenerator : public ir::CodeVisitor<void> {
                 "  ret\n";
   }
 
-  void operator()(const ir::Jump& x) override {
+  void operator()(const ir::Jump& x) {
     *output_ << "  jmp " << x.target.value << "\n";
   }
 
-  void operator()(const ir::JumpIf& x) override {
+  void operator()(const ir::JumpIf& x) {
     ExpressionGenerator generator(*output_);
     std::visit(generator, x.condition->value);
     *output_ << "  // ir::JumpIf\n"
@@ -323,7 +323,7 @@ class CodeGenerator : public ir::CodeVisitor<void> {
                 "  jnz " << x.target.value << "\n";
   }
 
-  void operator()(const ir::JumpUnless& x) override {
+  void operator()(const ir::JumpUnless& x) {
     ExpressionGenerator generator(*output_);
     std::visit(generator, x.condition->value);
     *output_ << "  // ir::JumpUnless\n"
@@ -332,8 +332,8 @@ class CodeGenerator : public ir::CodeVisitor<void> {
                 "  jz " << x.target.value << "\n";
   }
 
-  void operator()(const ir::Sequence& x) override {
-    for (const auto& part : x.value) part.Visit(*this);
+  void operator()(const ir::Sequence& x) {
+    for (const auto& part : x.value) std::visit(*this, part->value);
   }
 
  private:
@@ -358,8 +358,7 @@ std::string Generate(const ir::Unit& unit) {
             "  pop %rdi\n"
             "  mov $60, %rax\n"
             "  syscall\n";
-  CodeGenerator generator(result);
-  unit.code.Visit(generator);
+  std::visit(CodeGenerator(result), unit.code->value);
   return result.str();
 }
 
