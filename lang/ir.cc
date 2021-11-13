@@ -148,7 +148,7 @@ std::ostream& operator<<(std::ostream& output,
                     expression->value);
 }
 
-const CodeVariant& AnyCode::operator*() const noexcept { return *value_; }
+const CodeVariant& Code::operator*() const noexcept { return *value_; }
 
 std::ostream& operator<<(std::ostream& output, const Store64& x) noexcept {
   return output << "Store64(" << x.address << ", " << x.value << ")";
@@ -185,12 +185,12 @@ std::ostream& operator<<(std::ostream& output, const Sequence& x) noexcept {
   return output << "Sequence(" << List(x.value) << ")";
 }
 
-std::ostream& operator<<(std::ostream& output, const AnyCode& code) noexcept {
+std::ostream& operator<<(std::ostream& output, const Code& code) noexcept {
   return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
                     code->value);
 }
 
-Sequence Flatten(const AnyCode& code) {
+Sequence Flatten(const Code& code) {
   Sequence sequence;
   std::visit(CodeFlattener(sequence), code->value);
   return sequence;

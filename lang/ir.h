@@ -111,11 +111,11 @@ std::ostream& operator<<(std::ostream&, const Expression&) noexcept;
 
 struct CodeVariant;
 
-class AnyCode {
+class Code {
  public:
   // Implicit conversion from any type of expression.
   template <HoldableBy<CodeVariant> T>
-  AnyCode(T value) noexcept;
+  Code(T value) noexcept;
 
   explicit operator bool() const noexcept { return value_ != nullptr; }
   const CodeVariant& operator*() const noexcept;
@@ -154,7 +154,7 @@ struct JumpUnless {
 };
 
 struct Sequence {
-  std::vector<AnyCode> value;
+  std::vector<Code> value;
 };
 
 struct CodeVariant {
@@ -166,7 +166,7 @@ struct CodeVariant {
 };
 
 template <HoldableBy<CodeVariant> T>
-AnyCode::AnyCode(T value) noexcept
+Code::Code(T value) noexcept
     : value_(std::make_shared<CodeVariant>(std::move(value))) {}
 
 std::ostream& operator<<(std::ostream&, const Store64&) noexcept;
@@ -177,13 +177,13 @@ std::ostream& operator<<(std::ostream&, const Jump&) noexcept;
 std::ostream& operator<<(std::ostream&, const JumpIf&) noexcept;
 std::ostream& operator<<(std::ostream&, const JumpUnless&) noexcept;
 std::ostream& operator<<(std::ostream&, const Sequence&) noexcept;
-std::ostream& operator<<(std::ostream&, const AnyCode&) noexcept;
+std::ostream& operator<<(std::ostream&, const Code&) noexcept;
 
-Sequence Flatten(const AnyCode& code);
+Sequence Flatten(const Code& code);
 
 struct Unit {
   std::optional<ir::Label> main;
-  ir::AnyCode code;
+  ir::Code code;
 };
 
 }  // namespace aoc2021::ir

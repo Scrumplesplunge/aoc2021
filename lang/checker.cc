@@ -363,7 +363,7 @@ class Environment {
 };
 
 struct ExpressionInfo {
-  ir::AnyCode code = ir::Sequence{};
+  ir::Code code = ir::Sequence{};
   ir::Expression value;
 };
 
@@ -448,23 +448,23 @@ class StatementChecker {
   StatementChecker(Context& context, Environment& environment,
                    FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
-  ir::AnyCode operator()(const ast::DeclareScalar&);
-  ir::AnyCode operator()(const ast::DeclareArray&);
-  ir::AnyCode operator()(const ast::Assign&);
-  ir::AnyCode operator()(const ast::If&);
-  ir::AnyCode operator()(const ast::While&);
-  ir::AnyCode operator()(const ast::Return&);
-  ir::AnyCode operator()(const ast::Break&);
-  ir::AnyCode operator()(const ast::Continue&);
-  ir::AnyCode operator()(const ast::DiscardedExpression&);
-  ir::AnyCode operator()(const ast::FunctionDefinition&);
+  ir::Code operator()(const ast::DeclareScalar&);
+  ir::Code operator()(const ast::DeclareArray&);
+  ir::Code operator()(const ast::Assign&);
+  ir::Code operator()(const ast::If&);
+  ir::Code operator()(const ast::While&);
+  ir::Code operator()(const ast::Return&);
+  ir::Code operator()(const ast::Break&);
+  ir::Code operator()(const ast::Continue&);
+  ir::Code operator()(const ast::DiscardedExpression&);
+  ir::Code operator()(const ast::FunctionDefinition&);
 
  private:
   ExpressionInfo CheckAddress(const ast::Expression& expression);
   ExpressionInfo CheckValue(const ast::Expression& expression);
-  ir::AnyCode CheckBlock(Environment& parent_environment,
-                         std::span<const ast::Statement> block);
-  ir::AnyCode CheckBlock(std::span<const ast::Statement> block);
+  ir::Code CheckBlock(Environment& parent_environment,
+                      std::span<const ast::Statement> block);
+  ir::Code CheckBlock(std::span<const ast::Statement> block);
 
   Context* context_;
   Environment* environment_;
@@ -475,16 +475,16 @@ class ModuleStatementChecker {
  public:
   ModuleStatementChecker(Context& context, Environment& environment) noexcept
       : context_(&context), environment_(&environment) {}
-  ir::AnyCode operator()(const ast::DeclareScalar&);
-  ir::AnyCode operator()(const ast::DeclareArray&);
-  ir::AnyCode operator()(const ast::Assign&);
-  ir::AnyCode operator()(const ast::If&);
-  ir::AnyCode operator()(const ast::While&);
-  ir::AnyCode operator()(const ast::Return&);
-  ir::AnyCode operator()(const ast::Break&);
-  ir::AnyCode operator()(const ast::Continue&);
-  ir::AnyCode operator()(const ast::DiscardedExpression&);
-  ir::AnyCode operator()(const ast::FunctionDefinition&);
+  ir::Code operator()(const ast::DeclareScalar&);
+  ir::Code operator()(const ast::DeclareArray&);
+  ir::Code operator()(const ast::Assign&);
+  ir::Code operator()(const ast::If&);
+  ir::Code operator()(const ast::While&);
+  ir::Code operator()(const ast::Return&);
+  ir::Code operator()(const ast::Break&);
+  ir::Code operator()(const ast::Continue&);
+  ir::Code operator()(const ast::DiscardedExpression&);
+  ir::Code operator()(const ast::FunctionDefinition&);
 
  private:
   ExpressionInfo CheckAddress(const ast::Expression& expression);
@@ -505,7 +505,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::IntegerLiteral& x) {
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
-  std::vector<ir::AnyCode> code;
+  std::vector<ir::Code> code;
   ExpressionInfo function = CheckValue(x.function);
   code.push_back(std::move(function.code));
   // TODO: Check the number of arguments for the function once types are
@@ -794,10 +794,10 @@ ExpressionInfo AddressChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
 }
 
-ir::AnyCode CheckBlock(Context& context, Environment& parent_environment,
-                       FrameAllocator& parent_frame,
-                       std::span<const ast::Statement> block) {
-  std::vector<ir::AnyCode> code;
+ir::Code CheckBlock(Context& context, Environment& parent_environment,
+                    FrameAllocator& parent_frame,
+                    std::span<const ast::Statement> block) {
+  std::vector<ir::Code> code;
   FrameAllocator frame(&parent_frame);
   Environment environment(parent_environment, Environment::ShadowMode::kDeny);
   for (const auto& statement : block) {
@@ -807,7 +807,7 @@ ir::AnyCode CheckBlock(Context& context, Environment& parent_environment,
   return ir::Sequence(std::move(code));
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::DeclareScalar& x) {
+ir::Code StatementChecker::operator()(const ast::DeclareScalar& x) {
   const ir::Local::Offset offset = frame_->Allocate(1);
   environment_->Define(x.name,
                        Environment::Definition{.location = x.location,
@@ -815,7 +815,7 @@ ir::AnyCode StatementChecker::operator()(const ast::DeclareScalar& x) {
   return ir::Sequence();
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::DeclareArray& x) {
+ir::Code StatementChecker::operator()(const ast::DeclareArray& x) {
   auto size = Evaluate(CheckValue(x.size).value);
   if (!size) {
     throw Error(x.location, "array size must be a constant expression");
@@ -827,7 +827,7 @@ ir::AnyCode StatementChecker::operator()(const ast::DeclareArray& x) {
   return ir::Sequence();
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::Assign& x) {
+ir::Code StatementChecker::operator()(const ast::Assign& x) {
   ExpressionInfo left = CheckAddress(x.left);
   ExpressionInfo right = CheckValue(x.right);
   return ir::Sequence(
@@ -835,10 +835,10 @@ ir::AnyCode StatementChecker::operator()(const ast::Assign& x) {
        ir::Store64(std::move(left.value), std::move(right.value))});
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::If& x) {
+ir::Code StatementChecker::operator()(const ast::If& x) {
   ExpressionInfo condition = CheckValue(x.condition);
-  ir::AnyCode then_branch = CheckBlock(x.then_branch);
-  ir::AnyCode else_branch = CheckBlock(x.else_branch);
+  ir::Code then_branch = CheckBlock(x.then_branch);
+  ir::Code else_branch = CheckBlock(x.else_branch);
   const ir::Label if_false = context_->Label("if_false");
   const ir::Label end = context_->Label("if_end");
   return ir::Sequence({std::move(condition.code),
@@ -847,7 +847,7 @@ ir::AnyCode StatementChecker::operator()(const ast::If& x) {
                        std::move(else_branch), end});
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::While& x) {
+ir::Code StatementChecker::operator()(const ast::While& x) {
   const ir::Label loop_start = context_->Label("while_start");
   const ir::Label loop_condition = context_->Label("while_condition");
   const ir::Label loop_end = context_->Label("while_end");
@@ -855,14 +855,14 @@ ir::AnyCode StatementChecker::operator()(const ast::While& x) {
   Environment while_environment(*environment_, Environment::ShadowMode::kDeny);
   while_environment.SetBreak(loop_end);
   while_environment.SetContinue(loop_condition);
-  ir::AnyCode body = CheckBlock(while_environment, x.body);
+  ir::Code body = CheckBlock(while_environment, x.body);
   return ir::Sequence({ir::Jump(loop_condition), loop_start, std::move(body),
                        loop_condition, std::move(condition.code),
                        ir::JumpIf(std::move(condition.value), loop_start),
                        loop_end});
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::Return& x) {
+ir::Code StatementChecker::operator()(const ast::Return& x) {
   if (x.value) {
     ExpressionInfo value = CheckValue(*x.value);
     return ir::Sequence(
@@ -872,7 +872,7 @@ ir::AnyCode StatementChecker::operator()(const ast::Return& x) {
   }
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::Break& x) {
+ir::Code StatementChecker::operator()(const ast::Break& x) {
   auto label = environment_->Break();
   if (!label) {
     throw Error(x.location, "break statement outside of a breakable context");
@@ -880,7 +880,7 @@ ir::AnyCode StatementChecker::operator()(const ast::Break& x) {
   return ir::Jump(*label);
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::Continue& x) {
+ir::Code StatementChecker::operator()(const ast::Continue& x) {
   auto label = environment_->Break();
   if (!label) {
     throw Error(x.location, "continue statement outside of a loop");
@@ -888,11 +888,11 @@ ir::AnyCode StatementChecker::operator()(const ast::Continue& x) {
   return ir::Jump(*label);
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::DiscardedExpression& x) {
+ir::Code StatementChecker::operator()(const ast::DiscardedExpression& x) {
   return CheckValue(x.expression).code;
 }
 
-ir::AnyCode StatementChecker::operator()(const ast::FunctionDefinition& x) {
+ir::Code StatementChecker::operator()(const ast::FunctionDefinition& x) {
   throw Error(x.location, "nested function definitions are forbidden");
 }
 
@@ -905,24 +905,24 @@ ExpressionInfo StatementChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
 }
 
-ir::AnyCode StatementChecker::CheckBlock(
+ir::Code StatementChecker::CheckBlock(
     Environment& parent_environment, std::span<const ast::Statement> block) {
   return aoc2021::CheckBlock(*context_, parent_environment, *frame_, block);
 }
 
-ir::AnyCode StatementChecker::CheckBlock(
+ir::Code StatementChecker::CheckBlock(
     std::span<const ast::Statement> block) {
   return CheckBlock(*environment_, block);
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(const ast::DeclareScalar& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::DeclareScalar& x) {
   const ir::Global global = context_->Global(x.name, 1);
   environment_->Define(
       x.name, Environment::Definition{.location = x.location, .value = global});
   return ir::Sequence();
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(const ast::DeclareArray& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::DeclareArray& x) {
   auto size = Evaluate(CheckValue(x.size).value);
   if (!size) {
     throw Error(x.location, "array size must be a constant expression");
@@ -933,41 +933,40 @@ ir::AnyCode ModuleStatementChecker::operator()(const ast::DeclareArray& x) {
   return ir::Sequence();
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(const ast::Assign& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::Assign& x) {
   throw Error(x.location,
               "assignment statements are forbidden at module scope");
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(const ast::If& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::If& x) {
   throw Error(x.location,
               "if statements are forbidden at module scope");
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(const ast::While& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::While& x) {
   throw Error(x.location,
               "while statements are forbidden at module scope");
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(const ast::Return& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::Return& x) {
   throw Error(x.location, "return statement outside of a function");
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(const ast::Break& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::Break& x) {
   throw Error(x.location, "break statement outside of a breakable context");
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(const ast::Continue& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::Continue& x) {
   throw Error(x.location, "continue statement outside of a loop");
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(
+ir::Code ModuleStatementChecker::operator()(
     const ast::DiscardedExpression& x) {
   throw Error(x.location,
               "discarded expressions are forbidden at module scope");
 }
 
-ir::AnyCode ModuleStatementChecker::operator()(
-    const ast::FunctionDefinition& x) {
+ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   const ir::Label function = context_->Label("function");
   // TODO: Derive symbolic constant names in a better way.
   environment_->Define(x.name, Environment::Definition{.location = x.location,
@@ -995,7 +994,7 @@ ir::AnyCode ModuleStatementChecker::operator()(
   }
 
   FrameAllocator frame;
-  ir::AnyCode code = CheckBlock(*context_, function_environment, frame, x.body);
+  ir::Code code = CheckBlock(*context_, function_environment, frame, x.body);
   return ir::Sequence({function, ir::BeginFrame(frame.max_size()),
                        std::move(code), ir::Return(ir::IntegerLiteral(0))});
 }
@@ -1012,7 +1011,7 @@ ExpressionInfo ModuleStatementChecker::CheckValue(const ast::Expression& x) {
 ir::Unit Check(std::span<const ast::Statement> program) {
   Context context;
   Environment global;
-  std::vector<ir::AnyCode> code;
+  std::vector<ir::Code> code;
   for (const auto& statement : program) {
     ModuleStatementChecker checker(context, global);
     code.push_back(std::visit(checker, statement->value));
