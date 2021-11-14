@@ -533,6 +533,7 @@ Statement Parser::ParseDeclaration() {
   SkipWhitespaceAndComments();
   const Location bracket_position = reader_.location();
   if (reader_.ConsumePrefix("[")) {
+    SkipWhitespaceAndComments();
     Expression size = ParseExpression();
     SkipWhitespaceAndComments();
     if (!reader_.ConsumePrefix("]")) {
