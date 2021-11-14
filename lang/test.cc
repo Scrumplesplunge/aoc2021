@@ -38,7 +38,7 @@ int RunTests() noexcept {
     Sink sink(log);
     try {
       info.run(sink);
-      if (sink.failed()) throw 1;
+      if (sink.failed()) throw TestAbort();
       std::cout << " \x1b[32mPASSED\x1b[0m\n";
       passed++;
     } catch (const TestAbort&) {
