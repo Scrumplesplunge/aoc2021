@@ -29,6 +29,10 @@ struct ParserTest : Test {
     return result;
   }
 
+  std::vector<ast::Statement> ParseProgram() const {
+    return Parser(source.value()).ParseProgram();
+  }
+
   std::optional<Source> source;
 };
 
@@ -444,6 +448,21 @@ TEST_F(ParserTest, While) {
                                          {ast::Break(At(2, 3))}));
   WithSource("while x break;");
   EXPECT_ERROR(ParseStatement(), "expected statement block");
+}
+
+TEST_F(ParserTest, Program) {
+  WithSource(
+      "// Leading comments or whitespace are allowed\n"
+      "\n"
+      "var x;  // Trailing comments are fine.\n"
+      "function f() {}\n"
+      "\n"
+      "// Trailing whitespace or comments are allowed.\n"
+      "\n");
+  std::vector<ast::Statement> program = ParseProgram();
+  ASSERT_EQ(program.size(), 2);
+  EXPECT_EQ(program[0], ast::DeclareScalar(At(3, 1), "x"));
+  EXPECT_EQ(program[1], ast::FunctionDefinition(At(4, 1), "f", {}, {}));
 }
 
 }  // namespace
