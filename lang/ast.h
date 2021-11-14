@@ -300,6 +300,67 @@ std::ostream& operator<<(std::ostream&, const ShiftRight&) noexcept;
 std::ostream& operator<<(std::ostream&, const TernaryExpression&) noexcept;
 std::ostream& operator<<(std::ostream&, const Expression&) noexcept;
 
+struct TypeVariant;
+
+class Type {
+ public:
+  // Implicit conversion from any type of type.
+  template <HoldableBy<TypeVariant> T>
+  Type(T value) noexcept;
+
+  explicit operator bool() const noexcept { return value_ != nullptr; }
+  const Location& location() const noexcept;
+  const TypeVariant& operator*() const noexcept;
+  const TypeVariant* operator->() const noexcept { return &**this; }
+
+  bool operator==(const Type&) const;
+  std::strong_ordering operator<=>(const Type&) const;
+
+ private:
+  std::shared_ptr<const TypeVariant> value_;
+};
+
+struct PointerType {
+  bool operator==(const PointerType&) const = default;
+  auto operator<=>(const PointerType&) const = default;
+
+  Location location;
+  Type inner;
+};
+
+struct ArrayType {
+  bool operator==(const ArrayType&) const = default;
+  auto operator<=>(const ArrayType&) const = default;
+
+  Location location;
+  Expression size;
+  Type inner;
+};
+
+struct SpanType {
+  bool operator==(const SpanType&) const = default;
+  auto operator<=>(const SpanType&) const = default;
+
+  Location location;
+  Type inner;
+};
+
+struct TypeVariant {
+  bool operator==(const TypeVariant&) const = default;
+  auto operator<=>(const TypeVariant&) const = default;
+
+  std::variant<Name, PointerType, ArrayType, SpanType> value;
+};
+
+template <HoldableBy<TypeVariant> T>
+Type::Type(T value) noexcept
+    : value_(std::make_shared<TypeVariant>(std::move(value))) {}
+
+std::ostream& operator<<(std::ostream&, const PointerType&) noexcept;
+std::ostream& operator<<(std::ostream&, const ArrayType&) noexcept;
+std::ostream& operator<<(std::ostream&, const SpanType&) noexcept;
+std::ostream& operator<<(std::ostream&, const Type&) noexcept;
+
 struct StatementVariant;
 
 class Statement {
