@@ -1,7 +1,9 @@
 #ifndef TEST_H_
 #define TEST_H_
 
+#include <iomanip>
 #include <iostream>
+#include <optional>
 #include <string_view>
 #include <source_location>
 
@@ -52,6 +54,32 @@ bool ExpectCompare(
   sink.Log() << location.file_name() << ':' << location.line()
              << ": expectation failed: " << text << "\nleft  = " << left
              << "\nright = " << right << "\n";
+  return false;
+}
+
+template <typename F>
+bool ExpectError(
+    std::string_view text, F&& f, std::string_view expected_message, Sink& sink,
+    std::source_location location = std::source_location::current()) {
+  std::optional<std::string> error;
+  try {
+    f();
+  } catch (const std::exception& e) {
+    error.emplace(e.what());
+  }
+  if (error && std::string_view(*error).find(expected_message) !=
+                   std::string_view::npos) {
+    return true;
+  }
+  sink.Fail();
+  sink.Log() << text << " throws an exception stating "
+             << std::quoted(expected_message) << ", but instead got ";
+  if (error) {
+    sink.Log() << std::quoted(*error);
+  } else {
+    sink.Log() << "no exception";
+  }
+  sink.Log() << ".\n";
   return false;
 }
 
@@ -122,6 +150,12 @@ bool ExpectCompare(
        throw 1)                                                          \
     test_sink.Log()
 
+#define ASSERT_ERROR(expr, text)                       \
+  for (; !::aoc2021::ExpectError(                      \
+           #expr, [&] { (expr); }, (text), test_sink); \
+       throw 1)                                        \
+  test_sink.Log()
+
 #define EXPECT_TRUE(expr)                                             \
   if (!::aoc2021::Expect(#expr " should be true", (expr), test_sink)) \
     test_sink.Log()
@@ -159,6 +193,11 @@ bool ExpectCompare(
 #define EXPECT_GE(left, right)                                        \
   if (!::aoc2021::ExpectCompare(#left " == " #right, (left), (right), \
                                 std::greater_equal<>(), test_sink))   \
+    test_sink.Log()
+
+#define EXPECT_ERROR(expr, text)                      \
+  if (!::aoc2021::ExpectError(                        \
+          #expr, [&] { (expr); }, (text), test_sink)) \
     test_sink.Log()
 
 #endif  // TEST_H_
