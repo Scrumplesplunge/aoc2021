@@ -51,6 +51,10 @@ TEST_F(ParserTest, ArrayType) {
   EXPECT_EQ(ParseExpression(),
             ast::ArrayType(At(1, 1), ast::IntegerLiteral(At(1, 2), 42),
                            ast::Name(At(1, 5), "int")));
+  WithSource("[ 42 ] int");
+  EXPECT_EQ(ParseExpression(),
+            ast::ArrayType(At(1, 1), ast::IntegerLiteral(At(1, 3), 42),
+                           ast::Name(At(1, 8), "int")));
   WithSource("[]int");
   EXPECT_EQ(ParseExpression(),
             ast::SpanType(At(1, 1), ast::Name(At(1, 3), "int")));
@@ -365,26 +369,34 @@ TEST_F(ParserTest, Continue) {
 }
 
 TEST_F(ParserTest, FunctionDefinition) {
-  WithSource("function f() {}");
-  EXPECT_EQ(ParseStatement(), ast::FunctionDefinition(At(1, 1), "f", {}, {}));
-  WithSource("function f(x) {}");
-  EXPECT_EQ(
-      ParseStatement(),
-      ast::FunctionDefinition(At(1, 1), "f", {ast::Name(At(1, 12), "x")}, {}));
-  WithSource("function f(x, y) {}");
+  WithSource("function f(): any {}");
+  EXPECT_EQ(ParseStatement(),
+            ast::FunctionDefinition(At(1, 1), "f", {},
+                                    ast::Name(At(1, 15), "any"), {}));
+  WithSource("function f(x: any): any {}");
   EXPECT_EQ(ParseStatement(),
             ast::FunctionDefinition(
                 At(1, 1), "f",
-                {ast::Name(At(1, 12), "x"), ast::Name(At(1, 15), "y")}, {}));
+                {{ast::Name(At(1, 12), "x"), ast::Name(At(1, 15), "any")}},
+                ast::Name(At(1, 21), "any"), {}));
+  WithSource("function f(x: any, y: any): any {}");
+  EXPECT_EQ(ParseStatement(),
+            ast::FunctionDefinition(
+                At(1, 1), "f",
+                {{ast::Name(At(1, 12), "x"), ast::Name(At(1, 15), "any")},
+                 {ast::Name(At(1, 20), "y"), ast::Name(At(1, 23), "any")}},
+                ast::Name(At(1, 29), "any"), {}));
   WithSource(
-      "function f() {\n"
+      "function f(): any {\n"
       "  return;\n"
       "}");
-  EXPECT_EQ(ParseStatement(), ast::FunctionDefinition(At(1, 1), "f", {},
-                                                      {ast::Return(At(2, 3))}));
+  EXPECT_EQ(
+      ParseStatement(),
+      ast::FunctionDefinition(At(1, 1), "f", {}, ast::Name(At(1, 15), "any"),
+                              {ast::Return(At(2, 3))}));
   WithSource("function {}");
   EXPECT_ERROR(ParseStatement(), "expected function name");
-  WithSource("function f {}");
+  WithSource("function f: any {}");
   EXPECT_ERROR(ParseStatement(), "expected '('");
 }
 
@@ -428,24 +440,18 @@ TEST_F(ParserTest, Return) {
 }
 
 TEST_F(ParserTest, Declaration) {
-  WithSource("var x;");
-  EXPECT_EQ(ParseStatement(), ast::DeclareScalar(At(1, 1), "x"));
-  WithSource("var x ;");
-  EXPECT_EQ(ParseStatement(), ast::DeclareScalar(At(1, 1), "x"));
-  WithSource("var x[3];");
+  WithSource("var x: any;");
   EXPECT_EQ(ParseStatement(),
-            ast::DeclareArray(At(1, 1), "x", ast::IntegerLiteral(At(1, 7), 3)));
-  WithSource("var x [ 3 ] ;");
+            ast::DeclareVariable(At(1, 1), "x", ast::Name(At(1, 8), "any")));
+  WithSource("var x : any ;");
   EXPECT_EQ(ParseStatement(),
-            ast::DeclareArray(At(1, 1), "x", ast::IntegerLiteral(At(1, 9), 3)));
+            ast::DeclareVariable(At(1, 1), "x", ast::Name(At(1, 9), "any")));
   WithSource("var x");
-  EXPECT_ERROR(ParseStatement(), "expected ';'");
-  WithSource("var x[3]");
+  EXPECT_ERROR(ParseStatement(), "expected ':'");
+  WithSource("var x: any");
   EXPECT_ERROR(ParseStatement(), "expected ';'");
   WithSource("var 123;");
   EXPECT_ERROR(ParseStatement(), "variable name must begin with a letter");
-  WithSource("var x[1;");
-  EXPECT_ERROR(ParseStatement(), "expected ']'");
 }
 
 TEST_F(ParserTest, While) {
@@ -466,15 +472,18 @@ TEST_F(ParserTest, Program) {
   WithSource(
       "// Leading comments or whitespace are allowed\n"
       "\n"
-      "var x;  // Trailing comments are fine.\n"
-      "function f() {}\n"
+      "var x: any;  // Trailing comments are fine.\n"
+      "function f(): any {}\n"
       "\n"
       "// Trailing whitespace or comments are allowed.\n"
       "\n");
   std::vector<ast::Statement> program = ParseProgram();
   ASSERT_EQ(program.size(), 2);
-  EXPECT_EQ(program[0], ast::DeclareScalar(At(3, 1), "x"));
-  EXPECT_EQ(program[1], ast::FunctionDefinition(At(4, 1), "f", {}, {}));
+  EXPECT_EQ(program[0],
+            ast::DeclareVariable(At(3, 1), "x", ast::Name(At(3, 8), "any")));
+  EXPECT_EQ(program[1],
+            ast::FunctionDefinition(At(4, 1), "f", {},
+                                    ast::Name(At(4, 15), "any"), {}));
 }
 
 }  // namespace

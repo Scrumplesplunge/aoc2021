@@ -164,6 +164,95 @@ std::ostream& operator<<(std::ostream& output,
                     expression->value);
 }
 
+const TypeVariant& Type::operator*() const noexcept { return *value_; }
+
+bool Type::operator==(const Type& other) const {
+  // Order by pointer value if one is null.
+  if (!value_ && !other.value_) return true;
+  if (*value_ == *other.value_) return true;
+  return false;
+}
+
+std::strong_ordering Type::operator<=>(const Type& other) const {
+  // Order by pointer value if one is null.
+  if (!value_ || !other.value_) return value_ <=> other.value_;
+  // Otherwise, order by contents.
+  return *value_ <=> *other.value_;
+}
+
+std::ostream& operator<<(std::ostream& output, Primitive x) noexcept {
+  switch (x) {
+    case Primitive::kVoid: return output << "Primitive::kVoid";
+    case Primitive::kInt64: return output << "Primitive::kInt64";
+  }
+  std::abort();
+}
+
+std::ostream& operator<<(std::ostream& output, const Pointer& x) noexcept {
+  return output << "Pointer(" << x.pointee << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const FunctionPointer& x) noexcept {
+  return output << "FunctionPointer(" << x.return_type << ", "
+                << List(x.parameters) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Array& x) noexcept {
+  return output << "Array(" << x.size << ", " << x.element << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Span& x) noexcept {
+  return output << "Span(" << x.element << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Type& x) noexcept {
+  return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
+                    x->value);
+}
+
+std::int64_t Size(Primitive x) noexcept {
+  switch (x) {
+    case Primitive::kVoid: return 0;
+    case Primitive::kInt64: return 8;
+  }
+  std::abort();
+}
+
+std::int64_t Size(const Pointer& x) noexcept { return 8; }
+std::int64_t Size(const FunctionPointer& x) noexcept { return 8; }
+
+std::int64_t Size(const Array& x) noexcept {
+  return x.size * Size(x.element);
+}
+
+std::int64_t Size(const Span& x) noexcept { return 8; }
+
+std::int64_t Size(const Type& x) noexcept {
+  return std::visit([](const auto& x) { return Size(x); }, x->value);
+}
+
+std::int64_t Alignment(Primitive x) noexcept {
+  switch (x) {
+    case Primitive::kVoid: return 0;
+    case Primitive::kInt64: return 8;
+  }
+  std::abort();
+}
+
+std::int64_t Alignment(const Pointer& x) noexcept { return 8; }
+std::int64_t Alignment(const FunctionPointer& x) noexcept { return 8; }
+
+std::int64_t Alignment(const Array& x) noexcept {
+  return Alignment(x.element);
+}
+
+std::int64_t Alignment(const Span& x) noexcept { return 8; }
+
+std::int64_t Alignment(const Type& x) noexcept {
+  return std::visit([](const auto& x) { return Alignment(x); }, x->value);
+}
+
 const CodeVariant& Code::operator*() const noexcept { return *value_; }
 
 bool Code::operator==(const Code& other) const {

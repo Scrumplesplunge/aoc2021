@@ -340,21 +340,13 @@ class Statement {
   std::shared_ptr<const StatementVariant> value_;
 };
 
-struct DeclareScalar {
-  bool operator==(const DeclareScalar&) const = default;
-  auto operator<=>(const DeclareScalar&) const = default;
+struct DeclareVariable {
+  bool operator==(const DeclareVariable&) const = default;
+  auto operator<=>(const DeclareVariable&) const = default;
 
   Location location;
   std::string name;
-};
-
-struct DeclareArray {
-  bool operator==(const DeclareArray&) const = default;
-  auto operator<=>(const DeclareArray&) const = default;
-
-  Location location;
-  std::string name;
-  Expression size;
+  Expression type;
 };
 
 struct Assign {
@@ -414,12 +406,21 @@ struct DiscardedExpression {
 };
 
 struct FunctionDefinition {
+  struct Parameter {
+    bool operator==(const Parameter&) const = default;
+    auto operator<=>(const Parameter&) const = default;
+
+    Name name;
+    Expression type;
+  };
+
   bool operator==(const FunctionDefinition&) const = default;
   auto operator<=>(const FunctionDefinition&) const = default;
 
   Location location;
   std::string name;
-  std::vector<Name> parameters;
+  std::vector<Parameter> parameters;
+  Expression return_type;
   std::vector<Statement> body;
 };
 
@@ -427,8 +428,8 @@ struct StatementVariant {
   bool operator==(const StatementVariant&) const = default;
   auto operator<=>(const StatementVariant&) const = default;
 
-  std::variant<DeclareScalar, DeclareArray, Assign, If, While, Return, Break,
-               Continue, DiscardedExpression, FunctionDefinition>
+  std::variant<DeclareVariable, Assign, If, While, Return, Break, Continue,
+               DiscardedExpression, FunctionDefinition>
       value;
 };
 
@@ -436,8 +437,7 @@ template <HoldableBy<StatementVariant> T>
 Statement::Statement(T value) noexcept
     : value_(std::make_shared<StatementVariant>(std::move(value))) {}
 
-std::ostream& operator<<(std::ostream&, const DeclareScalar&) noexcept;
-std::ostream& operator<<(std::ostream&, const DeclareArray&) noexcept;
+std::ostream& operator<<(std::ostream&, const DeclareVariable&) noexcept;
 std::ostream& operator<<(std::ostream&, const Assign&) noexcept;
 std::ostream& operator<<(std::ostream&, const If&) noexcept;
 std::ostream& operator<<(std::ostream&, const While&) noexcept;
@@ -445,6 +445,8 @@ std::ostream& operator<<(std::ostream&, const Return&) noexcept;
 std::ostream& operator<<(std::ostream&, const Break&) noexcept;
 std::ostream& operator<<(std::ostream&, const Continue&) noexcept;
 std::ostream& operator<<(std::ostream&, const DiscardedExpression&) noexcept;
+std::ostream& operator<<(std::ostream&,
+                         const FunctionDefinition::Parameter&) noexcept;
 std::ostream& operator<<(std::ostream&, const FunctionDefinition&) noexcept;
 std::ostream& operator<<(std::ostream&, const Statement&) noexcept;
 

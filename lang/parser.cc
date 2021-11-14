@@ -176,6 +176,7 @@ Expression Parser::ParseArrayType() {
         });
         throw ParseError(std::move(messages));
       }
+      SkipWhitespaceAndComments();
       return ArrayType(location, std::move(size), ParseArrayType());
     }
   } else {
@@ -494,19 +495,29 @@ Statement Parser::ParseFunctionDefinition() {
   SkipWhitespaceAndComments();
   if (!reader_.ConsumePrefix("(")) throw Error("expected '('");
   SkipWhitespaceAndComments();
-  std::vector<Name> parameters;
+  std::vector<FunctionDefinition::Parameter> parameters;
   if (!reader_.ConsumePrefix(")")) {
     while (true) {
-      parameters.push_back(ParseName());
+      Name name = ParseName();
       SkipWhitespaceAndComments();
+      if (!reader_.ConsumePrefix(":")) throw Error("expected ':'");
+      SkipWhitespaceAndComments();
+      Expression type = ParseExpression();
+      SkipWhitespaceAndComments();
+      parameters.push_back(
+          FunctionDefinition::Parameter(std::move(name), std::move(type)));
       if (reader_.ConsumePrefix(")")) break;
       if (!reader_.ConsumePrefix(",")) throw Error("expected ','");
       SkipWhitespaceAndComments();
     }
   }
   SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix(":")) throw Error("expected ':'");
+  SkipWhitespaceAndComments();
+  Expression return_type = ParseExpression();
+  SkipWhitespaceAndComments();
   return FunctionDefinition(location, std::string(name), std::move(parameters),
-                            ParseBlock());
+                            std::move(return_type), ParseBlock());
 }
 
 Statement Parser::ParseIf() {
@@ -560,35 +571,11 @@ Statement Parser::ParseDeclaration() {
   }
   reader_.Advance(name.size());
   SkipWhitespaceAndComments();
-  const Location bracket_position = reader_.location();
-  if (reader_.ConsumePrefix("[")) {
-    SkipWhitespaceAndComments();
-    Expression size = ParseExpression();
-    SkipWhitespaceAndComments();
-    if (!reader_.ConsumePrefix("]")) {
-      std::vector<Message> messages;
-      messages.emplace_back(Message{
-          .location = reader_.location(),
-          .type = Message::Type::kError,
-          .text = "expected ']'",
-      });
-      messages.emplace_back(Message{
-          .location = bracket_position,
-          .type = Message::Type::kNote,
-          .text = "to match this '['",
-      });
-      throw ParseError(std::move(messages));
-    }
-    SkipWhitespaceAndComments();
-    // TODO: Add support for `var x[3] = {1, 2, 3};`.
-    if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
-    return DeclareArray(location, std::string(name), std::move(size));
-  } else if (reader_.ConsumePrefix(";")) {
-    return DeclareScalar(location, std::string(name));
-  } else {
-    // TODO: Add support for `var x = 1;`
-    throw Error("expected ';'");
-  }
+  if (!reader_.ConsumePrefix(":")) throw Error("expected ':'");
+  SkipWhitespaceAndComments();
+  Expression type = ParseExpression();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  return DeclareVariable(location, std::string(name), std::move(type));
 }
 
 Statement Parser::ParseWhile() {

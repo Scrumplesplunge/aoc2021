@@ -235,6 +235,87 @@ std::ostream& operator<<(std::ostream&, const ShiftLeft&) noexcept;
 std::ostream& operator<<(std::ostream&, const ShiftRight&) noexcept;
 std::ostream& operator<<(std::ostream&, const Expression&) noexcept;
 
+struct TypeVariant;
+
+class Type {
+ public:
+  // Implicit conversion from any type of expression.
+  template <HoldableBy<TypeVariant> T>
+  Type(T value) noexcept;
+
+  explicit operator bool() const noexcept { return value_ != nullptr; }
+  const TypeVariant& operator*() const noexcept;
+  const TypeVariant* operator->() const noexcept { return &**this; }
+
+  bool operator==(const Type&) const;
+  std::strong_ordering operator<=>(const Type&) const;
+
+ private:
+  std::shared_ptr<const TypeVariant> value_;
+};
+
+enum class Primitive { kVoid, kInt64 };
+
+struct Pointer {
+  bool operator==(const Pointer&) const = default;
+  auto operator<=>(const Pointer&) const = default;
+
+  Type pointee;
+};
+
+struct FunctionPointer {
+  bool operator==(const FunctionPointer&) const = default;
+  auto operator<=>(const FunctionPointer&) const = default;
+
+  Type return_type;
+  std::vector<Type> parameters;
+};
+
+struct Array {
+  bool operator==(const Array&) const = default;
+  auto operator<=>(const Array&) const = default;
+
+  std::int64_t size;
+  Type element;
+};
+
+struct Span {
+  bool operator==(const Span&) const = default;
+  auto operator<=>(const Span&) const = default;
+
+  Type element;
+};
+
+struct TypeVariant {
+  bool operator==(const TypeVariant&) const = default;
+  auto operator<=>(const TypeVariant&) const = default;
+
+  std::variant<Primitive, Pointer, FunctionPointer, Array, Span> value;
+};
+
+template <HoldableBy<TypeVariant> T>
+Type::Type(T value) noexcept
+    : value_(std::make_shared<TypeVariant>(std::move(value))) {}
+
+std::ostream& operator<<(std::ostream&, Primitive) noexcept;
+std::ostream& operator<<(std::ostream&, const Pointer&) noexcept;
+std::ostream& operator<<(std::ostream&, const FunctionPointer&) noexcept;
+std::ostream& operator<<(std::ostream&, const Array&) noexcept;
+std::ostream& operator<<(std::ostream&, const Span&) noexcept;
+std::ostream& operator<<(std::ostream&, const Type&) noexcept;
+
+std::int64_t Size(Primitive) noexcept;
+std::int64_t Size(const Pointer&) noexcept;
+std::int64_t Size(const Array&) noexcept;
+std::int64_t Size(const Span&) noexcept;
+std::int64_t Size(const Type&) noexcept;
+
+std::int64_t Alignment(Primitive) noexcept;
+std::int64_t Alignment(const Pointer&) noexcept;
+std::int64_t Alignment(const Array&) noexcept;
+std::int64_t Alignment(const Span&) noexcept;
+std::int64_t Alignment(const Type&) noexcept;
+
 struct CodeVariant;
 
 class Code {

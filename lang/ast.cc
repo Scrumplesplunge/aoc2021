@@ -203,12 +203,8 @@ std::strong_ordering Statement::operator<=>(const Statement& other) const {
 }
 
 std::ostream& operator<<(std::ostream& output,
-                         const DeclareScalar& x) noexcept {
-  return output << "DeclareScalar(" << std::quoted(x.name) << ")";
-}
-
-std::ostream& operator<<(std::ostream& output, const DeclareArray& x) noexcept {
-  return output << "DeclareArray(" << std::quoted(x.name) << ", " << x.size
+                         const DeclareVariable& x) noexcept {
+  return output << "DeclareVariable(" << std::quoted(x.name) << ", " << x.type
                 << ")";
 }
 
@@ -247,9 +243,15 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 std::ostream& operator<<(std::ostream& output,
+                         const FunctionDefinition::Parameter& x) noexcept {
+  return output << "Parameter(" << x.name << ", " << x.type << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
                          const FunctionDefinition& x) noexcept {
   return output << "FunctionDefinition(" << std::quoted(x.name) << ", "
-                << List(x.parameters) << ", " << List(x.body) << ")";
+                << List(x.parameters) << ", " << x.return_type << ", "
+                << List(x.body) << ")";
 }
 
 std::ostream& operator<<(std::ostream& output,

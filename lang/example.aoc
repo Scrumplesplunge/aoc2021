@@ -3,8 +3,8 @@
 // $ ld example.o -o example
 // $ ./example
 
-function main() {
-  var message[2];
+function main(): int64 {
+  var message: [2]int64;
   message[0] =
       72 |
       101 << 8 |
