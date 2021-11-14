@@ -28,5 +28,6 @@ int main(int argc, char* argv[]) {
     std::cout << aoc2021::Generate(unit) << '\n';
   } catch (const aoc2021::CheckError& error) {
     std::cerr << error.what() << '\n';
+    return 1;
   }
 }
