@@ -264,7 +264,7 @@ ir::Expression AsAddress(Location location, std::int64_t) {
 }
 
 ir::Expression AsAddress(Location location, ir::Label x) {
-  return ir::Expression(x);
+  throw Error(location, "function is not an lvalue");
 }
 ir::Expression AsAddress(Location location, ir::Global x) { return x; }
 ir::Expression AsAddress(Location location, ir::Local x) { return x; }

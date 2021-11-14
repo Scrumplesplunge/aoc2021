@@ -26,6 +26,8 @@ add_library(ir ir.cc ir.h)
 
 add_library(checker checker.cc checker.h)
 target_link_libraries(checker source ast ir)
+add_executable(checker_test checker_test.cc)
+target_link_libraries(checker_test checker parser test)
 
 add_library(codegen codegen.cc codegen.h)
 target_link_libraries(codegen ir)
