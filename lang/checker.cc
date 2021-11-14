@@ -402,6 +402,8 @@ class ExpressionChecker {
   ExpressionInfo operator()(const ast::BitwiseXor&);
   ExpressionInfo operator()(const ast::ShiftLeft&);
   ExpressionInfo operator()(const ast::ShiftRight&);
+  ExpressionInfo operator()(const ast::ArrayType&);
+  ExpressionInfo operator()(const ast::SpanType&);
   ExpressionInfo operator()(const ast::TernaryExpression&);
 
  private:
@@ -733,6 +735,14 @@ ExpressionInfo ExpressionChecker::operator()(const ast::ShiftRight& x) {
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
       .value = ir::ShiftRight(std::move(left.value), std::move(right.value))};
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::ArrayType& x) {
+  throw Error(x.location, "type expression in value context");
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::SpanType& x) {
+  throw Error(x.location, "type expression in value context");
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {

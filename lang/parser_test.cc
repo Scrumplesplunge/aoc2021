@@ -46,6 +46,18 @@ TEST_F(ParserTest, IntegerLiteral) {
   EXPECT_EQ(ParseExpression(), ast::IntegerLiteral(At(1, 1), 123));
 }
 
+TEST_F(ParserTest, ArrayType) {
+  WithSource("[42]int");
+  EXPECT_EQ(ParseExpression(),
+            ast::ArrayType(At(1, 1), ast::IntegerLiteral(At(1, 2), 42),
+                           ast::Name(At(1, 5), "int")));
+  WithSource("[]int");
+  EXPECT_EQ(ParseExpression(),
+            ast::SpanType(At(1, 1), ast::Name(At(1, 3), "int")));
+  WithSource("[int");
+  EXPECT_ERROR(ParseExpression(), "expected ']'");
+}
+
 TEST_F(ParserTest, ZeroPaddingIsDisallowed) {
   WithSource("0123");
   EXPECT_ERROR(ParseExpression(), "integer literals must not be 0-padded");

@@ -165,48 +165,18 @@ std::ostream& operator<<(std::ostream& output,
                 << ", " << x.else_branch << ")";
 }
 
+std::ostream& operator<<(std::ostream& output, const ArrayType& x) noexcept {
+  return output << "ArrayType(" << x.size << ", " << x.element_type << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const SpanType& x) noexcept {
+  return output << "SpanType(" << x.element_type << ")";
+}
+
 std::ostream& operator<<(std::ostream& output,
                          const Expression& expression) noexcept {
   return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
                     expression->value);
-}
-
-const Location& Type::location() const noexcept {
-  return std::visit([](const auto& x) -> const Location& { return x.location; },
-                    value_->value);
-}
-
-const TypeVariant& Type::operator*() const noexcept { return *value_; }
-
-bool Type::operator==(const Type& other) const {
-  // Order by pointer value if one is null.
-  if (!value_ && !other.value_) return true;
-  if (*value_ == *other.value_) return true;
-  return false;
-}
-
-std::strong_ordering Type::operator<=>(const Type& other) const {
-  // Order by pointer value if one is null.
-  if (!value_ || !other.value_) return value_ <=> other.value_;
-  // Otherwise, order by contents.
-  return *value_ <=> *other.value_;
-}
-
-std::ostream& operator<<(std::ostream& output, const PointerType& x) noexcept {
-  return output << "PointerType(" << x.inner << ")";
-}
-
-std::ostream& operator<<(std::ostream& output, const ArrayType& x) noexcept {
-  return output << "ArrayType(" << x.size << ", " << x.inner << ")";
-}
-
-std::ostream& operator<<(std::ostream& output, const SpanType& x) noexcept {
-  return output << "SpanType(" << x.inner << ")";
-}
-
-std::ostream& operator<<(std::ostream& output, const Type& x) noexcept {
-  return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
-                    x->value);
 }
 
 const Location& Statement::location() const noexcept {

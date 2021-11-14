@@ -154,8 +154,37 @@ Expression Parser::ParseTerm() {
   throw Error("expected term");
 }
 
+Expression Parser::ParseArrayType() {
+  const Location location = reader_.location();
+  if (reader_.ConsumePrefix("[")) {
+    SkipWhitespaceAndComments();
+    if (reader_.ConsumePrefix("]")) {
+      return SpanType(location, ParseArrayType());
+    } else {
+      Expression size = ParseExpression();
+      if (!reader_.ConsumePrefix("]")) {
+        std::vector<Message> messages;
+        messages.emplace_back(Message{
+            .location = reader_.location(),
+            .type = Message::Type::kError,
+            .text = "expected ']'",
+        });
+        messages.emplace_back(Message{
+            .location = location,
+            .type = Message::Type::kNote,
+            .text = "to match this '['",
+        });
+        throw ParseError(std::move(messages));
+      }
+      return ArrayType(location, std::move(size), ParseArrayType());
+    }
+  } else {
+    return ParseTerm();
+  }
+}
+
 Expression Parser::ParseSuffix() {
-  Expression term = ParseTerm();
+  Expression term = ParseArrayType();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
