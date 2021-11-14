@@ -85,6 +85,11 @@ std::vector<Statement> Parser::ParseProgram() {
   }
 }
 
+void Parser::ExpectEnd() {
+  SkipWhitespaceAndComments();
+  if (!reader_.empty()) throw Error("trailing characters after expected end");
+}
+
 Name Parser::ParseName() {
   const std::string_view word = PeekWord();
   // We should always have at least one character here, since we dispatch to

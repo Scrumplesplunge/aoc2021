@@ -22,6 +22,7 @@ class Parser {
   ast::Expression ParseExpression();
   ast::Statement ParseStatement();
   std::vector<ast::Statement> ParseProgram();
+  void ExpectEnd();
 
  private:
   ast::Name ParseName();
