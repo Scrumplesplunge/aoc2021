@@ -245,16 +245,16 @@ class ExpressionGenerator {
     std::visit(*this, x.left->value);
     std::visit(*this, x.right->value);
     *output_ << "  // " << x
-             << "\n  pop %rax\n"
-                "  sal %al, (%rsp)\n";
+             << "\n  pop %rcx\n"
+                "  salq %cl, (%rsp)\n";
   }
 
   void operator()(const ir::ShiftRight& x) {
     std::visit(*this, x.left->value);
     std::visit(*this, x.right->value);
     *output_ << "  // " << x
-             << "\n  pop %rax\n"
-                "  sar %al, (%rsp)\n";
+             << "\n  pop %rcx\n"
+                "  sarq %cl, (%rsp)\n";
   }
 
  private:
@@ -352,6 +352,24 @@ std::string Generate(const ir::Unit& unit) {
   }
 
   result << ".section .text\n"
+            "read:\n"
+            "  mov $0, %rax\n"
+            "  mov 16(%rsp), %rdi\n"
+            "  mov 24(%rsp), %rsi\n"
+            "  mov 32(%rsp), %rdx\n"
+            "  syscall\n"
+            "  ret\n"
+            "write:\n"
+            "  mov $1, %rax\n"
+            "  mov 16(%rsp), %rdi\n"
+            "  mov 24(%rsp), %rsi\n"
+            "  mov 32(%rsp), %rdx\n"
+            "  syscall\n"
+            "  ret\n"
+            "exit:\n"
+            "  mov $60, %rax\n"
+            "  mov 16(%rsp), %rdi\n"
+            "  syscall\n"
             ".global _start\n"
             "_start:\n"
             "  sub $8, %rsp\n"

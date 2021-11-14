@@ -44,7 +44,9 @@ class CodeFlattener {
 
 }  // namespace
 
-Label::Label(std::string_view prefix, std::int64_t suffix)
+Label::Label(std::string_view name) noexcept : value(name) {}
+
+Label::Label(std::string_view prefix, std::int64_t suffix) noexcept
     : value(StrCat("label_", prefix, '_', suffix)) {}
 
 Global::Global(std::string_view prefix, std::int64_t suffix)

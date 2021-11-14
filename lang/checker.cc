@@ -432,7 +432,6 @@ class AddressChecker {
   }
 
  private:
-  ExpressionInfo CheckAddress(const ast::Expression& expression);
   ExpressionInfo CheckValue(const ast::Expression& expression);
 
   Context* context_;
@@ -775,7 +774,7 @@ ExpressionInfo AddressChecker::operator()(const ast::Name& x) {
 }
 
 ExpressionInfo AddressChecker::operator()(const ast::Index& x) {
-  ExpressionInfo container = CheckAddress(x.container);
+  ExpressionInfo container = CheckValue(x.container);
   ExpressionInfo index = CheckValue(x.index);
   return ExpressionInfo{
       .code = ir::Sequence({std::move(container.code), std::move(index.code)}),
@@ -788,10 +787,6 @@ ExpressionInfo AddressChecker::operator()(const ast::Dereference& x) {
   ExpressionInfo inner = CheckValue(x.inner);
   return ExpressionInfo{.code = std::move(inner.code),
                         .value = std::move(inner.value)};
-}
-
-ExpressionInfo AddressChecker::CheckAddress(const ast::Expression& x) {
-  return aoc2021::CheckAddress(*context_, *environment_, *frame_, x);
 }
 
 ExpressionInfo AddressChecker::CheckValue(const ast::Expression& x) {
@@ -1010,11 +1005,23 @@ ExpressionInfo ModuleStatementChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, frame, x);
 }
 
+Location BuiltinLocation() {
+  const Source& instance = *new Source("builtin", "");
+  Reader reader(instance);
+  return reader.location();
+}
+
 }  // namespace
 
 ir::Unit Check(std::span<const ast::Statement> program) {
   Context context;
   Environment global;
+  global.Define("read", Environment::Definition{.location = BuiltinLocation(),
+                                                .value = ir::Label("read")});
+  global.Define("write", Environment::Definition{.location = BuiltinLocation(),
+                                                 .value = ir::Label("write")});
+  global.Define("exit", Environment::Definition{.location = BuiltinLocation(),
+                                                .value = ir::Label("exit")});
   std::vector<ir::Code> code;
   for (const auto& statement : program) {
     ModuleStatementChecker checker(context, global);

@@ -36,7 +36,8 @@ struct Label {
   bool operator==(const Label&) const = default;
   auto operator<=>(const Label&) const = default;
 
-  Label(std::string_view prefix, std::int64_t suffix);
+  explicit Label(std::string_view name) noexcept;
+  Label(std::string_view prefix, std::int64_t suffix) noexcept;
   std::string value;
 };
 
