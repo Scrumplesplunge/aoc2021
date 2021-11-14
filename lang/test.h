@@ -83,6 +83,8 @@ bool ExpectError(
   return false;
 }
 
+struct TestAbort {};
+
 }  // namespace aoc2021
 
 #define TEST_F(Fixture, name)                     \
@@ -100,60 +102,60 @@ bool ExpectError(
 
 #define ASSERT_TRUE(expr)                                                \
   for (; !::aoc2021::Expect(#expr " should be true", (expr), test_sink); \
-       throw 1)                                                          \
+       throw TestAbort())                                                \
     test_sink.Log()
 
 #define ASSERT_FALSE(expr)                                                 \
   for (; !::aoc2021::Expect(#expr " should be false", !(expr), test_sink); \
-       throw 1)                                                            \
+       throw TestAbort())                                                  \
     test_sink.Log()
 
 #define ASSERT_EQ(left, right)                                           \
   for (; !::aoc2021::ExpectCompare(#left " == " #right, (left), (right), \
                                    std::equal_to<>(), test_sink);        \
-       throw 1)                                                          \
+       throw TestAbort())                                                \
     test_sink.Log()
 
 #define ASSERT_EQ(left, right)                                           \
   for (; !::aoc2021::ExpectCompare(#left " == " #right, (left), (right), \
                                    std::equal_to<>(), test_sink);        \
-       throw 1)                                                          \
+       throw TestAbort())                                                \
     test_sink.Log()
 
 #define ASSERT_NE(left, right)                                           \
   for (; !::aoc2021::ExpectCompare(#left " != " #right, (left), (right), \
                                    std::not_equal_to<>(), test_sink);    \
-       throw 1)                                                          \
+       throw TestAbort())                                                \
     test_sink.Log()
 
 #define ASSERT_LT(left, right)                                          \
   for (; !::aoc2021::ExpectCompare(#left " < " #right, (left), (right), \
                                    std::less<>(), test_sink);           \
-       throw 1)                                                         \
+       throw TestAbort())                                               \
     test_sink.Log()
 
 #define ASSERT_LE(left, right)                                           \
   for (; !::aoc2021::ExpectCompare(#left " <= " #right, (left), (right), \
                                    std::less_equal<>(), test_sink);      \
-       throw 1)                                                          \
+       throw TestAbort())                                                \
     test_sink.Log()
 
 #define ASSERT_GT(left, right)                                          \
   for (; !::aoc2021::ExpectCompare(#left " > " #right, (left), (right), \
                                    std::greater<>(), test_sink);        \
-       throw 1)                                                         \
+       throw TestAbort())                                               \
     test_sink.Log()
 
 #define ASSERT_GE(left, right)                                           \
   for (; !::aoc2021::ExpectCompare(#left " >= " #right, (left), (right), \
                                    std::greater_equal<>(), test_sink);   \
-       throw 1)                                                          \
+       throw TestAbort())                                                \
     test_sink.Log()
 
 #define ASSERT_ERROR(expr, text)                       \
   for (; !::aoc2021::ExpectError(                      \
            #expr, [&] { (expr); }, (text), test_sink); \
-       throw 1)                                        \
+       throw TestAbort())                              \
   test_sink.Log()
 
 #define EXPECT_TRUE(expr)                                             \
@@ -161,8 +163,7 @@ bool ExpectError(
     test_sink.Log()
 
 #define EXPECT_FALSE(expr)                                              \
-  if (!::aoc2021::Expect(#expr " should be false", !(expr), test_sink); \
-      throw 1)                                                          \
+  if (!::aoc2021::Expect(#expr " should be false", !(expr), test_sink)) \
     test_sink.Log()
 
 #define EXPECT_EQ(left, right)                                        \

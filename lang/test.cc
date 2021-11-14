@@ -41,10 +41,18 @@ int RunTests() noexcept {
       if (sink.failed()) throw 1;
       std::cout << " \x1b[32mPASSED\x1b[0m\n";
       passed++;
-    } catch (...) {
+    } catch (const TestAbort&) {
       std::cout << " \x1b[31mFAILED\x1b[0m\n"
                 << log.str() << '\n';
       failed++;
+    } catch (const std::exception& e) {
+      std::cout << " \x1b[31mFAILED\x1b[0m\n";
+      if (auto x = log.str(); !x.empty()) std::cout << x << '\n';
+      std::cout << "Aborting with an exception: " << e.what() << '\n';
+    } catch (...) {
+      std::cout << " \x1b[31mFAILED\x1b[0m\n";
+      if (auto x = log.str(); !x.empty()) std::cout << x << '\n';
+      std::cout << "Aborting with a non-standard exception.\n";
     }
   }
   std::cout << "Ran " << (passed + failed) << " tests, with " << failed
