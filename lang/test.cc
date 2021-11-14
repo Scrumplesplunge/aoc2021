@@ -33,24 +33,24 @@ int RunTests() noexcept {
   int passed = 0;
   int failed = 0;
   for (const auto& [name, info] : tests) {
-    std::cout << name << "..." << std::flush;
+    std::cout << "\x1b[33mRUNNING\x1b[0m " << name << "..." << std::flush;
     std::ostringstream log;
     Sink sink(log);
     try {
       info.run(sink);
       if (sink.failed()) throw TestAbort();
-      std::cout << " \x1b[32mPASSED\x1b[0m\n";
+      std::cout << "\r\x1b[32mPASSED\x1b[0m " << name << "    \n";
       passed++;
     } catch (const TestAbort&) {
-      std::cout << " \x1b[31mFAILED\x1b[0m\n"
+      std::cout << "\r\x1b[31mFAILED\x1b[0m " << name << "    \n"
                 << log.str() << '\n';
       failed++;
     } catch (const std::exception& e) {
-      std::cout << " \x1b[31mFAILED\x1b[0m\n";
+      std::cout << "\r\x1b[31mFAILED\x1b[0m " << name << "    \n";
       if (auto x = log.str(); !x.empty()) std::cout << x << '\n';
       std::cout << "Aborting with an exception: " << e.what() << '\n';
     } catch (...) {
-      std::cout << " \x1b[31mFAILED\x1b[0m\n";
+      std::cout << "\r\x1b[31mFAILED\x1b[0m " << name << "    \n";
       if (auto x = log.str(); !x.empty()) std::cout << x << '\n';
       std::cout << "Aborting with a non-standard exception.\n";
     }
