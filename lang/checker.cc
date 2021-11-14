@@ -215,15 +215,19 @@ class Context {
   ir::Global Global(std::string_view prefix, std::int64_t size) {
     const ir::Global result(prefix, next_global_offset_);
     next_global_offset_ += size;
+    globals_.emplace(result, size);
     return result;
   }
 
   void SetMain(ir::Label label) { main_ = std::move(label); }
   const std::optional<ir::Label>& Main() const { return main_; }
 
+  const std::map<ir::Global, std::int64_t>& Globals() const { return globals_; }
+
  private:
   std::optional<ir::Label> main_;
   std::int64_t next_label_index_ = 0;
+  std::map<ir::Global, std::int64_t> globals_;
   std::int64_t next_global_offset_ = 0;
 };
 
@@ -1017,6 +1021,7 @@ ir::Unit Check(std::span<const ast::Statement> program) {
     code.push_back(std::visit(checker, statement->value));
   }
   return ir::Unit{.main = context.Main(),
+                  .data = context.Globals(),
                   .code = ir::Flatten(ir::Sequence(std::move(code)))};
 }
 

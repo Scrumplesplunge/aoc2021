@@ -14,8 +14,10 @@ function fib(out, n) {
   }
 }
 
+var x;
+
 function main() {
   var result[1];
-  fib(result, 10);
+  x = fib(result, 10);
   return result[0];
 }

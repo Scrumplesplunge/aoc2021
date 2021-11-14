@@ -345,6 +345,12 @@ class CodeGenerator {
 std::string Generate(const ir::Unit& unit) {
   assert(unit.main.has_value());
   std::ostringstream result;
+  result << ".section .bss\n"
+            "  .align 8\n";
+  for (const auto& [global, size] : unit.data) {
+    result << global.value << ":\n  .space " << (8 * size) << '\n';
+  }
+
   result << ".section .text\n"
             ".global _start\n"
             "_start:\n"

@@ -2,6 +2,7 @@
 #define IR_H_
 
 #include <concepts>
+#include <map>
 #include <memory>
 #include <optional>
 #include <variant>
@@ -343,6 +344,7 @@ Sequence Flatten(const Code& code);
 
 struct Unit {
   std::optional<ir::Label> main;
+  std::map<ir::Global, std::int64_t> data;
   ir::Code code;
 };
 
