@@ -22,6 +22,13 @@ struct ParserTest : Test {
     return result;
   }
 
+  ast::Statement ParseStatement() const {
+    Parser parser(source.value());
+    ast::Statement result = parser.ParseStatement();
+    parser.ExpectEnd();
+    return result;
+  }
+
   std::optional<Source> source;
 };
 
@@ -321,6 +328,122 @@ TEST_F(ParserTest, Ternary) {
                 ast::TernaryExpression(At(2, 4), ast::Name(At(2, 1), "c2"),
                                        ast::Name(At(2, 6), "v2"),
                                        ast::Name(At(3, 1), "v3"))));
+}
+
+TEST_F(ParserTest, Break) {
+  WithSource("break;");
+  EXPECT_EQ(ParseStatement(), ast::Break(At(1, 1)));
+  WithSource("break ;");
+  EXPECT_EQ(ParseStatement(), ast::Break(At(1, 1)));
+  WithSource("break");
+  EXPECT_ERROR(ParseStatement(), "expected ';'");
+}
+
+TEST_F(ParserTest, Continue) {
+  WithSource("continue;");
+  EXPECT_EQ(ParseStatement(), ast::Continue(At(1, 1)));
+  WithSource("continue ;");
+  EXPECT_EQ(ParseStatement(), ast::Continue(At(1, 1)));
+  WithSource("continue");
+  EXPECT_ERROR(ParseStatement(), "expected ';'");
+}
+
+TEST_F(ParserTest, FunctionDefinition) {
+  WithSource("function f() {}");
+  EXPECT_EQ(ParseStatement(), ast::FunctionDefinition(At(1, 1), "f", {}, {}));
+  WithSource("function f(x) {}");
+  EXPECT_EQ(
+      ParseStatement(),
+      ast::FunctionDefinition(At(1, 1), "f", {ast::Name(At(1, 12), "x")}, {}));
+  WithSource("function f(x, y) {}");
+  EXPECT_EQ(ParseStatement(),
+            ast::FunctionDefinition(
+                At(1, 1), "f",
+                {ast::Name(At(1, 12), "x"), ast::Name(At(1, 15), "y")}, {}));
+  WithSource(
+      "function f() {\n"
+      "  return;\n"
+      "}");
+  EXPECT_EQ(ParseStatement(), ast::FunctionDefinition(At(1, 1), "f", {},
+                                                      {ast::Return(At(2, 3))}));
+  WithSource("function {}");
+  EXPECT_ERROR(ParseStatement(), "expected function name");
+  WithSource("function f {}");
+  EXPECT_ERROR(ParseStatement(), "expected '('");
+}
+
+TEST_F(ParserTest, If) {
+  WithSource("if x {}");
+  EXPECT_EQ(ParseStatement(),
+            ast::If(At(1, 1), ast::Name(At(1, 4), "x"), {}, {}));
+  WithSource("if x {} else {}");
+  EXPECT_EQ(ParseStatement(),
+            ast::If(At(1, 1), ast::Name(At(1, 4), "x"), {}, {}));
+  WithSource("if x {} else if y {}");
+  EXPECT_EQ(ParseStatement(),
+            ast::If(At(1, 1), ast::Name(At(1, 4), "x"), {},
+                    {ast::If(At(1, 14), ast::Name(At(1, 17), "y"), {}, {})}));
+  WithSource(
+      "if x {\n"
+      "  break;\n"
+      "} else {\n"
+      "  return;\n"
+      "}");
+  EXPECT_EQ(ParseStatement(),
+            ast::If(At(1, 1), ast::Name(At(1, 4), "x"), {ast::Break(At(2, 3))},
+                    {ast::Return(At(4, 3))}));
+  WithSource("if x break;");
+  EXPECT_ERROR(ParseStatement(), "expected statement block");
+}
+
+TEST_F(ParserTest, Return) {
+  WithSource("return;");
+  EXPECT_EQ(ParseStatement(), ast::Return(At(1, 1)));
+  WithSource("return ;");
+  EXPECT_EQ(ParseStatement(), ast::Return(At(1, 1)));
+  WithSource("return 1;");
+  EXPECT_EQ(ParseStatement(),
+            ast::Return(At(1, 1), ast::IntegerLiteral(At(1, 8), 1)));
+  WithSource("return 1 ;");
+  EXPECT_EQ(ParseStatement(),
+            ast::Return(At(1, 1), ast::IntegerLiteral(At(1, 8), 1)));
+  WithSource("return 1");
+  EXPECT_ERROR(ParseStatement(), "expected ';'");
+}
+
+TEST_F(ParserTest, Declaration) {
+  WithSource("var x;");
+  EXPECT_EQ(ParseStatement(), ast::DeclareScalar(At(1, 1), "x"));
+  WithSource("var x ;");
+  EXPECT_EQ(ParseStatement(), ast::DeclareScalar(At(1, 1), "x"));
+  WithSource("var x[3];");
+  EXPECT_EQ(ParseStatement(),
+            ast::DeclareArray(At(1, 1), "x", ast::IntegerLiteral(At(1, 7), 3)));
+  WithSource("var x [ 3 ] ;");
+  EXPECT_EQ(ParseStatement(),
+            ast::DeclareArray(At(1, 1), "x", ast::IntegerLiteral(At(1, 9), 3)));
+  WithSource("var x");
+  EXPECT_ERROR(ParseStatement(), "expected ';'");
+  WithSource("var x[3]");
+  EXPECT_ERROR(ParseStatement(), "expected ';'");
+  WithSource("var 123;");
+  EXPECT_ERROR(ParseStatement(), "variable name must begin with a letter");
+  WithSource("var x[1;");
+  EXPECT_ERROR(ParseStatement(), "expected ']'");
+}
+
+TEST_F(ParserTest, While) {
+  WithSource("while x {}");
+  EXPECT_EQ(ParseStatement(),
+            ast::While(At(1, 1), ast::Name(At(1, 7), "x"), {}));
+  WithSource(
+      "while x {\n"
+      "  break;\n"
+      "}");
+  EXPECT_EQ(ParseStatement(), ast::While(At(1, 1), ast::Name(At(1, 7), "x"),
+                                         {ast::Break(At(2, 3))}));
+  WithSource("while x break;");
+  EXPECT_ERROR(ParseStatement(), "expected statement block");
 }
 
 }  // namespace
