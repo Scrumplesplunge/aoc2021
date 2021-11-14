@@ -112,7 +112,7 @@ class Reader {
   int column_ = 1;
 };
 
-std::optional<Location> Seek(Source& source, int line, int column);
+std::optional<Location> Seek(const Source& source, int line, int column);
 
 }  // namespace aoc2021
 

@@ -123,7 +123,7 @@ Location Reader::location() const noexcept {
   return Location(*source_, remaining_.data(), line_, column_);
 }
 
-std::optional<Location> Seek(Source& source, int line, int column) {
+std::optional<Location> Seek(const Source& source, int line, int column) {
   int l = 1, c = 1;
   for (const char& x : source.contents()) {
     if (line == l && column == c) return Location(source, &x, line, column);
