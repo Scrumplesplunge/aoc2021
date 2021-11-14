@@ -20,6 +20,7 @@ constexpr bool IsWhitespace(char c) {
 
 constexpr bool IsOperator(char c) {
   switch (c) {
+    case '!': return true;
     case '%': return true;
     case '&': return true;
     case '*': return true;
@@ -96,7 +97,7 @@ Name Parser::ParseName() {
 }
 
 IntegerLiteral Parser::ParseIntegerLiteral() {
-  // For now, this only supports decimal literals, and ignores 0-padding.
+  // For now, this only supports decimal literals.
   // TODO: Extend this to support hex.
   const std::string_view word = PeekWord();
   std::int64_t value = 0;

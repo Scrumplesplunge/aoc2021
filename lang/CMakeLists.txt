@@ -19,6 +19,8 @@ target_link_libraries(source_test source test)
 
 add_library(parser parser.cc parser.h)
 target_link_libraries(parser source ast)
+add_executable(parser_test parser_test.cc)
+target_link_libraries(parser_test parser test)
 
 add_library(ir ir.cc ir.h)
 
