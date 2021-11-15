@@ -316,19 +316,19 @@ ir::Type AsType(Location location, const Value& v) {
 
 ExpressionInfo EnsureRvalue(Location location, FrameAllocator& frame,
                             ExpressionInfo info) {
-  if (info.value.category != Category::kRvalue) {
-    const ir::Local::Offset copy = frame.Allocate(info.value.type);
-    if (info.value.representation != Representation::kAddress) std::abort();
-    return ExpressionInfo{
-        .code = ir::Call(ir::Label("copy"),
-                         {ir::Local(copy), info.value.value,
-                          ir::IntegerLiteral(ir::Size(info.value.type))}),
-        .value = TypedExpression{.category = Category::kRvalue,
-                                 .type = info.value.type,
-                                 .representation = Representation::kAddress,
-                                 .value = ir::Local(copy)}};
-  }
-  return info;
+  if (info.value.category == Category::kRvalue) return info;
+  const ir::Local::Offset copy = frame.Allocate(info.value.type);
+  if (info.value.representation != Representation::kAddress) std::abort();
+  return ExpressionInfo{
+      .code = ir::Sequence(
+          {std::move(info.code),
+           ir::Call(ir::Label("copy"),
+                    {ir::Local(copy), info.value.value,
+                     ir::IntegerLiteral(ir::Size(info.value.type))})}),
+      .value = TypedExpression{.category = Category::kRvalue,
+                               .type = info.value.type,
+                               .representation = Representation::kAddress,
+                               .value = ir::Local(copy)}};
 }
 
 ExpressionInfo EnsureInt64(Location location, ExpressionInfo info) {
