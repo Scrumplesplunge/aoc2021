@@ -60,6 +60,14 @@ struct Local {
   Offset offset;
 };
 
+// Loads an 8-bit value from the given address.
+struct Load8 {
+  bool operator==(const Load8&) const = default;
+  auto operator<=>(const Load8&) const = default;
+
+  Expression address;
+};
+
 // Loads a 64-bit value from the given address.
 struct Load64 {
   bool operator==(const Load64&) const = default;
@@ -200,10 +208,10 @@ struct ExpressionVariant {
   bool operator==(const ExpressionVariant&) const = default;
   auto operator<=>(const ExpressionVariant&) const = default;
 
-  std::variant<Label, Global, Local, Load64, IntegerLiteral, Negate, LogicalNot,
-               BitwiseNot, Add, Subtract, Multiply, Divide, Modulo, LessThan,
-               LessOrEqual, Equal, NotEqual, BitwiseAnd, BitwiseOr, BitwiseXor,
-               ShiftLeft, ShiftRight>
+  std::variant<Label, Global, Local, Load8, Load64, IntegerLiteral, Negate,
+               LogicalNot, BitwiseNot, Add, Subtract, Multiply, Divide, Modulo,
+               LessThan, LessOrEqual, Equal, NotEqual, BitwiseAnd, BitwiseOr,
+               BitwiseXor, ShiftLeft, ShiftRight>
       value;
 };
 
@@ -335,7 +343,15 @@ class Code {
   std::shared_ptr<const CodeVariant> value_;
 };
 
-// Pops an address, pops a 64-bit value, stores the value to the address.
+// Stores an 8-bit value to the given address.
+struct Store8 {
+  bool operator==(const Store8&) const = default;
+  auto operator<=>(const Store8&) const = default;
+
+  Expression address, value;
+};
+
+// Stores a 64-bit value to the given address.
 struct Store64 {
   bool operator==(const Store64&) const = default;
   auto operator<=>(const Store64&) const = default;
@@ -399,7 +415,7 @@ struct CodeVariant {
   bool operator==(const CodeVariant&) const = default;
   auto operator<=>(const CodeVariant&) const = default;
 
-  std::variant<Label, Store64, Call, BeginFrame, Return, Jump, JumpIf,
+  std::variant<Label, Store8, Store64, Call, BeginFrame, Return, Jump, JumpIf,
                JumpUnless, Sequence>
       value;
 };
@@ -408,6 +424,7 @@ template <HoldableBy<CodeVariant> T>
 Code::Code(T value) noexcept
     : value_(std::make_shared<CodeVariant>(std::move(value))) {}
 
+std::ostream& operator<<(std::ostream&, const Store8&) noexcept;
 std::ostream& operator<<(std::ostream&, const Store64&) noexcept;
 std::ostream& operator<<(std::ostream&, const Call&) noexcept;
 std::ostream& operator<<(std::ostream&, const BeginFrame&) noexcept;

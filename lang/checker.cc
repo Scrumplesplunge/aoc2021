@@ -54,6 +54,9 @@ class Evaluator {
   std::optional<std::int64_t> operator()(const ir::Local& x) {
     return std::nullopt;
   }
+  std::optional<std::int64_t> operator()(const ir::Load8& x) {
+    return std::nullopt;
+  }
   std::optional<std::int64_t> operator()(const ir::Load64& x) {
     return std::nullopt;
   }

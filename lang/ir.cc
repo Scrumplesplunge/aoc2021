@@ -272,6 +272,10 @@ std::strong_ordering Code::operator<=>(const Code& other) const {
   return *value_ <=> *other.value_;
 }
 
+std::ostream& operator<<(std::ostream& output, const Store8& x) noexcept {
+  return output << "Store8(" << x.address << ", " << x.value << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Store64& x) noexcept {
   return output << "Store64(" << x.address << ", " << x.value << ")";
 }

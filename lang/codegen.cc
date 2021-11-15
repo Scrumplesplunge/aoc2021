@@ -89,6 +89,14 @@ class ExpressionGenerator {
                 "  push %rax\n";
   }
 
+  void operator()(const ir::Load8& x) {
+    std::visit(*this, x.address->value);
+    *output_ << "  // " << x
+             << "\n  pop %rax\n"
+                "  movzxb (%rax), %rax\n"
+                "  push %rax\n";
+  }
+
   void operator()(const ir::Load64& x) {
     std::visit(*this, x.address->value);
     *output_ << "  // " << x
@@ -267,6 +275,16 @@ class CodeGenerator {
 
   void operator()(const ir::Label& x) {
     *output_ << x.value << ":\n";
+  }
+
+  void operator()(const ir::Store8& x) {
+    ExpressionGenerator generator(*output_);
+    std::visit(generator, x.value->value);
+    std::visit(generator, x.address->value);
+    *output_ << "  // ir::Store8\n"
+                "  pop %rbx\n"
+                "  pop %rax\n"
+                "  movb %al, (%rbx)\n";
   }
 
   void operator()(const ir::Store64& x) {
