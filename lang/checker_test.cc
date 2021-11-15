@@ -48,6 +48,7 @@ TEST_F(CheckerTest, NotAnLvalue) {
                "not an lvalue");
   EXPECT_ERROR(Check(Program("function f(): void { f = 1; }")),
                "not an lvalue");
+  EXPECT_ERROR(Check(Program("function f(): void { &1; }")), "not an lvalue");
 }
 
 TEST_F(CheckerTest, Undeclared) {

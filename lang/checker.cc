@@ -457,6 +457,7 @@ class ExpressionChecker {
   ExpressionInfo operator()(const ast::LogicalNot&);
   ExpressionInfo operator()(const ast::BitwiseNot&);
   ExpressionInfo operator()(const ast::Dereference&);
+  ExpressionInfo operator()(const ast::AddressOf&);
   ExpressionInfo operator()(const ast::Add&);
   ExpressionInfo operator()(const ast::Subtract&);
   ExpressionInfo operator()(const ast::Multiply&);
@@ -709,6 +710,18 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Dereference& x) {
       .code = std::move(inner.code),
       .value = TypedExpression(Category::kLvalue, p->pointee,
                                Representation::kAddress, std::move(address))};
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::AddressOf& x) {
+  ExpressionInfo inner = CheckValue(x.inner);
+  if (inner.value.category != Category::kLvalue) {
+    throw Error(x.inner.location(), "not an lvalue");
+  }
+  return ExpressionInfo{
+      .code = std::move(inner.code),
+      .value = TypedExpression{
+          Category::kRvalue, ir::Pointer(std::move(inner.value.type)),
+          Representation::kDirect, std::move(inner.value.value)}};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Add& x) {

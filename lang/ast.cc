@@ -86,6 +86,10 @@ std::ostream& operator<<(std::ostream& output, const Dereference& x) noexcept {
   return output << "Dereference(" << x.inner << ")";
 }
 
+std::ostream& operator<<(std::ostream& output, const AddressOf& x) noexcept {
+  return output << "AddressOf(" << x.inner << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Add& x) noexcept {
   return output << "Add(" << x.left << ", " << x.right << ")";
 }

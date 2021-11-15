@@ -103,6 +103,14 @@ struct Dereference {
   Expression inner;
 };
 
+struct AddressOf {
+  bool operator==(const AddressOf&) const = default;
+  auto operator<=>(const AddressOf&) const = default;
+
+  Location location;
+  Expression inner;
+};
+
 struct Add {
   bool operator==(const Add&) const = default;
   auto operator<=>(const Add&) const = default;
@@ -277,11 +285,11 @@ struct ExpressionVariant {
   auto operator<=>(const ExpressionVariant&) const = default;
 
   std::variant<Name, IntegerLiteral, Call, Index, Negate, LogicalNot,
-               BitwiseNot, Dereference, Add, Subtract, Multiply, Divide, Modulo,
-               LessThan, LessOrEqual, GreaterThan, GreaterOrEqual, Equal,
-               NotEqual, LogicalAnd, LogicalOr, BitwiseAnd, BitwiseOr,
-               BitwiseXor, ShiftLeft, ShiftRight, TernaryExpression,
-               ArrayType, SpanType>
+               BitwiseNot, Dereference, AddressOf, Add, Subtract, Multiply,
+               Divide, Modulo, LessThan, LessOrEqual, GreaterThan,
+               GreaterOrEqual, Equal, NotEqual, LogicalAnd, LogicalOr,
+               BitwiseAnd, BitwiseOr, BitwiseXor, ShiftLeft, ShiftRight,
+               TernaryExpression, ArrayType, SpanType>
       value;
 };
 
@@ -297,6 +305,7 @@ std::ostream& operator<<(std::ostream&, const Negate&) noexcept;
 std::ostream& operator<<(std::ostream&, const LogicalNot&) noexcept;
 std::ostream& operator<<(std::ostream&, const BitwiseNot&) noexcept;
 std::ostream& operator<<(std::ostream&, const Dereference&) noexcept;
+std::ostream& operator<<(std::ostream&, const AddressOf&) noexcept;
 std::ostream& operator<<(std::ostream&, const Add&) noexcept;
 std::ostream& operator<<(std::ostream&, const Subtract&) noexcept;
 std::ostream& operator<<(std::ostream&, const Multiply&) noexcept;

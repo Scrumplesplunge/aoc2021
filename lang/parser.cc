@@ -255,6 +255,8 @@ Expression Parser::ParsePrefix() {
     return BitwiseNot(location, ParsePrefix());
   } else if (reader_.ConsumePrefix("*")) {
     return Dereference(location, ParsePrefix());
+  } else if (reader_.ConsumePrefix("&")) {
+    return AddressOf(location, ParsePrefix());
   } else {
     return ParseSuffix();
   }

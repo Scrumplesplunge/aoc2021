@@ -107,6 +107,9 @@ TEST_F(ParserTest, Prefix) {
   WithSource("*x");
   EXPECT_EQ(ParseExpression(),
             ast::Dereference(At(1, 1), ast::Name(At(1, 2), "x")));
+  WithSource("&x");
+  EXPECT_EQ(ParseExpression(),
+            ast::AddressOf(At(1, 1), ast::Name(At(1, 2), "x")));
   // Test that precedence is handled correctly: suffix expressions (such as the
   // brackets for a function call) should bind more tightly, and so -f() should
   // negate the result of a function call rather than calling the result of
