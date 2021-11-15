@@ -45,9 +45,9 @@ TEST_F(CheckerTest, Redeclaration) {
 
 TEST_F(CheckerTest, NotAnLvalue) {
   EXPECT_ERROR(Check(Program("function f(): void { 1 = 1; }")),
-               "is not an lvalue");
+               "not an lvalue");
   EXPECT_ERROR(Check(Program("function f(): void { f = 1; }")),
-               "is not an lvalue");
+               "not an lvalue");
 }
 
 TEST_F(CheckerTest, Undeclared) {
@@ -105,7 +105,7 @@ TEST_F(CheckerTest, ValueUsedInTypeContext) {
 
 TEST_F(CheckerTest, TypeUsedInValueContext) {
   EXPECT_ERROR(Check(Program("function f(): void { int64 = 1; }")),
-               "type used in value context");
+               "type used in a value context");
 }
 
 TEST_F(CheckerTest, NotAnInteger) {

@@ -266,8 +266,20 @@ class FrameAllocator {
   std::int64_t max_size_ = 0;
 };
 
+enum class Category {
+  kLvalue,
+  kRvalue,
+};
+
+enum class Representation {
+  kDirect,
+  kAddress,
+};
+
 struct TypedExpression {
+  Category category;
   ir::Type type;
+  Representation representation;
   ir::Expression value;
 };
 
@@ -276,40 +288,10 @@ struct ExpressionInfo {
   TypedExpression value;
 };
 
-struct Constant {
-  ir::Type type;
-  ir::Expression value;
-};
+using Value = std::variant<TypedExpression, ir::Type>;
 
-struct Variable {
-  ir::Type type;
-  ir::Expression address;
-};
-
-using Value = std::variant<Constant, Variable, ir::Type>;
-
-TypedExpression AsAddress(Location location, const Constant& x) {
-  throw Error(location, "constant is not an lvalue");
-}
-
-TypedExpression AsAddress(Location location, const Variable& x) {
-  return TypedExpression(ir::Pointer(x.type), x.address);
-}
-
-TypedExpression AsAddress(Location location, const ir::Type& x) {
-  throw Error(location, "type used in value context");
-}
-
-TypedExpression AsAddress(Location location, const Value& v) {
-  return std::visit([&](auto& x) { return AsAddress(location, x); }, v);
-}
-
-TypedExpression AsValue(Location location, const Constant& x) {
-  return TypedExpression(x.type, x.value);
-}
-
-TypedExpression AsValue(Location location, const Variable& x) {
-  return TypedExpression(x.type, ir::Load64(x.address));
+TypedExpression AsValue(Location location, const TypedExpression& x) {
+  return x;
 }
 
 TypedExpression AsValue(Location location, const ir::Type& x) {
@@ -328,18 +310,58 @@ ir::Type AsType(Location location, const Value& v) {
   return std::visit([&](auto& x) { return AsType(location, x); }, v);
 }
 
+ExpressionInfo EnsureRvalue(Location location, FrameAllocator& frame,
+                            ExpressionInfo info) {
+  if (info.value.category != Category::kRvalue) {
+    const ir::Local::Offset copy = frame.Allocate(info.value.type);
+    const ir::Local::Offset memcpy_result =
+        frame.Allocate(ir::Span(ir::Primitive::kVoid));
+    if (info.value.representation != Representation::kAddress) std::abort();
+    return ExpressionInfo{
+        .code =
+            ir::StoreCall64(ir::Local(memcpy_result), ir::Label("memcpy"),
+                            {ir::Local(copy), info.value.value,
+                             ir::IntegerLiteral(ir::Size(info.value.type))}),
+        .value = TypedExpression{.category = Category::kRvalue,
+                                 .type = info.value.type,
+                                 .representation = Representation::kAddress,
+                                 .value = ir::Local(copy)}};
+  }
+  return info;
+}
+
 ExpressionInfo EnsureInt64(Location location, ExpressionInfo info) {
   if (info.value.type != ir::Primitive::kInt64) {
     throw Error(location, "not an integer");
   }
-  return info;
+  if (info.value.representation == Representation::kDirect) {
+    return info;
+  } else {
+    return ExpressionInfo{
+        .code = std::move(info.code),
+        .value =
+            TypedExpression{.category = Category::kRvalue,
+                            .type = std::move(info.value.type),
+                            .representation = Representation::kDirect,
+                            .value = ir::Load64(std::move(info.value.value))}};
+  }
 }
 
 ExpressionInfo EnsureComparable(Location location, ExpressionInfo info) {
   if (std::get_if<ir::Array>(&info.value.type->value)) {
     throw Error(location, "arrays are not comparable");
   }
-  return info;
+  if (info.value.representation == Representation::kDirect) {
+    return info;
+  } else {
+    return ExpressionInfo{
+        .code = std::move(info.code),
+        .value =
+            TypedExpression{.category = Category::kRvalue,
+                            .type = std::move(info.value.type),
+                            .representation = Representation::kDirect,
+                            .value = ir::Load64(std::move(info.value.value))}};
+  }
 }
 
 const ir::FunctionPointer& AsFunctionPointer(
@@ -472,32 +494,32 @@ ExpressionInfo CheckValue(Context& context, Environment& environment,
   return std::visit(checker, expression->value);
 }
 
-class AddressChecker {
- public:
-  AddressChecker(Context& context, Environment& environment,
-                 FrameAllocator& frame) noexcept
-      : context_(&context), environment_(&environment), frame_(&frame) {}
-  ExpressionInfo operator()(const ast::Name&);
-  ExpressionInfo operator()(const ast::Index&);
-  ExpressionInfo operator()(const ast::Dereference&);
-  ExpressionInfo operator()(const auto& x) {
-    throw Error(x.location, "expression is not an lvalue");
-  }
-
- private:
-  ExpressionInfo CheckValue(const ast::Expression& expression);
-
-  Context* context_;
-  Environment* environment_;
-  FrameAllocator* frame_;
-};
-
-ExpressionInfo CheckAddress(Context& context, Environment& environment,
-                            FrameAllocator& frame,
-                            const ast::Expression& expression) {
-  AddressChecker checker(context, environment, frame);
-  return std::visit(checker, expression->value);
-}
+// class AddressChecker {
+//  public:
+//   AddressChecker(Context& context, Environment& environment,
+//                  FrameAllocator& frame) noexcept
+//       : context_(&context), environment_(&environment), frame_(&frame) {}
+//   ExpressionInfo operator()(const ast::Name&);
+//   ExpressionInfo operator()(const ast::Index&);
+//   ExpressionInfo operator()(const ast::Dereference&);
+//   ExpressionInfo operator()(const auto& x) {
+//     throw Error(x.location, "expression is not an lvalue");
+//   }
+// 
+//  private:
+//   ExpressionInfo CheckValue(const ast::Expression& expression);
+// 
+//   Context* context_;
+//   Environment* environment_;
+//   FrameAllocator* frame_;
+// };
+// 
+// ExpressionInfo CheckAddress(Context& context, Environment& environment,
+//                             FrameAllocator& frame,
+//                             const ast::Expression& expression) {
+//   AddressChecker checker(context, environment, frame);
+//   return std::visit(checker, expression->value);
+// }
 
 class TypeChecker {
  public:
@@ -543,7 +565,7 @@ class StatementChecker {
   ir::Code operator()(const ast::FunctionDefinition&);
 
  private:
-  ExpressionInfo CheckAddress(const ast::Expression& expression);
+  // ExpressionInfo CheckAddress(const ast::Expression& expression);
   ExpressionInfo CheckValue(const ast::Expression& expression);
   ir::Type CheckType(const ast::Expression& expression);
   ir::Code CheckBlock(Environment& parent_environment,
@@ -570,7 +592,7 @@ class ModuleStatementChecker {
   ir::Code operator()(const ast::FunctionDefinition&);
 
  private:
-  ExpressionInfo CheckAddress(const ast::Expression& expression);
+  // ExpressionInfo CheckAddress(const ast::Expression& expression);
   ir::Type CheckType(const ast::Expression& expression);
 
   Context* context_;
@@ -584,7 +606,9 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Name& x) {
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::IntegerLiteral& x) {
-  return ExpressionInfo{.value = TypedExpression(ir::Primitive::kInt64,
+  return ExpressionInfo{.value = TypedExpression(Category::kRvalue,
+                                                 ir::Primitive::kInt64,
+                                                 Representation::kDirect,
                                                  ir::IntegerLiteral(x.value))};
 }
 
@@ -601,7 +625,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
                 function_type);
   }
   for (int i = 0; i < num_arguments; i++) {
-    ExpressionInfo result = CheckValue(x.arguments[i]);
+    ExpressionInfo result = EnsureRvalue(x.arguments[i].location(), *frame_,
+                                         CheckValue(x.arguments[i]));
     if (result.value.type != function_type.parameters[i]) {
       throw Error(x.arguments[i].location(), "wrong type for parameter ", i,
                   " of function. Expected ", function_type.parameters[i],
@@ -617,8 +642,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
                                  std::move(arguments)));
   return ExpressionInfo{
       .code = ir::Sequence{std::move(code)},
-      .value = TypedExpression(function_type.return_type,
-                               ir::Load64(ir::Local(offset)))};
+      .value = TypedExpression(Category::kRvalue, function_type.return_type,
+                               Representation::kAddress, ir::Local(offset))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Index& x) {
@@ -639,18 +664,18 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Index& x) {
   return ExpressionInfo{
       .code = ir::Sequence({std::move(container.code), std::move(index.code)}),
       .value = TypedExpression(
-          *element_type,
-          ir::Load64(
-              ir::Add(std::move(container.value.value),
-                      ir::Multiply(ir::IntegerLiteral(ir::Size(*element_type)),
-                                   std::move(index.value.value)))))};
+          container.value.category, *element_type, Representation::kAddress,
+          ir::Add(std::move(container.value.value),
+                  ir::Multiply(ir::IntegerLiteral(ir::Size(*element_type)),
+                               std::move(index.value.value))))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Negate& x) {
   ExpressionInfo inner = EnsureInt64(x.inner.location(), CheckValue(x.inner));
   return ExpressionInfo{
       .code = std::move(inner.code),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::Negate(std::move(inner.value.value)))};
 }
 
@@ -659,7 +684,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalNot& x) {
       EnsureComparable(x.inner.location(), CheckValue(x.inner));
   return ExpressionInfo{
       .code = std::move(inner.code),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::LogicalNot(std::move(inner.value.value)))};
 }
 
@@ -667,7 +693,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseNot& x) {
   ExpressionInfo inner = EnsureInt64(x.inner.location(), CheckValue(x.inner));
   return ExpressionInfo{
       .code = std::move(inner.code),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::BitwiseNot(std::move(inner.value.value)))};
 }
 
@@ -675,10 +702,13 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Dereference& x) {
   ExpressionInfo inner = CheckValue(x.inner);
   const auto* p = std::get_if<ir::Pointer>(&inner.value.type->value);
   if (!p) throw Error(x.location, "cannot dereference ", inner.value.type);
+  ir::Expression address = inner.value.representation == Representation::kDirect
+                               ? std::move(inner.value.value)
+                               : ir::Load64(inner.value.value);
   return ExpressionInfo{
       .code = std::move(inner.code),
-      .value = TypedExpression(p->pointee,
-                               ir::Load64(std::move(inner.value.value)))};
+      .value = TypedExpression(Category::kLvalue, p->pointee,
+                               Representation::kAddress, std::move(address))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Add& x) {
@@ -687,7 +717,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Add& x) {
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
       .value = TypedExpression(
-          std::move(left.value.type),
+          Category::kRvalue, std::move(left.value.type),
+          Representation::kDirect,
           ir::Add(std::move(left.value.value), std::move(right.value.value)))};
 }
 
@@ -696,7 +727,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Subtract& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+                               Representation::kDirect,
                                ir::Subtract(std::move(left.value.value),
                                             std::move(right.value.value)))};
 }
@@ -706,7 +738,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Multiply& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+                               Representation::kDirect,
                                ir::Multiply(std::move(left.value.value),
                                             std::move(right.value.value)))};
 }
@@ -716,7 +749,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Divide& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+                               Representation::kDirect,
                                ir::Divide(std::move(left.value.value),
                                           std::move(right.value.value)))};
 }
@@ -726,7 +760,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Modulo& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+                               Representation::kDirect,
                                ir::Modulo(std::move(left.value.value),
                                           std::move(right.value.value)))};
 }
@@ -736,7 +771,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LessThan& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+          Representation::kDirect,
                                ir::LessThan(std::move(left.value.value),
                                             std::move(right.value.value)))};
 }
@@ -746,7 +782,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LessOrEqual& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+                               Representation::kDirect,
                                ir::LessOrEqual(std::move(left.value.value),
                                                std::move(right.value.value)))};
 }
@@ -757,7 +794,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::GreaterThan& x) {
   // GreaterThan(left, right) is translated into LessThan(right, left).
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+                               Representation::kDirect,
                                ir::LessThan(std::move(right.value.value),
                                             std::move(left.value.value)))};
 }
@@ -768,7 +806,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::GreaterOrEqual& x) {
   // GreaterOrEqual(left, right) is translated into LessOrEqual(right, left).
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+                               Representation::kDirect,
                                ir::LessOrEqual(std::move(right.value.value),
                                                std::move(left.value.value)))};
 }
@@ -783,7 +822,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Equal& x) {
   }
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::Equal(std::move(left.value.value),
                                          std::move(right.value.value)))};
 }
@@ -798,7 +838,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::NotEqual& x) {
   }
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::NotEqual(std::move(left.value.value),
                                             std::move(right.value.value)))};
 }
@@ -823,8 +864,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalAnd& x) {
            ir::JumpUnless(ir::Load64(ir::Local(offset)), end),
            std::move(right.code),
            ir::Store64(ir::Local(offset), std::move(right.value.value)), end}),
-      .value = TypedExpression(ir::Primitive::kInt64,
-                               ir::Load64(ir::Local(offset)))};
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kAddress, ir::Local(offset))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::LogicalOr& x) {
@@ -847,8 +888,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalOr& x) {
            ir::JumpIf(ir::Load64(ir::Local(offset)), end),
            std::move(right.code),
            ir::Store64(ir::Local(offset), std::move(right.value.value)), end}),
-      .value = TypedExpression(ir::Primitive::kInt64,
-                               ir::Load64(ir::Local(offset)))};
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kAddress, ir::Local(offset))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseAnd& x) {
@@ -856,7 +897,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseAnd& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::BitwiseAnd(std::move(left.value.value),
                                               std::move(right.value.value)))};
 }
@@ -866,7 +908,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseOr& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::BitwiseOr(std::move(left.value.value),
                                              std::move(right.value.value)))};
 }
@@ -876,7 +919,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::BitwiseXor& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::BitwiseXor(std::move(left.value.value),
                                               std::move(right.value.value)))};
 }
@@ -886,7 +930,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::ShiftLeft& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::ShiftLeft(std::move(left.value.value),
                                              std::move(right.value.value)))};
 }
@@ -896,7 +941,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::ShiftRight& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(ir::Primitive::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kInt64,
+                               Representation::kDirect,
                                ir::ShiftRight(std::move(left.value.value),
                                               std::move(right.value.value)))};
 }
@@ -912,8 +958,17 @@ ExpressionInfo ExpressionChecker::operator()(const ast::SpanType& x) {
 ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
   ExpressionInfo condition =
       EnsureComparable(x.condition.location(), CheckValue(x.condition));
-  ExpressionInfo then_branch = CheckValue(x.then_branch);
-  ExpressionInfo else_branch = CheckValue(x.else_branch);
+  // TODO: Improve temporary allocation to allow using the same space for the
+  // then branch and the else branch.
+  ExpressionInfo then_branch = EnsureRvalue(x.then_branch.location(), *frame_,
+                                            CheckValue(x.then_branch));
+  ExpressionInfo else_branch = EnsureRvalue(x.else_branch.location(), *frame_,
+                                            CheckValue(x.else_branch));
+  if (then_branch.value.representation != Representation::kAddress ||
+      else_branch.value.representation != Representation::kAddress) {
+    // We need addresses for each value for the implementation below.
+    std::abort();
+  }
   if (then_branch.value.type != else_branch.value.type) {
     throw Error(x.location,
                 "ternary expression branches yield different types: ",
@@ -941,54 +996,57 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
            ir::Jump(end), if_false, std::move(else_branch.code),
            ir::Store64(ir::Local(offset), std::move(else_branch.value.value)),
            end}),
-      .value = TypedExpression(std::move(then_branch.value.type),
-                               ir::Load64(ir::Local(offset)))};
+      .value = TypedExpression(
+          Category::kRvalue, std::move(then_branch.value.type),
+          // EnsureRvalue gives us address representations and the
+          // expression ensures that we put this address in the output slot.
+          Representation::kAddress, ir::Load64(ir::Local(offset)))};
 }
 
 ExpressionInfo ExpressionChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
 }
 
-ExpressionInfo AddressChecker::operator()(const ast::Name& x) {
-  auto* definition = environment_->Lookup(x.value);
-  if (!definition) throw UndeclaredError(x.value, x.location);
-  return ExpressionInfo{.value = AsAddress(x.location, definition->value)};
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Index& x) {
-  ExpressionInfo container = CheckValue(x.container);
-  ExpressionInfo index = CheckValue(x.index);
-  if (index.value.type != ir::Primitive::kInt64) {
-    throw Error(x.index.location(), "array index must be an integer");
-  }
-  const ir::Type* element_type;
-  if (auto* a = std::get_if<ir::Array>(&container.value.type->value)) {
-    element_type = &a->element;
-  } else if (auto* s = std::get_if<ir::Span>(&container.value.type->value)) {
-    element_type = &s->element;
-  } else {
-    throw Error(x.container.location(), "cannot index a value of type ",
-                container.value.type);
-  }
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(container.code), std::move(index.code)}),
-      .value = TypedExpression(
-          *element_type,
-          ir::Load64(
-              ir::Add(std::move(container.value.value),
-                      ir::Multiply(ir::IntegerLiteral(ir::Size(*element_type)),
-                                   std::move(index.value.value)))))};
-}
-
-ExpressionInfo AddressChecker::operator()(const ast::Dereference& x) {
-  ExpressionInfo inner = CheckValue(x.inner);
-  return ExpressionInfo{.code = std::move(inner.code),
-                        .value = std::move(inner.value)};
-}
-
-ExpressionInfo AddressChecker::CheckValue(const ast::Expression& x) {
-  return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
-}
+// ExpressionInfo AddressChecker::operator()(const ast::Name& x) {
+//   auto* definition = environment_->Lookup(x.value);
+//   if (!definition) throw UndeclaredError(x.value, x.location);
+//   return ExpressionInfo{.value = AsValue(x.location, definition->value)};
+// }
+// 
+// ExpressionInfo AddressChecker::operator()(const ast::Index& x) {
+//   ExpressionInfo container = CheckValue(x.container);
+//   ExpressionInfo index = CheckValue(x.index);
+//   if (index.value.type != ir::Primitive::kInt64) {
+//     throw Error(x.index.location(), "array index must be an integer");
+//   }
+//   const ir::Type* element_type;
+//   if (auto* a = std::get_if<ir::Array>(&container.value.type->value)) {
+//     element_type = &a->element;
+//   } else if (auto* s = std::get_if<ir::Span>(&container.value.type->value)) {
+//     element_type = &s->element;
+//   } else {
+//     throw Error(x.container.location(), "cannot index a value of type ",
+//                 container.value.type);
+//   }
+//   return ExpressionInfo{
+//       .code = ir::Sequence({std::move(container.code), std::move(index.code)}),
+//       .value = TypedExpression(
+//           *element_type,
+//           ir::Load64(
+//               ir::Add(std::move(container.value.value),
+//                       ir::Multiply(ir::IntegerLiteral(ir::Size(*element_type)),
+//                                    std::move(index.value.value)))))};
+// }
+// 
+// ExpressionInfo AddressChecker::operator()(const ast::Dereference& x) {
+//   ExpressionInfo inner = CheckValue(x.inner);
+//   return ExpressionInfo{.code = std::move(inner.code),
+//                         .value = std::move(inner.value)};
+// }
+// 
+// ExpressionInfo AddressChecker::CheckValue(const ast::Expression& x) {
+//   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
+// }
 
 ir::Type TypeChecker::operator()(const ast::Name& x) {
   auto* definition = environment_->Lookup(x.value);
@@ -1040,18 +1098,21 @@ ir::Code StatementChecker::operator()(const ast::DeclareVariable& x) {
   environment_->Define(
       x.name, Environment::Definition{
                   .location = x.location,
-                  .value = Variable(std::move(type), ir::Local(offset))});
+                  .value = TypedExpression(Category::kLvalue, std::move(type),
+                                           Representation::kAddress,
+                                           ir::Local(offset))});
   return ir::Sequence();
 }
 
 ir::Code StatementChecker::operator()(const ast::Assign& x) {
-  ExpressionInfo left = CheckAddress(x.left);
+  ExpressionInfo left = CheckValue(x.left);
   ExpressionInfo right = CheckValue(x.right);
-  const auto* p = std::get_if<ir::Pointer>(&left.value.type->value);
-  if (!p) throw Error(x.left.location(), "not an lvalue");
-  if (p->pointee != right.value.type) {
-    throw Error(x.location, "type mismatch in assignment: ",
-                p->pointee, " vs ", right.value.type);
+  if (left.value.category != Category::kLvalue) {
+    throw Error(x.left.location(), "not an lvalue");
+  }
+  if (left.value.type != right.value.type) {
+    throw Error(x.location, "type mismatch in assignment: ", left.value.type,
+                " vs ", right.value.type);
   }
   return ir::Sequence(
       {std::move(left.code), std::move(right.code),
@@ -1122,10 +1183,10 @@ ir::Code StatementChecker::operator()(const ast::FunctionDefinition& x) {
   throw Error(x.location, "nested function definitions are forbidden");
 }
 
-ExpressionInfo StatementChecker::CheckAddress(
-    const ast::Expression& x) {
-  return aoc2021::CheckAddress(*context_, *environment_, *frame_, x);
-}
+// ExpressionInfo StatementChecker::CheckAddress(
+//     const ast::Expression& x) {
+//   return aoc2021::CheckAddress(*context_, *environment_, *frame_, x);
+// }
 
 ExpressionInfo StatementChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
@@ -1147,10 +1208,12 @@ ir::Code StatementChecker::CheckBlock(
 
 ir::Code ModuleStatementChecker::operator()(const ast::DeclareVariable& x) {
   ir::Type type = CheckType(x.type);
-  const ir::Global global = context_->Global(x.name, 1);
-  environment_->Define(x.name, Environment::Definition{
-                                   .location = x.location,
-                                   .value = Variable(std::move(type), global)});
+  const ir::Global global = context_->Global(x.name, ir::Size(type));
+  environment_->Define(
+      x.name, Environment::Definition{
+                  .location = x.location,
+                  .value = TypedExpression(Category::kLvalue, std::move(type),
+                                           Representation::kAddress, global)});
   return ir::Sequence();
 }
 
@@ -1196,10 +1259,12 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   }
   // TODO: Derive symbolic constant names in a better way.
   environment_->Define(
-      x.name, Environment::Definition{
-                  .location = x.location,
-                  .value = Constant(
-                      ir::FunctionPointer(return_type, parameters), function)});
+      x.name,
+      Environment::Definition{
+          .location = x.location,
+          .value = TypedExpression(Category::kRvalue,
+                                   ir::FunctionPointer(return_type, parameters),
+                                   Representation::kDirect, function)});
   if (x.name == "main") context_->SetMain(function);
   Environment function_environment(*environment_,
                                    Environment::ShadowMode::kAllow);
@@ -1221,7 +1286,9 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
         parameter.name.value,
         Environment::Definition{
             .location = parameter.name.location,
-            .value = Variable(parameters[i], ir::Local(offset))});
+            .value =
+                TypedExpression(Category::kLvalue, parameters[i],
+                                Representation::kAddress, ir::Local(offset))});
   }
 
   FrameAllocator frame;
@@ -1257,27 +1324,30 @@ ir::Unit Check(std::span<const ast::Statement> program) {
   global.Define("read",
                 Environment::Definition{
                     .location = BuiltinLocation(),
-                    .value = Constant(
+                    .value = TypedExpression(
+                        Category::kRvalue,
                         ir::FunctionPointer(ir::Primitive::kInt64,
                                             {ir::Primitive::kInt64,
                                              ir::Pointer(ir::Primitive::kInt64),
                                              ir::Primitive::kInt64}),
-                        ir::Label("read"))});
+                        Representation::kDirect, ir::Label("read"))});
   global.Define("write",
                 Environment::Definition{
                     .location = BuiltinLocation(),
-                    .value = Constant(
+                    .value = TypedExpression(
+                        Category::kRvalue,
                         ir::FunctionPointer(ir::Primitive::kInt64,
                                             {ir::Primitive::kInt64,
                                              ir::Pointer(ir::Primitive::kInt64),
                                              ir::Primitive::kInt64}),
-                        ir::Label("write"))});
+                        Representation::kDirect, ir::Label("write"))});
   global.Define("exit", Environment::Definition{
                             .location = BuiltinLocation(),
-                            .value = Constant(
+                            .value = TypedExpression(
+                                Category::kRvalue,
                                 ir::FunctionPointer(ir::Primitive::kInt64,
                                                     {ir::Primitive::kInt64}),
-                                ir::Label("exit"))});
+                                Representation::kDirect, ir::Label("exit"))});
   std::vector<ir::Code> code;
   for (const auto& statement : program) {
     ModuleStatementChecker checker(context, global);
