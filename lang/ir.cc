@@ -236,7 +236,7 @@ std::int64_t Size(const Type& x) noexcept {
 
 std::int64_t Alignment(Primitive x) noexcept {
   switch (x) {
-    case Primitive::kVoid: return 0;
+    case Primitive::kVoid: return 1;
     case Primitive::kByte: return 1;
     case Primitive::kInt64: return 8;
   }
