@@ -611,8 +611,9 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
   code.push_back(std::move(function.code));
   std::vector<ir::Expression> arguments;
   // Allocate space for the function result.
+  const bool has_result = ir::Size(function_type.return_type) > 0;
   const ir::Local::Offset offset = frame_->Allocate(function_type.return_type);
-  arguments.push_back(ir::Local(offset));
+  if (has_result) arguments.push_back(ir::Local(offset));
   const int num_arguments = x.arguments.size();
   if (num_arguments != (int)function_type.parameters.size()) {
     throw Error(x.location, "wrong number of arguments for function of type ",
@@ -628,10 +629,17 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
   }
   code.push_back(
       ir::Call(std::move(function.value.value), std::move(arguments)));
-  return ExpressionInfo{
-      .code = ir::Sequence{std::move(code)},
-      .value = TypedExpression(Category::kRvalue, function_type.return_type,
-                               Representation::kAddress, ir::Local(offset))};
+  if (has_result) {
+    return ExpressionInfo{
+        .code = ir::Sequence{std::move(code)},
+        .value = TypedExpression(Category::kRvalue, function_type.return_type,
+                                 Representation::kAddress, ir::Local(offset))};
+  } else {
+    return ExpressionInfo{.code = ir::Sequence{std::move(code)},
+                          .value = TypedExpression(
+                              Category::kRvalue, function_type.return_type,
+                              Representation::kDirect, ir::IntegerLiteral(0))};
+  }
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Index& x) {
@@ -1265,15 +1273,16 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   //  ...
   //  arg2
   //  arg1
-  //  return slot
+  //  [return slot] <- omitted for zero-sized return types.
   //  return address
   //  saved frame pointer <- frame pointer points here
   //  ...
   //  local2
   //  local1
+  const int args_begin = ir::Size(return_type) == 0 ? 2 : 3;
   for (int i = 0; i < n; i++) {
     const auto& parameter = x.parameters[i];
-    const ir::Local::Offset offset{8 * (i + 3)};
+    const ir::Local::Offset offset{8 * (i + args_begin)};
     function_environment.Define(
         parameter.name.value,
         Environment::Definition{
