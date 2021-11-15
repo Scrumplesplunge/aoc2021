@@ -315,14 +315,11 @@ ExpressionInfo EnsureRvalue(Location location, FrameAllocator& frame,
                             ExpressionInfo info) {
   if (info.value.category != Category::kRvalue) {
     const ir::Local::Offset copy = frame.Allocate(info.value.type);
-    const ir::Local::Offset memcpy_result =
-        frame.Allocate(ir::Span(ir::Primitive::kVoid));
     if (info.value.representation != Representation::kAddress) std::abort();
     return ExpressionInfo{
-        .code =
-            ir::StoreCall64(ir::Local(memcpy_result), ir::Label("memcpy"),
-                            {ir::Local(copy), info.value.value,
-                             ir::IntegerLiteral(ir::Size(info.value.type))}),
+        .code = ir::Call(ir::Label("copy"),
+                         {ir::Local(copy), info.value.value,
+                          ir::IntegerLiteral(ir::Size(info.value.type))}),
         .value = TypedExpression{.category = Category::kRvalue,
                                  .type = info.value.type,
                                  .representation = Representation::kAddress,
@@ -613,27 +610,24 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
       AsFunctionPointer(x.function.location(), function.value.type);
   code.push_back(std::move(function.code));
   std::vector<ir::Expression> arguments;
+  // Allocate space for the function result.
+  const ir::Local::Offset offset = frame_->Allocate(function_type.return_type);
+  arguments.push_back(ir::Local(offset));
   const int num_arguments = x.arguments.size();
   if (num_arguments != (int)function_type.parameters.size()) {
     throw Error(x.location, "wrong number of arguments for function of type ",
                 function_type);
   }
   for (int i = 0; i < num_arguments; i++) {
-    ExpressionInfo result = EnsureRvalue(x.arguments[i].location(), *frame_,
-                                         CheckValue(x.arguments[i]));
-    if (result.value.type != function_type.parameters[i]) {
-      throw Error(x.arguments[i].location(), "wrong type for parameter ", i,
-                  " of function. Expected ", function_type.parameters[i],
-                  ", got ", result.value.type);
-    }
+    ExpressionInfo result = EnsureRvalue(
+        x.arguments[i].location(), *frame_,
+        ConvertTo(x.arguments[i].location(), function_type.parameters[i],
+                  CheckValue(x.arguments[i])));
     code.push_back(std::move(result.code));
     arguments.push_back(std::move(result.value.value));
   }
-  // Allocate space for the function result.
-  const ir::Local::Offset offset = frame_->Allocate(function_type.return_type);
-  code.push_back(ir::StoreCall64(ir::Local(offset),
-                                 std::move(function.value.value),
-                                 std::move(arguments)));
+  code.push_back(
+      ir::Call(std::move(function.value.value), std::move(arguments)));
   return ExpressionInfo{
       .code = ir::Sequence{std::move(code)},
       .value = TypedExpression(Category::kRvalue, function_type.return_type,
@@ -1143,10 +1137,12 @@ ir::Code StatementChecker::operator()(const ast::Return& x) {
   // TODO: Check that the return type matches the return type of the function.
   if (x.value) {
     ExpressionInfo value = CheckValue(*x.value);
-    return ir::Sequence(
-        {std::move(value.code), ir::Return(std::move(value.value.value))});
+    return ir::Sequence({std::move(value.code),
+                         ir::Store64(ir::Local(ir::Local::Offset(8)),
+                                     std::move(value.value.value)),
+                         ir::Return()});
   } else {
-    return ir::Return(ir::IntegerLiteral(0));
+    return ir::Return();
   }
 }
 
@@ -1280,7 +1276,7 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   FrameAllocator frame;
   ir::Code code = CheckBlock(*context_, function_environment, frame, x.body);
   return ir::Sequence({function, ir::BeginFrame(frame.max_size()),
-                       std::move(code), ir::Return(ir::IntegerLiteral(0))});
+                       std::move(code), ir::Return()});
 }
 
 ir::Type ModuleStatementChecker::CheckType(const ast::Expression& x) {

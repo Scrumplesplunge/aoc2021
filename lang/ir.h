@@ -343,13 +343,11 @@ struct Store64 {
   Expression address, value;
 };
 
-// Call a function with the given arguments, store the 64-bit result to the
-// given address.
-struct StoreCall64 {
-  bool operator==(const StoreCall64&) const = default;
-  auto operator<=>(const StoreCall64&) const = default;
+// Call a function with the given arguments.
+struct Call {
+  bool operator==(const Call&) const = default;
+  auto operator<=>(const Call&) const = default;
 
-  Expression result_address;
   Expression function_address;
   std::vector<Expression> arguments;
 };
@@ -365,8 +363,6 @@ struct BeginFrame {
 struct Return {
   bool operator==(const Return&) const = default;
   auto operator<=>(const Return&) const = default;
-
-  Expression value;
 };
 
 struct Jump {
@@ -403,7 +399,7 @@ struct CodeVariant {
   bool operator==(const CodeVariant&) const = default;
   auto operator<=>(const CodeVariant&) const = default;
 
-  std::variant<Label, Store64, StoreCall64, BeginFrame, Return, Jump, JumpIf,
+  std::variant<Label, Store64, Call, BeginFrame, Return, Jump, JumpIf,
                JumpUnless, Sequence>
       value;
 };
@@ -413,7 +409,7 @@ Code::Code(T value) noexcept
     : value_(std::make_shared<CodeVariant>(std::move(value))) {}
 
 std::ostream& operator<<(std::ostream&, const Store64&) noexcept;
-std::ostream& operator<<(std::ostream&, const StoreCall64&) noexcept;
+std::ostream& operator<<(std::ostream&, const Call&) noexcept;
 std::ostream& operator<<(std::ostream&, const BeginFrame&) noexcept;
 std::ostream& operator<<(std::ostream&, const Return&) noexcept;
 std::ostream& operator<<(std::ostream&, const Jump&) noexcept;

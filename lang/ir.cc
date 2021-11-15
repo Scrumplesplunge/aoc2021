@@ -276,9 +276,9 @@ std::ostream& operator<<(std::ostream& output, const Store64& x) noexcept {
   return output << "Store64(" << x.address << ", " << x.value << ")";
 }
 
-std::ostream& operator<<(std::ostream& output, const StoreCall64& x) noexcept {
-  return output << "StoreCall64(" << x.result_address << ", "
-                << x.function_address << ", " << List(x.arguments) << ")";
+std::ostream& operator<<(std::ostream& output, const Call& x) noexcept {
+  return output << "Call(" << x.function_address << ", " << List(x.arguments)
+                << ")";
 }
 
 std::ostream& operator<<(std::ostream& output, const BeginFrame& x) noexcept {
@@ -286,7 +286,7 @@ std::ostream& operator<<(std::ostream& output, const BeginFrame& x) noexcept {
 }
 
 std::ostream& operator<<(std::ostream& output, const Return& x) noexcept {
-  return output << "Return(" << x.value << ")";
+  return output << "Return()";
 }
 
 std::ostream& operator<<(std::ostream& output, const Jump& x) noexcept {

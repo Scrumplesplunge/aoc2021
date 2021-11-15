@@ -278,17 +278,17 @@ class CodeGenerator {
                 "  pop (%rbx)\n";
   }
 
-  void operator()(const ir::StoreCall64& x) {
+  void operator()(const ir::Call& x) {
     ExpressionGenerator generator(*output_);
     for (int i = x.arguments.size() - 1; i >= 0; i--) {
       std::visit(generator, x.arguments[i]->value);
     }
-    std::visit(generator, x.result_address->value);
     std::visit(generator, x.function_address->value);
-    *output_ << "  // ir::StoreCall64\n"
+    *output_ << "  // ir::Call\n"
                 "  pop %rax\n"
                 "  call *%rax\n"
-                "  add $" << (8 * (x.arguments.size() + 1)) << ", %rsp\n";
+                "  add $"
+             << (8 * x.arguments.size()) << ", %rsp\n";
   }
 
   void operator()(const ir::BeginFrame& x) {
@@ -301,10 +301,7 @@ class CodeGenerator {
 
   void operator()(const ir::Return& x) {
     ExpressionGenerator generator(*output_);
-    std::visit(generator, x.value->value);
     *output_ << "  // ir::Return\n"
-                "  mov 16(%rbp), %rax\n"
-                "  pop (%rax)\n"
                 "  mov %rbp, %rsp\n"
                 "  pop %rbp\n"
                 "  ret\n";
