@@ -241,6 +241,7 @@ class FrameAllocator {
 
   ir::Local::Offset Allocate(std::int64_t size,
                              std::int64_t alignment) noexcept {
+    if (size == 0) return ir::Local::Offset{0};
     // Pad to the alignment requirement.
     size_ = (size_ + (alignment - 1)) / alignment * alignment;
     size_ += size;
