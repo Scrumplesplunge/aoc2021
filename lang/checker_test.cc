@@ -164,7 +164,8 @@ TEST_F(CheckerTest, TernaryDifferentTypes) {
 TEST_F(CheckerTest, AssignmentTypeMismatch) {
   EXPECT_ERROR(
       Check(Program("function f(x: int64, y: *int64): void { x = y; }")),
-      "type mismatch in assignment");
+      "cannot implicitly convert Pointer(Primitive::kInt64) to "
+      "Primitive::kInt64");
 }
 
 TEST_F(CheckerTest, ArrayAssignment) {
@@ -172,6 +173,16 @@ TEST_F(CheckerTest, ArrayAssignment) {
     function main(): void {
       var x: [1]int64;
       x[0] = 1;
+    }
+  )"));
+}
+
+TEST_F(CheckerTest, ArrayPointerToSlice) {
+  Check(Program(R"(
+    function main(): void {
+      var x: [1]int64;
+      var y: []int64;
+      y = &x;
     }
   )"));
 }
