@@ -802,6 +802,17 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
   ExpressionInfo value = CheckValue(x.value);
   ir::Type type = CheckType(x.type);
   if (value.value.type == type) return value;
+  // Conversion to or from *void.
+  {
+    const auto* from = std::get_if<ir::Pointer>(&value.value.type->value);
+    const auto* to = std::get_if<ir::Pointer>(&type->value);
+    if (from && to &&
+        (from->pointee == ir::Primitive::kVoid ||
+         to->pointee == ir::Primitive::kVoid)) {
+      value.value.type = type;
+      return value;
+    }
+  }
   throw Error(x.value.location(), "cannot cast ", value.value.type, " to ",
               type);
 }
@@ -1369,7 +1380,7 @@ ir::Unit Check(std::span<const ast::Statement> program) {
                         Category::kRvalue,
                         ir::FunctionPointer(ir::Primitive::kInt64,
                                             {ir::Primitive::kInt64,
-                                             ir::Pointer(ir::Primitive::kInt64),
+                                             ir::Pointer(ir::Primitive::kVoid),
                                              ir::Primitive::kInt64}),
                         Representation::kDirect, ir::Label("read"))});
   global.Define("write",
@@ -1379,7 +1390,7 @@ ir::Unit Check(std::span<const ast::Statement> program) {
                         Category::kRvalue,
                         ir::FunctionPointer(ir::Primitive::kInt64,
                                             {ir::Primitive::kInt64,
-                                             ir::Pointer(ir::Primitive::kInt64),
+                                             ir::Pointer(ir::Primitive::kVoid),
                                              ir::Primitive::kInt64}),
                         Representation::kDirect, ir::Label("write"))});
   global.Define("exit", Environment::Definition{
