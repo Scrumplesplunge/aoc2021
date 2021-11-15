@@ -84,7 +84,7 @@ class ExpressionGenerator {
   }
 
   void operator()(const ir::Local& x) {
-    *output_ << "  // " << x << "\n  lea " << (8 * (std::int64_t)x.offset)
+    *output_ << "  // " << x << "\n  lea " << (std::int64_t)x.offset
              << "(%rbp), %rax\n"
                 "  push %rax\n";
   }

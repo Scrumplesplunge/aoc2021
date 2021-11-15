@@ -640,22 +640,32 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Index& x) {
   if (index.value.type != ir::Primitive::kInt64) {
     throw Error(x.index.location(), "array index must be an integer");
   }
-  const ir::Type* element_type;
   if (auto* a = std::get_if<ir::Array>(&container.value.type->value)) {
-    element_type = &a->element;
+    return ExpressionInfo{
+        .code =
+            ir::Sequence({std::move(container.code), std::move(index.code)}),
+        .value = TypedExpression(
+            container.value.category, a->element, Representation::kAddress,
+            ir::Add(std::move(container.value.value),
+                    ir::Multiply(ir::IntegerLiteral(ir::Size(a->element)),
+                                 std::move(index.value.value))))};
   } else if (auto* s = std::get_if<ir::Span>(&container.value.type->value)) {
-    element_type = &s->element;
+    ir::Expression address =
+        container.value.representation == Representation::kDirect
+            ? std::move(container.value.value)
+            : ir::Load64(std::move(container.value.value));
+    return ExpressionInfo{
+        .code =
+            ir::Sequence({std::move(container.code), std::move(index.code)}),
+        .value = TypedExpression(
+            Category::kLvalue, s->element, Representation::kAddress,
+            ir::Add(std::move(address),
+                    ir::Multiply(ir::IntegerLiteral(ir::Size(s->element)),
+                                 std::move(index.value.value))))};
   } else {
     throw Error(x.container.location(), "cannot index a value of type ",
                 container.value.type);
   }
-  return ExpressionInfo{
-      .code = ir::Sequence({std::move(container.code), std::move(index.code)}),
-      .value = TypedExpression(
-          container.value.category, *element_type, Representation::kAddress,
-          ir::Add(std::move(container.value.value),
-                  ir::Multiply(ir::IntegerLiteral(ir::Size(*element_type)),
-                               std::move(index.value.value))))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Negate& x) {
@@ -1263,7 +1273,7 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   //  local1
   for (int i = 0; i < n; i++) {
     const auto& parameter = x.parameters[i];
-    const ir::Local::Offset offset{i + 3};
+    const ir::Local::Offset offset{8 * (i + 3)};
     function_environment.Define(
         parameter.name.value,
         Environment::Definition{
