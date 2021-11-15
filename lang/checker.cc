@@ -514,33 +514,6 @@ ExpressionInfo CheckValue(Context& context, Environment& environment,
   return std::visit(checker, expression->value);
 }
 
-// class AddressChecker {
-//  public:
-//   AddressChecker(Context& context, Environment& environment,
-//                  FrameAllocator& frame) noexcept
-//       : context_(&context), environment_(&environment), frame_(&frame) {}
-//   ExpressionInfo operator()(const ast::Name&);
-//   ExpressionInfo operator()(const ast::Index&);
-//   ExpressionInfo operator()(const ast::Dereference&);
-//   ExpressionInfo operator()(const auto& x) {
-//     throw Error(x.location, "expression is not an lvalue");
-//   }
-// 
-//  private:
-//   ExpressionInfo CheckValue(const ast::Expression& expression);
-// 
-//   Context* context_;
-//   Environment* environment_;
-//   FrameAllocator* frame_;
-// };
-// 
-// ExpressionInfo CheckAddress(Context& context, Environment& environment,
-//                             FrameAllocator& frame,
-//                             const ast::Expression& expression) {
-//   AddressChecker checker(context, environment, frame);
-//   return std::visit(checker, expression->value);
-// }
-
 class TypeChecker {
  public:
   TypeChecker(Context& context, Environment& environment,
@@ -1068,47 +1041,6 @@ ir::Type ExpressionChecker::CheckType(const ast::Expression& x) {
   return aoc2021::CheckType(*context_, *environment_, *frame_, x);
 }
 
-// ExpressionInfo AddressChecker::operator()(const ast::Name& x) {
-//   auto* definition = environment_->Lookup(x.value);
-//   if (!definition) throw UndeclaredError(x.value, x.location);
-//   return ExpressionInfo{.value = AsValue(x.location, definition->value)};
-// }
-// 
-// ExpressionInfo AddressChecker::operator()(const ast::Index& x) {
-//   ExpressionInfo container = CheckValue(x.container);
-//   ExpressionInfo index = CheckValue(x.index);
-//   if (index.value.type != ir::Primitive::kInt64) {
-//     throw Error(x.index.location(), "array index must be an integer");
-//   }
-//   const ir::Type* element_type;
-//   if (auto* a = std::get_if<ir::Array>(&container.value.type->value)) {
-//     element_type = &a->element;
-//   } else if (auto* s = std::get_if<ir::Span>(&container.value.type->value)) {
-//     element_type = &s->element;
-//   } else {
-//     throw Error(x.container.location(), "cannot index a value of type ",
-//                 container.value.type);
-//   }
-//   return ExpressionInfo{
-//       .code = ir::Sequence({std::move(container.code), std::move(index.code)}),
-//       .value = TypedExpression(
-//           *element_type,
-//           ir::Load64(
-//               ir::Add(std::move(container.value.value),
-//                       ir::Multiply(ir::IntegerLiteral(ir::Size(*element_type)),
-//                                    std::move(index.value.value)))))};
-// }
-// 
-// ExpressionInfo AddressChecker::operator()(const ast::Dereference& x) {
-//   ExpressionInfo inner = CheckValue(x.inner);
-//   return ExpressionInfo{.code = std::move(inner.code),
-//                         .value = std::move(inner.value)};
-// }
-// 
-// ExpressionInfo AddressChecker::CheckValue(const ast::Expression& x) {
-//   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
-// }
-
 ir::Type TypeChecker::operator()(const ast::Name& x) {
   auto* definition = environment_->Lookup(x.value);
   if (!definition) throw UndeclaredError(x.value, x.location);
@@ -1240,11 +1172,6 @@ ir::Code StatementChecker::operator()(const ast::DiscardedExpression& x) {
 ir::Code StatementChecker::operator()(const ast::FunctionDefinition& x) {
   throw Error(x.location, "nested function definitions are forbidden");
 }
-
-// ExpressionInfo StatementChecker::CheckAddress(
-//     const ast::Expression& x) {
-//   return aoc2021::CheckAddress(*context_, *environment_, *frame_, x);
-// }
 
 ExpressionInfo StatementChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
