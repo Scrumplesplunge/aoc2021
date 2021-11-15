@@ -120,6 +120,19 @@ TEST_F(ParserTest, Prefix) {
       ast::Negate(At(1, 1), ast::Call(At(1, 3), ast::Name(At(1, 2), "f"), {})));
 }
 
+TEST_F(ParserTest, Cast) {
+  WithSource("a as b");
+  EXPECT_EQ(ParseExpression(), ast::As(At(1, 3), ast::Name(At(1, 1), "a"),
+                                       ast::Name(At(1, 6), "b")));
+  // Test that precedence is handled correctly: prefix expressions should bind
+  // more tightly.
+  WithSource("~a as int64");
+  EXPECT_EQ(
+      ParseExpression(),
+      ast::As(At(1, 3), ast::BitwiseNot(At(1, 1), ast::Name(At(1, 1), "a")),
+              ast::Name(At(1, 7), "int64")));
+}
+
 TEST_F(ParserTest, Product) {
   WithSource("a * b");
   EXPECT_EQ(ParseExpression(), ast::Multiply(At(1, 3), ast::Name(At(1, 1), "a"),
@@ -138,13 +151,13 @@ TEST_F(ParserTest, Product) {
                         ast::Divide(At(1, 3), ast::Name(At(1, 1), "a"),
                                     ast::Name(At(1, 5), "b")),
                         ast::Name(At(1, 9), "c")));
-  // Test that precedence is handled correctly: unary expressions should bind
+  // Test that precedence is handled correctly: cast expressions should bind
   // more tightly.
-  WithSource("-a * b");
-  EXPECT_EQ(
-      ParseExpression(),
-      ast::Multiply(At(1, 4), ast::Negate(At(1, 1), ast::Name(At(1, 2), "a")),
-                    ast::Name(At(1, 6), "b")));
+  WithSource("a * b as int64");
+  EXPECT_EQ(ParseExpression(),
+            ast::Multiply(At(1, 4), ast::Name(At(1, 2), "a"),
+                          ast::As(At(1, 7), ast::Name(At(1, 6), "5"),
+                                  ast::Name(At(1, 10), "int64"))));
 }
 
 TEST_F(ParserTest, Sum) {

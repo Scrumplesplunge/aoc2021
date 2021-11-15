@@ -41,6 +41,7 @@ class Parser {
   ast::Expression ParseBitwiseOr();
   ast::Expression ParseConjunction();
   ast::Expression ParseDisjunction();
+  ast::Expression ParseCast();
   ast::Expression ParseTernary();
 
   std::vector<ast::Statement> ParseBlock();

@@ -151,6 +151,14 @@ struct Modulo {
   Expression left, right;
 };
 
+struct As {
+  bool operator==(const As&) const = default;
+  auto operator<=>(const As&) const = default;
+
+  Location location;
+  Expression value, type;
+};
+
 struct LessThan {
   bool operator==(const LessThan&) const = default;
   auto operator<=>(const LessThan&) const = default;
@@ -286,7 +294,7 @@ struct ExpressionVariant {
 
   std::variant<Name, IntegerLiteral, Call, Index, Negate, LogicalNot,
                BitwiseNot, Dereference, AddressOf, Add, Subtract, Multiply,
-               Divide, Modulo, LessThan, LessOrEqual, GreaterThan,
+               Divide, Modulo, As, LessThan, LessOrEqual, GreaterThan,
                GreaterOrEqual, Equal, NotEqual, LogicalAnd, LogicalOr,
                BitwiseAnd, BitwiseOr, BitwiseXor, ShiftLeft, ShiftRight,
                TernaryExpression, ArrayType, SpanType>
@@ -311,6 +319,7 @@ std::ostream& operator<<(std::ostream&, const Subtract&) noexcept;
 std::ostream& operator<<(std::ostream&, const Multiply&) noexcept;
 std::ostream& operator<<(std::ostream&, const Divide&) noexcept;
 std::ostream& operator<<(std::ostream&, const Modulo&) noexcept;
+std::ostream& operator<<(std::ostream&, const As&) noexcept;
 std::ostream& operator<<(std::ostream&, const LessThan&) noexcept;
 std::ostream& operator<<(std::ostream&, const LessOrEqual&) noexcept;
 std::ostream& operator<<(std::ostream&, const GreaterThan&) noexcept;

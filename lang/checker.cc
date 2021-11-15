@@ -480,6 +480,7 @@ class ExpressionChecker {
   ExpressionInfo operator()(const ast::Multiply&);
   ExpressionInfo operator()(const ast::Divide&);
   ExpressionInfo operator()(const ast::Modulo&);
+  ExpressionInfo operator()(const ast::As&);
   ExpressionInfo operator()(const ast::LessThan&);
   ExpressionInfo operator()(const ast::LessOrEqual&);
   ExpressionInfo operator()(const ast::GreaterThan&);
@@ -499,6 +500,7 @@ class ExpressionChecker {
 
  private:
   ExpressionInfo CheckValue(const ast::Expression& expression);
+  ir::Type CheckType(const ast::Expression& expression);
 
   Context* context_;
   Environment* environment_;
@@ -796,6 +798,14 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Modulo& x) {
                                           std::move(right.value.value)))};
 }
 
+ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
+  ExpressionInfo value = CheckValue(x.value);
+  ir::Type type = CheckType(x.type);
+  if (value.value.type == type) return value;
+  throw Error(x.value.location(), "cannot cast ", value.value.type, " to ",
+              type);
+}
+
 ExpressionInfo ExpressionChecker::operator()(const ast::LessThan& x) {
   ExpressionInfo left = EnsureInt64(x.left.location(), CheckValue(x.left));
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
@@ -1035,6 +1045,10 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
 
 ExpressionInfo ExpressionChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
+}
+
+ir::Type ExpressionChecker::CheckType(const ast::Expression& x) {
+  return aoc2021::CheckType(*context_, *environment_, *frame_, x);
 }
 
 // ExpressionInfo AddressChecker::operator()(const ast::Name& x) {

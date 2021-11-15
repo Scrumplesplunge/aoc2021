@@ -110,6 +110,10 @@ std::ostream& operator<<(std::ostream& output, const Modulo& x) noexcept {
   return output << "Modulo(" << x.left << ", " << x.right << ")";
 }
 
+std::ostream& operator<<(std::ostream& output, const As& x) noexcept {
+  return output << "As(" << x.value << ", " << x.type << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const LessThan& x) noexcept {
   return output << "LessThan(" << x.left << ", " << x.right << ")";
 }

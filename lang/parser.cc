@@ -262,20 +262,34 @@ Expression Parser::ParsePrefix() {
   }
 }
 
-Expression Parser::ParseProduct() {
+Expression Parser::ParseCast() {
   Expression expression = ParsePrefix();
+  while (true) {
+    SkipWhitespaceAndComments();
+    const Location location = reader_.location();
+    if (ConsumeWord("as")) {
+      SkipWhitespaceAndComments();
+      expression = As(location, std::move(expression), ParsePrefix());
+    } else {
+      return expression;
+    }
+  }
+}
+
+Expression Parser::ParseProduct() {
+  Expression expression = ParseCast();
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
     if (ConsumeOperator("*")) {
       SkipWhitespaceAndComments();
-      expression = Multiply(location, std::move(expression), ParsePrefix());
+      expression = Multiply(location, std::move(expression), ParseCast());
     } else if (ConsumeOperator("/")) {
       SkipWhitespaceAndComments();
-      expression = Divide(location, std::move(expression), ParsePrefix());
+      expression = Divide(location, std::move(expression), ParseCast());
     } else if (ConsumeOperator("%")) {
       SkipWhitespaceAndComments();
-      expression = Modulo(location, std::move(expression), ParsePrefix());
+      expression = Modulo(location, std::move(expression), ParseCast());
     } else {
       return expression;
     }
