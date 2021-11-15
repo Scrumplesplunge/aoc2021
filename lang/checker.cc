@@ -802,6 +802,12 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
   ExpressionInfo value = CheckValue(x.value);
   ir::Type type = CheckType(x.type);
   if (value.value.type == type) return value;
+  // Conversion from int64 to byte
+  if (value.value.type == ir::Primitive::kInt64 &&
+      type == ir::Primitive::kByte) {
+    value.value.type = std::move(type);
+    return value;
+  }
   // Conversion to or from *void.
   {
     const auto* from = std::get_if<ir::Pointer>(&value.value.type->value);
@@ -1370,6 +1376,8 @@ ir::Unit Check(std::span<const ast::Statement> program) {
   global.Define("void",
                 Environment::Definition{.location = BuiltinLocation(),
                                         .value = ir::Primitive::kVoid});
+  global.Define("byte", Environment::Definition{.location = BuiltinLocation(),
+                                                .value = ir::Primitive::kByte});
   global.Define("int64",
                 Environment::Definition{.location = BuiltinLocation(),
                                         .value = ir::Primitive::kInt64});

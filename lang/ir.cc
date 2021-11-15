@@ -183,6 +183,7 @@ std::strong_ordering Type::operator<=>(const Type& other) const {
 std::ostream& operator<<(std::ostream& output, Primitive x) noexcept {
   switch (x) {
     case Primitive::kVoid: return output << "Primitive::kVoid";
+    case Primitive::kByte: return output << "Primitive::kByte";
     case Primitive::kInt64: return output << "Primitive::kInt64";
   }
   std::abort();
@@ -214,6 +215,7 @@ std::ostream& operator<<(std::ostream& output, const Type& x) noexcept {
 std::int64_t Size(Primitive x) noexcept {
   switch (x) {
     case Primitive::kVoid: return 0;
+    case Primitive::kByte: return 1;
     case Primitive::kInt64: return 8;
   }
   std::abort();
@@ -235,6 +237,7 @@ std::int64_t Size(const Type& x) noexcept {
 std::int64_t Alignment(Primitive x) noexcept {
   switch (x) {
     case Primitive::kVoid: return 0;
+    case Primitive::kByte: return 1;
     case Primitive::kInt64: return 8;
   }
   std::abort();

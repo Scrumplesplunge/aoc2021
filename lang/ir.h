@@ -254,7 +254,7 @@ class Type {
   std::shared_ptr<const TypeVariant> value_;
 };
 
-enum class Primitive { kVoid, kInt64 };
+enum class Primitive { kVoid, kByte, kInt64 };
 
 struct Pointer {
   bool operator==(const Pointer&) const = default;
