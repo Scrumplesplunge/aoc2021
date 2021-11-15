@@ -314,7 +314,7 @@ class CodeGenerator {
                 "  push %rbp\n"
                 "  mov %rsp, %rbp\n"
                 "  sub $"
-             << (8 * x.size) << ", %rsp\n";
+             << x.size << ", %rsp\n";
   }
 
   void operator()(const ir::Return& x) {
@@ -363,7 +363,7 @@ std::string Generate(const ir::Unit& unit) {
   result << ".section .bss\n"
             "  .align 8\n";
   for (const auto& [global, size] : unit.data) {
-    result << global.value << ":\n  .space " << (8 * size) << '\n';
+    result << global.value << ":\n  .space " << size << '\n';
   }
 
   result << ".section .text\n"
