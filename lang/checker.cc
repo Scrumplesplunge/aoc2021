@@ -314,6 +314,30 @@ ir::Type AsType(Location location, const Value& v) {
   return std::visit([&](auto& x) { return AsType(location, x); }, v);
 }
 
+TypedExpression EnsureLoaded(Location location, TypedExpression input) {
+  switch (ir::Size(input.type)) {
+    case 0:
+      return TypedExpression{.category = Category::kRvalue,
+                             .type = ir::Primitive::kVoid,
+                             .representation = Representation::kDirect,
+                             .value = ir::IntegerLiteral(0)};
+    case 1:
+      if (input.representation == Representation::kDirect) return input;
+      return TypedExpression{.category = Category::kRvalue,
+                             .type = ir::Primitive::kByte,
+                             .representation = Representation::kDirect,
+                             .value = ir::Load8(std::move(input.value))};
+    case 8:
+      if (input.representation == Representation::kDirect) return input;
+      return TypedExpression{.category = Category::kRvalue,
+                             .type = ir::Primitive::kByte,
+                             .representation = Representation::kDirect,
+                             .value = ir::Load64(std::move(input.value))};
+    default:
+      throw Error(location, "cannot load value of type ", input.type);
+  }
+}
+
 ExpressionInfo EnsureRvalue(Location location, FrameAllocator& frame,
                             ExpressionInfo info) {
   if (info.value.category == Category::kRvalue) return info;
@@ -357,11 +381,7 @@ ExpressionInfo EnsureComparable(Location location, ExpressionInfo info) {
   } else {
     return ExpressionInfo{
         .code = std::move(info.code),
-        .value =
-            TypedExpression{.category = Category::kRvalue,
-                            .type = std::move(info.value.type),
-                            .representation = Representation::kDirect,
-                            .value = ir::Load64(std::move(info.value.value))}};
+        .value = EnsureLoaded(location, std::move(info.value))};
   }
 }
 
@@ -380,6 +400,24 @@ ExpressionInfo ConvertTo(Location location, const ir::Type& target,
   }
   throw Error(location, "cannot implicitly convert ", info.value.type, " to ",
               target);
+}
+
+ir::Code DoStore(Location location, ir::Expression address, ir::Type type,
+                 ExpressionInfo info) {
+  info = ConvertTo(location, type, std::move(info));
+  switch (ir::Size(type)) {
+    case 0:
+      return ir::Sequence();
+    case 1:
+      return ir::Store8(std::move(address),
+                        EnsureLoaded(location, std::move(info.value)).value);
+    case 8:
+      return ir::Store64(std::move(address),
+                         EnsureLoaded(location, std::move(info.value)).value);
+    default:
+      return ir::Call(ir::Label("copy"),
+                      {std::move(address), std::move(info.value.value)});
+  }
 }
 
 const ir::FunctionPointer& AsFunctionPointer(
@@ -1119,10 +1157,9 @@ ir::Code StatementChecker::operator()(const ast::Assign& x) {
   if (left.value.category != Category::kLvalue) {
     throw Error(x.left.location(), "not an lvalue");
   }
-  right = ConvertTo(x.right.location(), left.value.type, std::move(right));
-  return ir::Sequence(
-      {std::move(left.code), std::move(right.code),
-       ir::Store64(std::move(left.value.value), std::move(right.value.value))});
+  return ir::Sequence({std::move(left.code), std::move(right.code),
+                       DoStore(x.location, std::move(left.value.value),
+                               std::move(left.value.type), std::move(right))});
 }
 
 ir::Code StatementChecker::operator()(const ast::If& x) {
