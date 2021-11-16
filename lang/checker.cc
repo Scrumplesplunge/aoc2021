@@ -331,19 +331,19 @@ TypedExpression EnsureLoaded(Location location, TypedExpression input) {
   switch (ir::Size(input.type)) {
     case 0:
       return TypedExpression{.category = Category::kRvalue,
-                             .type = ir::Primitive::kVoid,
+                             .type = std::move(input.type),
                              .representation = Representation::kDirect,
                              .value = ir::IntegerLiteral(0)};
     case 1:
       if (input.representation == Representation::kDirect) return input;
       return TypedExpression{.category = Category::kRvalue,
-                             .type = ir::Primitive::kByte,
+                             .type = std::move(input.type),
                              .representation = Representation::kDirect,
                              .value = ir::Load8(std::move(input.value))};
     case 8:
       if (input.representation == Representation::kDirect) return input;
       return TypedExpression{.category = Category::kRvalue,
-                             .type = ir::Primitive::kByte,
+                             .type = std::move(input.type),
                              .representation = Representation::kDirect,
                              .value = ir::Load64(std::move(input.value))};
     default:
