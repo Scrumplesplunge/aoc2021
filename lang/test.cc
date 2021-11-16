@@ -71,4 +71,4 @@ bool Expect(std::string_view text, bool result, Sink& sink,
 
 }  // namespace aoc2021
 
-int main() { aoc2021::RunTests(); }
+int main() { return aoc2021::RunTests(); }
