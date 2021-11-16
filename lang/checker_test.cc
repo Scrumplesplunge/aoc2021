@@ -130,7 +130,8 @@ TEST_F(CheckerTest, WrongNumberOfArguments) {
 TEST_F(CheckerTest, WrongTypeForParameter) {
   EXPECT_ERROR(Check(Program("function f(x: *int64): void {}\n"
                              "function g(): void { f(1); }")),
-               "wrong type for parameter 0 of function");
+               "cannot implicitly convert Primitive::kInt64 to "
+               "Pointer(Primitive::kInt64)");
 }
 
 TEST_F(CheckerTest, ArrayIndexMustBeInteger) {
