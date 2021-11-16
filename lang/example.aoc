@@ -5,20 +5,20 @@
 
 function helloworld(): [14]byte {
   var message: [14]byte;
-  message[13] = 10 as byte;
-  message[12] = 33 as byte;
-  message[11] = 100 as byte;
-  message[10] = 108 as byte;
-  message[9] = 114 as byte;
-  message[8] = 111 as byte;
-  message[7] = 87 as byte;
-  message[6] = 32 as byte;
-  message[5] = 44 as byte;
-  message[4] = 111 as byte;
-  message[3] = 108 as byte;
-  message[2] = 108 as byte;
-  message[1] = 101 as byte;
-  message[0] = 72 as byte;
+  message[13] = '\n';
+  message[12] = '!';
+  message[11] = 'd';
+  message[10] = 'l';
+  message[9] = 'r';
+  message[8] = 'o';
+  message[7] = 'W';
+  message[6] = ' ';
+  message[5] = ',';
+  message[4] = 'o';
+  message[3] = 'l';
+  message[2] = 'l';
+  message[1] = 'e';
+  message[0] = 'H';
   return message;
 }
 

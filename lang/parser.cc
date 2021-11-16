@@ -101,6 +101,35 @@ Name Parser::ParseName() {
   return Name(location, std::string(word));
 }
 
+CharacterLiteral Parser::ParseCharacterLiteral() {
+  assert(!reader_.empty() && reader_.front() == '\'');
+  const Location location = reader_.location();
+  reader_.Advance(1);
+  const std::string_view remaining = reader_.remaining();
+  if (remaining.empty()) throw Error("unterminated character literal");
+  if (remaining[0] == '\'') throw Error("empty character literal");
+  char value;
+  if (remaining[0] == '\\') {
+    // Complex case with an escape sequence.
+    switch (remaining[1]) {
+      case '\\': value = '\\'; break;
+      case '\'': value = '\''; break;
+      case '\"': value = '\"'; break;
+      case 'n': value = '\n'; break;
+      case 'r': value = '\r'; break;
+      case 't': value = '\t'; break;
+      case '\0': value = '\0'; break;
+      default: throw Error("unrecognised escape sequence");
+    }
+    reader_.Advance(2);
+  } else {
+    value = remaining[0];
+    reader_.Advance(1);
+  }
+  if (!reader_.ConsumePrefix("'")) throw Error("expected '\\''");
+  return CharacterLiteral(location, value);
+}
+
 IntegerLiteral Parser::ParseIntegerLiteral() {
   // For now, this only supports decimal literals.
   // TODO: Extend this to support hex.
@@ -124,6 +153,7 @@ IntegerLiteral Parser::ParseIntegerLiteral() {
 Expression Parser::ParseTerm() {
   if (reader_.empty()) throw Error("expected expression");
   const char lookahead = reader_.front();
+  if (lookahead == '\'') return ParseCharacterLiteral();
   if (lookahead == '(') {
     const Location start = reader_.location();
     reader_.Advance(1);
