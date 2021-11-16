@@ -7,69 +7,6 @@
 namespace aoc2021 {
 namespace {
 
-// enum class Register {
-//   kRax,
-//   kRbx,
-//   kRcx,
-//   kRdx,
-//   kRdi,
-//   kRsi,
-//   kRbp,
-//   kRsp,
-// };
-// 
-// std::ostream& operator<<(std::ostream& output, Register r) {
-//   switch (r) {
-//     case Register::kRax: return output << "%rax";
-//     case Register::kRbx: return output << "%rbx";
-//     case Register::kRcx: return output << "%rcx";
-//     case Register::kRdx: return output << "%rdx";
-//     case Register::kRdi: return output << "%rdi";
-//     case Register::kRsi: return output << "%rsi";
-//     case Register::kRbp: return output << "%rbp";
-//     case Register::kRsp: return output << "%rsp";
-//   }
-//   return output << "?";
-// }
-// 
-// struct DirectValue {
-//   std::variant<std::int64_t, std::string> value;
-// };
-// 
-// std::ostream& operator<<(std::ostream& output, const DirectValue& x) {
-//   std::visit([&](auto& y) { output << y; }, x.value);
-//   return output;
-// }
-// 
-// struct Literal { DirectValue value; };
-// struct Direct { DirectValue address; };
-// struct Indirect { Register base; std::int64_t offset; };
-// 
-// std::ostream& operator<<(std::ostream& output, const Literal& x) {
-//   return output << '$' << x;
-// }
-// 
-// std::ostream& operator<<(std::ostream& output, const Direct& x) {
-//   return output << x.address;
-// }
-// 
-// std::ostream& operator<<(std::ostream& output, const Indirect& x) {
-//   if (x.offset) {
-//     return output << x.offset << '(' << x.base << ')';
-//   } else {
-//     return output << '(' << x.base << ')';
-//   }
-// }
-// 
-// struct Operand {
-//   std::variant<Literal, Register, Direct, Indirect> value;
-// };
-// 
-// std::ostream& operator<<(std::ostream& output, const Operand& x) {
-//   std::visit([&](auto& y) { output << y; }, x.value);
-//   return output;
-// }
-
 class ExpressionGenerator {
  public:
   ExpressionGenerator(std::ostream& output) noexcept : output_(&output) {}
