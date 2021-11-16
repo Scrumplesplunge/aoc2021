@@ -307,7 +307,9 @@ std::string Generate(const ir::Unit& unit) {
   result << ".section .rodata\n"
             "  .align 8\n";
   for (const auto& [global, value] : unit.string_literals) {
-    result << global.value << ":\n  .asciz " << std::quoted(value) << "\n";
+    result << global.value << ":\n  .byte ";
+    for (char c : value) result << (int)c << ", ";
+    result << "0\n";
   }
 
   result << ".section .text\n"
