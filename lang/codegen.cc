@@ -1,6 +1,7 @@
 #include "codegen.h"
 
 #include <cassert>
+#include <iomanip>
 #include <sstream>
 #include <variant>
 
@@ -301,6 +302,12 @@ std::string Generate(const ir::Unit& unit) {
             "  .align 8\n";
   for (const auto& [global, size] : unit.data) {
     result << global.value << ":\n  .space " << size << '\n';
+  }
+
+  result << ".section .rodata\n"
+            "  .align 8\n";
+  for (const auto& [global, value] : unit.string_literals) {
+    result << global.value << ":\n  .asciz " << std::quoted(value) << "\n";
   }
 
   result << ".section .text\n"

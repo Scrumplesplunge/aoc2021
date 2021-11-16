@@ -28,6 +28,7 @@ class Parser {
   ast::Name ParseName();
   ast::CharacterLiteral ParseCharacterLiteral();
   ast::IntegerLiteral ParseIntegerLiteral();
+  ast::StringLiteral ParseStringLiteral();
   ast::Expression ParseTerm();
   ast::Expression ParseArrayType();
   ast::Expression ParseSuffix();

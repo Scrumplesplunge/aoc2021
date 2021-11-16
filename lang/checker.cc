@@ -216,9 +216,17 @@ class Context {
   }
 
   ir::Global Global(std::string_view prefix, std::int64_t size) {
-    const ir::Global result(prefix, next_global_offset_);
-    next_global_offset_ += size;
+    const ir::Global result(prefix, next_global_index_);
+    next_global_index_++;
+    // TODO: Handle alignment.
     globals_.emplace(result, size);
+    return result;
+  }
+
+  ir::Global StringLiteral(std::string_view value) {
+    const ir::Global result("string_literal", next_global_index_);
+    next_global_index_++;
+    string_literals_.emplace(result, value);
     return result;
   }
 
@@ -227,11 +235,16 @@ class Context {
 
   const std::map<ir::Global, std::int64_t>& Globals() const { return globals_; }
 
+  const std::map<ir::Global, std::string>& StringLiterals() const {
+    return string_literals_;
+  }
+
  private:
   std::optional<ir::Label> main_;
   std::int64_t next_label_index_ = 0;
   std::map<ir::Global, std::int64_t> globals_;
-  std::int64_t next_global_offset_ = 0;
+  std::map<ir::Global, std::string> string_literals_;
+  std::int64_t next_global_index_ = 0;
 };
 
 class FrameAllocator {
@@ -666,7 +679,13 @@ ExpressionInfo ExpressionChecker::operator()(const ast::IntegerLiteral& x) {
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::StringLiteral& x) {
-  throw Error(x.location, "string literals are not implemented yet");
+  const ir::Global address = context_->StringLiteral(x.value);
+  return ExpressionInfo{
+      .value = TypedExpression(
+          Category::kRvalue,
+          // A string literal is an array of bytes including a null-terminator.
+          ir::Pointer(ir::Array(x.value.size() + 1, ir::Primitive::kByte)),
+          Representation::kDirect, address)};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
@@ -1430,6 +1449,7 @@ ir::Unit Check(std::span<const ast::Statement> program) {
   }
   return ir::Unit{.main = context.Main(),
                   .data = context.Globals(),
+                  .string_literals = context.StringLiterals(),
                   .code = ir::Flatten(ir::Sequence(std::move(code)))};
 }
 

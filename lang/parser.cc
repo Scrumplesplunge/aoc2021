@@ -106,7 +106,7 @@ CharacterLiteral Parser::ParseCharacterLiteral() {
   const Location location = reader_.location();
   reader_.Advance(1);
   const std::string_view remaining = reader_.remaining();
-  if (remaining.empty()) throw Error("unterminated character literal");
+  if (remaining.size() < 2) throw Error("unterminated character literal");
   if (remaining[0] == '\'') throw Error("empty character literal");
   char value;
   if (remaining[0] == '\\') {
@@ -150,10 +150,45 @@ IntegerLiteral Parser::ParseIntegerLiteral() {
   return IntegerLiteral(location, value);
 }
 
+StringLiteral Parser::ParseStringLiteral() {
+  assert(!reader_.empty() && reader_.front() == '"');
+  const Location location = reader_.location();
+  reader_.Advance(1);
+  std::string value;
+  while (true) {
+    if (reader_.empty()) throw Error("unterminated string literal");
+    if (reader_.ConsumePrefix("\"")) {
+      return StringLiteral(location, value);
+    }
+    if (reader_.front() == '\\') {
+      const std::string_view input = reader_.remaining();
+      if (input.size() < 2) {
+        throw Error("unterminated string literal");
+      }
+      // Complex case with an escape sequence.
+      switch (input[1]) {
+        case '\\': value.push_back('\\'); break;
+        case '\'': value.push_back('\''); break;
+        case '\"': value.push_back('\"'); break;
+        case 'n':  value.push_back('\n'); break;
+        case 'r':  value.push_back('\r'); break;
+        case 't':  value.push_back('\t'); break;
+        case '\0': value.push_back('\0'); break;
+        default: throw Error("unrecognised escape sequence");
+      }
+      reader_.Advance(2);
+    } else {
+      value.push_back(reader_.front());
+      reader_.Advance(1);
+    }
+  }
+}
+
 Expression Parser::ParseTerm() {
   if (reader_.empty()) throw Error("expected expression");
   const char lookahead = reader_.front();
   if (lookahead == '\'') return ParseCharacterLiteral();
+  if (lookahead == '\"') return ParseStringLiteral();
   if (lookahead == '(') {
     const Location start = reader_.location();
     reader_.Advance(1);
