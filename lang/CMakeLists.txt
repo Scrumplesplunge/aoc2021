@@ -8,7 +8,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-Werror -Wall -Wextra -Wno-unused-parameter -pedantic -g3)
 
+add_library(string_utils string_utils.cc string_utils.h)
+
 add_library(test test.cc test.h)
+target_link_libraries(test string_utils)
 
 add_library(source source.cc source.h)
 
@@ -23,9 +26,10 @@ add_executable(parser_test parser_test.cc)
 target_link_libraries(parser_test parser test)
 
 add_library(ir ir.cc ir.h)
+target_link_libraries(ir string_utils)
 
 add_library(checker checker.cc checker.h)
-target_link_libraries(checker source ast ir)
+target_link_libraries(checker source ast ir string_utils)
 add_executable(checker_test checker_test.cc)
 target_link_libraries(checker_test checker parser test)
 

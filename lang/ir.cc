@@ -71,11 +71,11 @@ std::strong_ordering Expression::operator<=>(const Expression& other) const {
 }
 
 std::ostream& operator<<(std::ostream& output, const Label& x) noexcept {
-  return output << "Label(" << std::quoted(x.value) << ")";
+  return output << "Label(" << Escaped(x.value) << ")";
 }
 
 std::ostream& operator<<(std::ostream& output, const Global& x) noexcept {
-  return output << "Global(" << std::quoted(x.value) << ")";
+  return output << "Global(" << Escaped(x.value) << ")";
 }
 
 std::ostream& operator<<(std::ostream& output, const Local& x) noexcept {
@@ -294,17 +294,17 @@ std::ostream& operator<<(std::ostream& output, const Return& x) noexcept {
 }
 
 std::ostream& operator<<(std::ostream& output, const Jump& x) noexcept {
-  return output << "Jump(Label(" << std::quoted(x.target.value) << "))";
+  return output << "Jump(Label(" << Escaped(x.target.value) << "))";
 }
 
 std::ostream& operator<<(std::ostream& output, const JumpIf& x) noexcept {
   return output << "JumpIf(" << x.condition << ", Label("
-                << std::quoted(x.target.value) << "))";
+                << Escaped(x.target.value) << "))";
 }
 
 std::ostream& operator<<(std::ostream& output, const JumpUnless& x) noexcept {
   return output << "JumpUnless(" << x.condition << ", Label("
-                << std::quoted(x.target.value) << "))";
+                << Escaped(x.target.value) << "))";
 }
 
 std::ostream& operator<<(std::ostream& output, const Sequence& x) noexcept {

@@ -1,5 +1,7 @@
 #include "ast.h"
 
+#include "string_utils.h"
+
 #include <iomanip>
 
 namespace aoc2021::ast {
@@ -54,13 +56,13 @@ std::strong_ordering Expression::operator<=>(const Expression& other) const {
 }
 
 std::ostream& operator<<(std::ostream& output, const Name& x) noexcept {
-  return output << "Name(" << std::quoted(x.value) << ")";
+  return output << "Name(" << Escaped(x.value) << ")";
 }
 
 std::ostream& operator<<(std::ostream& output,
                          const CharacterLiteral& x) noexcept {
   const std::string_view value(&x.value, 1);
-  return output << "CharacterLiteral(" << std::quoted(value, '\'') << ")";
+  return output << "CharacterLiteral(" << Escaped(value, '\'') << ")";
 }
 
 std::ostream& operator<<(std::ostream& output,
@@ -70,7 +72,7 @@ std::ostream& operator<<(std::ostream& output,
 
 std::ostream& operator<<(std::ostream& output,
                          const StringLiteral& x) noexcept {
-  return output << "StringLiteral(" << std::quoted(x.value) << ")";
+  return output << "StringLiteral(" << Escaped(x.value) << ")";
 }
 
 std::ostream& operator<<(std::ostream& output, const Call& x) noexcept {
@@ -223,7 +225,7 @@ std::strong_ordering Statement::operator<=>(const Statement& other) const {
 
 std::ostream& operator<<(std::ostream& output,
                          const DeclareVariable& x) noexcept {
-  return output << "DeclareVariable(" << std::quoted(x.name) << ", " << x.type
+  return output << "DeclareVariable(" << Escaped(x.name) << ", " << x.type
                 << ")";
 }
 
@@ -268,7 +270,7 @@ std::ostream& operator<<(std::ostream& output,
 
 std::ostream& operator<<(std::ostream& output,
                          const FunctionDefinition& x) noexcept {
-  return output << "FunctionDefinition(" << std::quoted(x.name) << ", "
+  return output << "FunctionDefinition(" << Escaped(x.name) << ", "
                 << List(x.parameters) << ", " << x.return_type << ", "
                 << List(x.body) << ")";
 }

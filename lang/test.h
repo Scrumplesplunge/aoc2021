@@ -1,6 +1,8 @@
 #ifndef TEST_H_
 #define TEST_H_
 
+#include "string_utils.h"
+
 #include <iomanip>
 #include <iostream>
 #include <optional>
@@ -73,9 +75,9 @@ bool ExpectError(
   }
   sink.Fail();
   sink.Log() << text << " throws an exception stating "
-             << std::quoted(expected_message) << ", but instead got ";
+             << Escaped(expected_message) << ", but instead got ";
   if (error) {
-    sink.Log() << std::quoted(*error);
+    sink.Log() << Escaped(*error);
   } else {
     sink.Log() << "no exception";
   }

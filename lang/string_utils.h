@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace aoc2021 {
 
@@ -17,6 +18,16 @@ std::string StrCat(const Args&... args) {
   (output << ... << args);
   return output.str();
 }
+
+// A wrapper for wrapping a string in quotes and escaping special characters.
+// This behaves similarly to std::quoted() except that it handles other escape
+// sequences like '\n'.
+struct Escaped {
+  std::string_view value;
+  char quote = '"';
+};
+
+std::ostream& operator<<(std::ostream&, Escaped) noexcept;
 
 }  // namespace aoc2021
 
