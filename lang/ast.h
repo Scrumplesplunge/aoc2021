@@ -46,6 +46,14 @@ struct Name {
   std::string value;
 };
 
+struct CharacterLiteral {
+  bool operator==(const CharacterLiteral&) const = default;
+  auto operator<=>(const CharacterLiteral&) const = default;
+
+  Location location;
+  char value;
+};
+
 struct IntegerLiteral {
   bool operator==(const IntegerLiteral&) const = default;
   auto operator<=>(const IntegerLiteral&) const = default;
@@ -292,9 +300,9 @@ struct ExpressionVariant {
   bool operator==(const ExpressionVariant&) const = default;
   auto operator<=>(const ExpressionVariant&) const = default;
 
-  std::variant<Name, IntegerLiteral, Call, Index, Negate, LogicalNot,
-               BitwiseNot, Dereference, AddressOf, Add, Subtract, Multiply,
-               Divide, Modulo, As, LessThan, LessOrEqual, GreaterThan,
+  std::variant<Name, CharacterLiteral, IntegerLiteral, Call, Index, Negate,
+               LogicalNot, BitwiseNot, Dereference, AddressOf, Add, Subtract,
+               Multiply, Divide, Modulo, As, LessThan, LessOrEqual, GreaterThan,
                GreaterOrEqual, Equal, NotEqual, LogicalAnd, LogicalOr,
                BitwiseAnd, BitwiseOr, BitwiseXor, ShiftLeft, ShiftRight,
                TernaryExpression, ArrayType, SpanType>
@@ -306,6 +314,7 @@ Expression::Expression(T value) noexcept
     : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
 
 std::ostream& operator<<(std::ostream&, const Name&) noexcept;
+std::ostream& operator<<(std::ostream&, const CharacterLiteral&) noexcept;
 std::ostream& operator<<(std::ostream&, const IntegerLiteral&) noexcept;
 std::ostream& operator<<(std::ostream&, const Call&) noexcept;
 std::ostream& operator<<(std::ostream&, const Index&) noexcept;

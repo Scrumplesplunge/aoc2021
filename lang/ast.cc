@@ -58,6 +58,12 @@ std::ostream& operator<<(std::ostream& output, const Name& x) noexcept {
 }
 
 std::ostream& operator<<(std::ostream& output,
+                         const CharacterLiteral& x) noexcept {
+  const std::string_view value(&x.value, 1);
+  return output << "CharacterLiteral(" << std::quoted(value, '\'') << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
                          const IntegerLiteral& x) noexcept {
   return output << "IntegerLiteral(" << x.value << ")";
 }

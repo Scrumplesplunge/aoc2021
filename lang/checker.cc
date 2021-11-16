@@ -518,6 +518,7 @@ class ExpressionChecker {
                     FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
   ExpressionInfo operator()(const ast::Name&);
+  ExpressionInfo operator()(const ast::CharacterLiteral&);
   ExpressionInfo operator()(const ast::IntegerLiteral&);
   ExpressionInfo operator()(const ast::Call&);
   ExpressionInfo operator()(const ast::Index&);
@@ -647,6 +648,13 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Name& x) {
   auto* definition = environment_->Lookup(x.value);
   if (!definition) throw UndeclaredError(x.value, x.location);
   return ExpressionInfo{.value = AsValue(x.location, definition->value)};
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::CharacterLiteral& x) {
+  return ExpressionInfo{
+      .value = TypedExpression(Category::kRvalue, ir::Primitive::kByte,
+                               Representation::kDirect,
+                               ir::IntegerLiteral(x.value))};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::IntegerLiteral& x) {
