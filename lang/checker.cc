@@ -416,7 +416,8 @@ ir::Code DoStore(Location location, ir::Expression address, ir::Type type,
                          EnsureLoaded(location, std::move(info.value)).value);
     default:
       return ir::Call(ir::Label("copy"),
-                      {std::move(address), std::move(info.value.value)});
+                      {std::move(address), std::move(info.value.value),
+                       ir::IntegerLiteral(ir::Size(type))});
   }
 }
 
@@ -493,11 +494,22 @@ class Environment {
                : nullptr;
   }
 
+  void SetFunctionType(ir::FunctionPointer type) {
+    function_type_ = std::move(type);
+  }
+
+  const ir::FunctionPointer* FunctionType() const {
+    return function_type_ ? &*function_type_
+           : parent_      ? parent_->FunctionType()
+                          : nullptr;
+  }
+
  private:
   Environment* parent_;
   ShadowMode shadow_mode_;
   std::map<std::string, Definition, std::less<>> names_;
   std::optional<ir::Label> break_, continue_;
+  std::optional<ir::FunctionPointer> function_type_;
 };
 
 class ExpressionChecker {
@@ -1192,14 +1204,19 @@ ir::Code StatementChecker::operator()(const ast::While& x) {
 }
 
 ir::Code StatementChecker::operator()(const ast::Return& x) {
-  // TODO: Check that the return type matches the return type of the function.
   if (x.value) {
     ExpressionInfo value = CheckValue(*x.value);
-    return ir::Sequence({std::move(value.code),
-                         ir::Store64(ir::Local(ir::Local::Offset(8)),
-                                     std::move(value.value.value)),
-                         ir::Return()});
+    return ir::Sequence(
+        {std::move(value.code),
+         DoStore(x.location, ir::Load64(ir::Local(ir::Local::Offset{8})),
+                 environment_->FunctionType()->return_type, std::move(value)),
+         ir::Return()});
   } else {
+    if (environment_->FunctionType()->return_type != ir::Primitive::kVoid) {
+      throw Error(x.location,
+                  "cannot return void from a function with return type ",
+                  environment_->FunctionType()->return_type);
+    }
     return ir::Return();
   }
 }
@@ -1308,6 +1325,8 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   if (x.name == "main") context_->SetMain(function);
   Environment function_environment(*environment_,
                                    Environment::ShadowMode::kAllow);
+  function_environment.SetFunctionType(
+      ir::FunctionPointer(return_type, parameters));
   const int n = x.parameters.size();
   // Parameters are arranged above the function stack frame:
   //  ...
