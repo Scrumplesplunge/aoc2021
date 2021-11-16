@@ -68,6 +68,11 @@ std::ostream& operator<<(std::ostream& output,
   return output << "IntegerLiteral(" << x.value << ")";
 }
 
+std::ostream& operator<<(std::ostream& output,
+                         const StringLiteral& x) noexcept {
+  return output << "StringLiteral(" << std::quoted(x.value) << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Call& x) noexcept {
   return output << "Call(" << x.function << ", " << List(x.arguments) << ")";
 }

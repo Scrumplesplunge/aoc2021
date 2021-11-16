@@ -520,6 +520,7 @@ class ExpressionChecker {
   ExpressionInfo operator()(const ast::Name&);
   ExpressionInfo operator()(const ast::CharacterLiteral&);
   ExpressionInfo operator()(const ast::IntegerLiteral&);
+  ExpressionInfo operator()(const ast::StringLiteral&);
   ExpressionInfo operator()(const ast::Call&);
   ExpressionInfo operator()(const ast::Index&);
   ExpressionInfo operator()(const ast::Negate&);
@@ -662,6 +663,10 @@ ExpressionInfo ExpressionChecker::operator()(const ast::IntegerLiteral& x) {
                                                  ir::Primitive::kInt64,
                                                  Representation::kDirect,
                                                  ir::IntegerLiteral(x.value))};
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::StringLiteral& x) {
+  throw Error(x.location, "string literals are not implemented yet");
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
