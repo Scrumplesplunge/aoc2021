@@ -1,0 +1,19 @@
+// Non-direct parameter passing is currently broken:
+//   * On the caller side, arguments are populated with EnsureRvalue which
+//     does not check whether the representation is an address or not.
+//   * On the callee side, parameters are added to the environment as if the
+//     parameter slot always holds the actual value of the object, which is not
+//     true for arrays.
+
+function f(x: [30]byte): [30]byte {
+  return x;
+}
+
+function main(): int64 {
+  var a: [30]byte;
+  var b: [30]byte;
+  a = *"See you on the other side...\n";
+  b = f(a);
+  write(1, &b as *void, 29);
+  return 0;
+}
