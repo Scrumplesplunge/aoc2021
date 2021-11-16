@@ -3,27 +3,27 @@
 // $ ld example.o -o example
 // $ ./example
 
-function helloworld(): [14]byte {
+function helloWorld(): [14]byte {
   var message: [14]byte;
-  message[13] = '\n';
-  message[12] = '!';
-  message[11] = 'd';
-  message[10] = 'l';
-  message[9] = 'r';
-  message[8] = 'o';
-  message[7] = 'W';
-  message[6] = ' ';
-  message[5] = ',';
-  message[4] = 'o';
-  message[3] = 'l';
-  message[2] = 'l';
-  message[1] = 'e';
   message[0] = 'H';
+  message[1] = 'e';
+  message[2] = 'l';
+  message[3] = 'l';
+  message[4] = 'o';
+  message[5] = ',';
+  message[6] = ' ';
+  message[7] = 'W';
+  message[8] = 'o';
+  message[9] = 'r';
+  message[10] = 'l';
+  message[11] = 'd';
+  message[12] = '!';
+  message[13] = '\n';
   return message;
 }
 
 function main(): int64 {
   var message: [14]byte;
-  message = helloworld();
+  message = helloWorld();
   write(1, &message as *void, 14);
 }
