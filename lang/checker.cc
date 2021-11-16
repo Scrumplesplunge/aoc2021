@@ -1208,7 +1208,7 @@ ir::Code StatementChecker::operator()(const ast::Return& x) {
     ExpressionInfo value = CheckValue(*x.value);
     return ir::Sequence(
         {std::move(value.code),
-         DoStore(x.location, ir::Load64(ir::Local(ir::Local::Offset{8})),
+         DoStore(x.location, ir::Load64(ir::Local(ir::Local::Offset{16})),
                  environment_->FunctionType()->return_type, std::move(value)),
          ir::Return()});
   } else {
