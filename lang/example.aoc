@@ -3,7 +3,8 @@
 // $ ld example.o -o example
 // $ ./example
 
-function helloworld(message: []byte): void {
+function helloworld(): [14]byte {
+  var message: [14]byte;
   message[13] = 10 as byte;
   message[12] = 33 as byte;
   message[11] = 100 as byte;
@@ -18,10 +19,11 @@ function helloworld(message: []byte): void {
   message[2] = 108 as byte;
   message[1] = 101 as byte;
   message[0] = 72 as byte;
+  return message;
 }
 
 function main(): int64 {
   var message: [14]byte;
-  helloworld(&message);
+  message = helloworld();
   write(1, &message as *void, 14);
 }
