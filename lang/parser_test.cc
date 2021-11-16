@@ -129,7 +129,7 @@ TEST_F(ParserTest, Cast) {
   WithSource("~a as int64");
   EXPECT_EQ(
       ParseExpression(),
-      ast::As(At(1, 3), ast::BitwiseNot(At(1, 1), ast::Name(At(1, 1), "a")),
+      ast::As(At(1, 4), ast::BitwiseNot(At(1, 1), ast::Name(At(1, 2), "a")),
               ast::Name(At(1, 7), "int64")));
 }
 
@@ -155,8 +155,8 @@ TEST_F(ParserTest, Product) {
   // more tightly.
   WithSource("a * b as int64");
   EXPECT_EQ(ParseExpression(),
-            ast::Multiply(At(1, 4), ast::Name(At(1, 2), "a"),
-                          ast::As(At(1, 7), ast::Name(At(1, 6), "5"),
+            ast::Multiply(At(1, 3), ast::Name(At(1, 1), "a"),
+                          ast::As(At(1, 7), ast::Name(At(1, 5), "b"),
                                   ast::Name(At(1, 10), "int64"))));
 }
 
