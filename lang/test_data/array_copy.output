@@ -1,2 +1,5 @@
+stdout:
 See you on the other side...
-Exit code: 0
+stderr:
+
+exit code: 0

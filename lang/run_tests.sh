@@ -29,11 +29,20 @@ for e2e_test_file in test_data/*.aoc; do
     echo -e "${r}FAILED${reset} (linking) $e2e_test"
     continue
   fi
-  "build/$e2e_test" <"test_data/$e2e_test.input" >"build/$e2e_test.output"
-  echo "Exit code: $?" >>"build/$e2e_test.output"
+  "build/$e2e_test" <"test_data/$e2e_test.input"  \
+                    >"build/$e2e_test.stdout"  \
+                    2>"build/$e2e_test.stderr"
+  exit_code="$?"
+  cat > "build/$e2e_test.output" <<EOF
+stdout:
+$(cat "build/$e2e_test.stdout")
+stderr:
+$(cat "build/$e2e_test.stderr")
+exit code: $exit_code
+EOF
   if ! colordiff --color=always  \
-                 "build/$e2e_test.output"  \
-                 "test_data/$e2e_test.output" >"build/$e2e_test.diff"; then
+                 "test_data/$e2e_test.output"  \
+                 "build/$e2e_test.output" >"build/$e2e_test.diff"; then
     echo -e "${r}FAILED${reset} (diff) $e2e_test"  \
             "(${r}want${reset}, ${g}got${reset})"
     cat "build/$e2e_test.diff"
