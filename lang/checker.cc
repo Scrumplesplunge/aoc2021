@@ -434,6 +434,55 @@ ir::Code DoStore(Location location, ir::Expression address, ir::Type type,
   }
 }
 
+// Returns true if the given type should be represented directly by a parameter.
+// If true, the parameter slot directly holds the object.
+// If false, the parameter slot holds a pointer to the object.
+bool DirectParameter(const ir::Type& type) {
+  const std::int64_t size = ir::Size(type);
+  // TODO: Allow objects of any size [0..8] to be passed directly.
+  return size == 0 || size == 1 || size == 8;
+}
+
+ExpressionInfo PrepareParameter(Location location, FrameAllocator& frame,
+                                ExpressionInfo info) {
+  if (DirectParameter(info.value.type)) {
+    return ExpressionInfo{
+        .code = std::move(info.code),
+        .value = EnsureLoaded(location, std::move(info.value))};
+  } else if (info.value.category == Category::kRvalue &&
+             info.value.representation == Representation::kAddress) {
+    return info;
+  } else {
+    const ir::Local::Offset copy = frame.Allocate(info.value.type);
+    return ExpressionInfo{
+        .code = ir::Sequence(
+            {std::move(info.code),
+             ir::Call(ir::Label("copy"),
+                      {ir::Local(copy), std::move(info.value.value),
+                       ir::IntegerLiteral(ir::Size(info.value.type))})}),
+        .value = TypedExpression{.category = Category::kRvalue,
+                                 .type = std::move(info.value.type),
+                                 .representation = Representation::kAddress,
+                                 .value = std::move(ir::Local(copy))}};
+  }
+}
+
+TypedExpression AccessParameter(Location location, ir::Type type,
+                                std::int64_t offset) {
+  if (DirectParameter(type)) {
+    return TypedExpression{.category = Category::kLvalue,
+                           .type = std::move(type),
+                           .representation = Representation::kAddress,
+                           .value = ir::Local(ir::Local::Offset{offset})};
+  } else {
+    return TypedExpression{
+        .category = Category::kLvalue,
+        .type = std::move(type),
+        .representation = Representation::kAddress,
+        .value = ir::Load64(ir::Local(ir::Local::Offset{offset}))};
+  }
+}
+
 const ir::FunctionPointer& AsFunctionPointer(
     Location location, const ir::FunctionPointer& x) {
   return x;
@@ -705,7 +754,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
                 function_type);
   }
   for (int i = 0; i < num_arguments; i++) {
-    ExpressionInfo result = EnsureRvalue(
+    ExpressionInfo result = PrepareParameter(
         x.arguments[i].location(), *frame_,
         ConvertTo(x.arguments[i].location(), function_type.parameters[i],
                   CheckValue(x.arguments[i])));
@@ -1373,14 +1422,12 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   const int args_begin = ir::Size(return_type) == 0 ? 2 : 3;
   for (int i = 0; i < n; i++) {
     const auto& parameter = x.parameters[i];
-    const ir::Local::Offset offset{8 * (i + args_begin)};
     function_environment.Define(
         parameter.name.value,
         Environment::Definition{
             .location = parameter.name.location,
-            .value =
-                TypedExpression(Category::kLvalue, parameters[i],
-                                Representation::kAddress, ir::Local(offset))});
+            .value = AccessParameter(parameter.name.location,
+                                     parameters[i], 8 * (i + args_begin))});
   }
 
   FrameAllocator frame;
