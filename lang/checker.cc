@@ -876,7 +876,7 @@ struct CheckAdd {
     TypedExpression index =
         EnsureLoaded(x.right.location(), std::move(right.value));
     return TypedExpression(
-        Category::kLvalue, left.value.type, Representation::kAddress,
+        Category::kLvalue, left.value.type, Representation::kDirect,
         ir::Add(std::move(address),
                 ir::Multiply(ir::IntegerLiteral(ir::Size(s.element)),
                              std::move(index).value)));
@@ -891,7 +891,7 @@ struct CheckAdd {
     TypedExpression index =
         EnsureLoaded(x.left.location(), std::move(left.value));
     return TypedExpression(
-        Category::kLvalue, right.value.type, Representation::kAddress,
+        Category::kLvalue, right.value.type, Representation::kDirect,
         ir::Add(std::move(address),
                 ir::Multiply(ir::IntegerLiteral(ir::Size(s.element)),
                              std::move(index).value)));
