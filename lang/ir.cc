@@ -180,11 +180,14 @@ std::strong_ordering Type::operator<=>(const Type& other) const {
   return *value_ <=> *other.value_;
 }
 
-std::ostream& operator<<(std::ostream& output, Primitive x) noexcept {
+std::ostream& operator<<(std::ostream& output, Void) noexcept {
+  return output << "Void{}";
+}
+
+std::ostream& operator<<(std::ostream& output, Scalar x) noexcept {
   switch (x) {
-    case Primitive::kVoid: return output << "Primitive::kVoid";
-    case Primitive::kByte: return output << "Primitive::kByte";
-    case Primitive::kInt64: return output << "Primitive::kInt64";
+    case Scalar::kByte: return output << "Scalar::kByte";
+    case Scalar::kInt64: return output << "Scalar::kInt64";
   }
   std::abort();
 }
@@ -212,11 +215,12 @@ std::ostream& operator<<(std::ostream& output, const Type& x) noexcept {
                     x->value);
 }
 
-std::int64_t Size(Primitive x) noexcept {
+std::int64_t Size(Void) noexcept { return 0; }
+
+std::int64_t Size(Scalar x) noexcept {
   switch (x) {
-    case Primitive::kVoid: return 0;
-    case Primitive::kByte: return 1;
-    case Primitive::kInt64: return 8;
+    case Scalar::kByte: return 1;
+    case Scalar::kInt64: return 8;
   }
   std::abort();
 }
@@ -234,22 +238,11 @@ std::int64_t Size(const Type& x) noexcept {
   return std::visit([](const auto& x) { return Size(x); }, x->value);
 }
 
-std::int64_t Alignment(Primitive x) noexcept {
-  switch (x) {
-    case Primitive::kVoid: return 1;
-    case Primitive::kByte: return 1;
-    case Primitive::kInt64: return 8;
-  }
-  std::abort();
-}
-
+std::int64_t Alignment(Void) noexcept { return 1; }
+std::int64_t Alignment(Scalar x) noexcept { return Size(x); }
 std::int64_t Alignment(const Pointer& x) noexcept { return 8; }
 std::int64_t Alignment(const FunctionPointer& x) noexcept { return 8; }
-
-std::int64_t Alignment(const Array& x) noexcept {
-  return Alignment(x.element);
-}
-
+std::int64_t Alignment(const Array& x) noexcept { return Alignment(x.element); }
 std::int64_t Alignment(const Span& x) noexcept { return 8; }
 
 std::int64_t Alignment(const Type& x) noexcept {
