@@ -109,16 +109,17 @@ TEST_F(CheckerTest, TypeUsedInValueContext) {
                "type used in a value context");
 }
 
+// TODO: Split and/or rename this test.
 TEST_F(CheckerTest, NotAnInteger) {
   EXPECT_ERROR(Check(Program("function f(x: *int64): void { -x; }")),
                "not an integer");
   EXPECT_ERROR(Check(Program("function f(x: *int64): void { x + 1; }")),
-               "not an integer");
+               "cannot add Pointer(Scalar::kInt64) and Scalar::kInt64");
 }
 
 TEST_F(CheckerTest, UsingNonFunctionAsFunction) {
   EXPECT_ERROR(Check(Program("var x: int64; function f(): void { x(); }")),
-               "trying to use Primitive::kInt64 as a function");
+               "trying to use Scalar::kInt64 as a function");
 }
 
 TEST_F(CheckerTest, WrongNumberOfArguments) {
@@ -130,14 +131,14 @@ TEST_F(CheckerTest, WrongNumberOfArguments) {
 TEST_F(CheckerTest, WrongTypeForParameter) {
   EXPECT_ERROR(Check(Program("function f(x: *int64): void {}\n"
                              "function g(): void { f(1); }")),
-               "cannot implicitly convert Primitive::kInt64 to "
-               "Pointer(Primitive::kInt64)");
+               "cannot implicitly convert Scalar::kInt64 to "
+               "Pointer(Scalar::kInt64)");
 }
 
 TEST_F(CheckerTest, ArrayIndexMustBeInteger) {
   EXPECT_ERROR(
       Check(Program("var x: [10]int64; function f(p: *int64): void { x[p]; }")),
-      "array index must be an integer");
+      "not an integer");
 }
 
 TEST_F(CheckerTest, CannotIndexType) {
@@ -165,8 +166,8 @@ TEST_F(CheckerTest, TernaryDifferentTypes) {
 TEST_F(CheckerTest, AssignmentTypeMismatch) {
   EXPECT_ERROR(
       Check(Program("function f(x: int64, y: *int64): void { x = y; }")),
-      "cannot implicitly convert Pointer(Primitive::kInt64) to "
-      "Primitive::kInt64");
+      "cannot implicitly convert Pointer(Scalar::kInt64) to "
+      "Scalar::kInt64");
 }
 
 TEST_F(CheckerTest, ArrayAssignment) {
