@@ -82,6 +82,10 @@ std::ostream& operator<<(std::ostream& output, const Local& x) noexcept {
   return output << "Local(Offset{" << static_cast<std::int64_t>(x.offset) << "})";
 }
 
+std::ostream& operator<<(std::ostream& output, const Load8& x) noexcept {
+  return output << "Load8(" << x.address << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Load64& x) noexcept {
   return output << "Load64(" << x.address << ")";
 }

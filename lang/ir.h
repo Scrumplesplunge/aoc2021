@@ -222,6 +222,7 @@ Expression::Expression(T value) noexcept
 std::ostream& operator<<(std::ostream&, const Label&) noexcept;
 std::ostream& operator<<(std::ostream&, const Global&) noexcept;
 std::ostream& operator<<(std::ostream&, const Local&) noexcept;
+std::ostream& operator<<(std::ostream&, const Load8&) noexcept;
 std::ostream& operator<<(std::ostream&, const Load64&) noexcept;
 std::ostream& operator<<(std::ostream&, const IntegerLiteral&) noexcept;
 std::ostream& operator<<(std::ostream&, const Negate&) noexcept;
