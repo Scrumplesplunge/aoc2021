@@ -1549,14 +1549,13 @@ ir::Unit Check(std::span<const ast::Statement> program) {
                                   {ir::Scalar::kInt64, ir::Pointer(ir::Void{}),
                                    ir::Scalar::kInt64}),
               Representation::kDirect, ir::Label("write"))});
-  global.Define(
-      "exit",
-      Environment::Definition{
-          .location = BuiltinLocation(),
-          .value = TypedExpression(
-              Category::kRvalue,
-              ir::FunctionPointer(ir::Scalar::kInt64, {ir::Scalar::kInt64}),
-              Representation::kDirect, ir::Label("exit"))});
+  global.Define("exit",
+                Environment::Definition{
+                    .location = BuiltinLocation(),
+                    .value = TypedExpression(
+                        Category::kRvalue,
+                        ir::FunctionPointer(ir::Void{}, {ir::Scalar::kInt64}),
+                        Representation::kDirect, ir::Label("exit"))});
   std::vector<ir::Code> code;
   for (const auto& statement : program) {
     ModuleStatementChecker checker(context, global);
