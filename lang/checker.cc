@@ -369,20 +369,13 @@ ExpressionInfo EnsureRvalue(Location location, FrameAllocator& frame,
 }
 
 ExpressionInfo EnsureInt64(Location location, ExpressionInfo info) {
-  if (info.value.type != ir::Primitive::kInt64) {
+  if (info.value.type != ir::Primitive::kInt64 &&
+      info.value.type != ir::Primitive::kByte) {
     throw Error(location, "not an integer");
   }
-  if (info.value.representation == Representation::kDirect) {
-    return info;
-  } else {
-    return ExpressionInfo{
-        .code = std::move(info.code),
-        .value =
-            TypedExpression{.category = Category::kRvalue,
-                            .type = std::move(info.value.type),
-                            .representation = Representation::kDirect,
-                            .value = ir::Load64(std::move(info.value.value))}};
-  }
+  info.value = EnsureLoaded(location, info.value);
+  info.value.type = ir::Primitive::kInt64;
+  return info;
 }
 
 ExpressionInfo EnsureComparable(Location location, ExpressionInfo info) {
