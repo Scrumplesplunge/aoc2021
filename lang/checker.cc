@@ -772,10 +772,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Index& x) {
   ExpressionInfo container = CheckValue(x.container);
-  ExpressionInfo index = CheckValue(x.index);
-  if (index.value.type != ir::Scalar::kInt64) {
-    throw Error(x.index.location(), "array index must be an integer");
-  }
+  ExpressionInfo index = EnsureInt64(x.index.location(), CheckValue(x.index));
   if (auto* a = std::get_if<ir::Array>(&container.value.type->value)) {
     return ExpressionInfo{
         .code =
@@ -857,15 +854,88 @@ ExpressionInfo ExpressionChecker::operator()(const ast::AddressOf& x) {
           Representation::kDirect, std::move(inner.value.value)}};
 }
 
+struct CheckAdd {
+  CheckAdd(const ast::Add& x, ExpressionInfo& left, ExpressionInfo& right)
+      : x(x), left(left), right(right) {}
+
+  // Promote two scalars to int64 and perform arithmetic.
+  TypedExpression operator()(const ir::Scalar&, const ir::Scalar&) {
+    return TypedExpression(
+        Category::kRvalue, ir::Scalar::kInt64, Representation::kDirect,
+        ir::Add(
+            EnsureLoaded(x.left.location(), std::move(left.value)).value,
+            EnsureLoaded(x.right.location(), std::move(right.value)).value));
+  }
+
+  // Pointer arithmetic on a span.
+  TypedExpression operator()(const ir::Span& s, const ir::Scalar&) {
+    ir::Expression address =
+        left.value.representation == Representation::kDirect
+            ? std::move(left.value.value)
+            : ir::Load64(std::move(left.value.value));
+    TypedExpression index =
+        EnsureLoaded(x.right.location(), std::move(right.value));
+    return TypedExpression(
+        Category::kLvalue, left.value.type, Representation::kAddress,
+        ir::Add(std::move(address),
+                ir::Multiply(ir::IntegerLiteral(ir::Size(s.element)),
+                             std::move(index).value)));
+  }
+
+  // Pointer arithmetic on a span.
+  TypedExpression operator()(const ir::Scalar&, const ir::Span& s) {
+    ir::Expression address =
+        right.value.representation == Representation::kDirect
+            ? std::move(right.value.value)
+            : ir::Load64(std::move(right.value.value));
+    TypedExpression index =
+        EnsureLoaded(x.left.location(), std::move(left.value));
+    return TypedExpression(
+        Category::kLvalue, right.value.type, Representation::kAddress,
+        ir::Add(std::move(address),
+                ir::Multiply(ir::IntegerLiteral(ir::Size(s.element)),
+                             std::move(index).value)));
+  }
+
+  // Pointer arithmetic by implicit conversion to a span.
+  TypedExpression operator()(const ir::Pointer& p, const ir::Scalar& s) {
+    if (auto* a = std::get_if<ir::Array>(&p.pointee->value)) {
+      return (*this)(ir::Span(a->element), s);
+    } else {
+      InvalidAdd();
+    }
+  }
+
+  // Pointer arithmetic by implicit conversion to a span.
+  TypedExpression operator()(const ir::Scalar& s, const ir::Pointer& p) {
+    if (auto* a = std::get_if<ir::Array>(&p.pointee->value)) {
+      return (*this)(s, ir::Span(a->element));
+    } else {
+      InvalidAdd();
+    }
+  }
+
+  TypedExpression operator()(const auto&, const auto&) { InvalidAdd(); }
+
+  [[noreturn]] void InvalidAdd() {
+    throw Error(x.location, "cannot add ", left.value.type, " and ",
+                right.value.type);
+  }
+
+  const ast::Add& x;
+  ExpressionInfo& left;
+  ExpressionInfo& right;
+};
+
 ExpressionInfo ExpressionChecker::operator()(const ast::Add& x) {
-  ExpressionInfo left = EnsureInt64(x.left.location(), CheckValue(x.left));
-  ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
+  ExpressionInfo left = CheckValue(x.left);
+  ExpressionInfo right = CheckValue(x.right);
+  TypedExpression value =
+      std::visit(CheckAdd(x, left, right), left.value.type->value,
+                 right.value.type->value);
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(
-          Category::kRvalue, std::move(left.value.type),
-          Representation::kDirect,
-          ir::Add(std::move(left.value.value), std::move(right.value.value)))};
+      .value = std::move(value)};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Subtract& x) {
@@ -1029,7 +1099,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalAnd& x) {
       EnsureComparable(x.right.location(), CheckValue(x.right));
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(ir::Scalar::kInt64);
-  const ir::Label end = context_->Label("logical_end");
+  const ir::Label end = context_->Label(".Llogical_end");
   // a && b compiles into:
   //   temp = a
   //   if (!temp) goto end
@@ -1053,7 +1123,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalOr& x) {
       EnsureComparable(x.right.location(), CheckValue(x.right));
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(ir::Scalar::kInt64);
-  const ir::Label end = context_->Label("logical_or_end");
+  const ir::Label end = context_->Label(".Llogical_or_end");
   // a || b compiles into:
   //   temp = a
   //   if (temp) goto end
@@ -1155,8 +1225,8 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
   }
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(then_branch.value.type);
-  const ir::Label if_false = context_->Label("ternary_else");
-  const ir::Label end = context_->Label("ternary_end");
+  const ir::Label if_false = context_->Label(".Lternary_else");
+  const ir::Label end = context_->Label(".Lternary_end");
   // cond ? a : b compiles into:
   //   cond
   //   if (!cond) goto if_false
@@ -1262,8 +1332,8 @@ ir::Code StatementChecker::operator()(const ast::If& x) {
       EnsureComparable(x.condition.location(), CheckValue(x.condition));
   ir::Code then_branch = CheckBlock(x.then_branch);
   ir::Code else_branch = CheckBlock(x.else_branch);
-  const ir::Label if_false = context_->Label("if_false");
-  const ir::Label end = context_->Label("if_end");
+  const ir::Label if_false = context_->Label(".Lif_false");
+  const ir::Label end = context_->Label(".Lif_end");
   return ir::Sequence(
       {std::move(condition.code),
        ir::JumpUnless(std::move(condition.value.value), if_false),
@@ -1272,10 +1342,11 @@ ir::Code StatementChecker::operator()(const ast::If& x) {
 }
 
 ir::Code StatementChecker::operator()(const ast::While& x) {
-  const ir::Label loop_start = context_->Label("while_start");
-  const ir::Label loop_condition = context_->Label("while_condition");
-  const ir::Label loop_end = context_->Label("while_end");
-  ExpressionInfo condition = CheckValue(x.condition);
+  const ir::Label loop_start = context_->Label(".Lwhile_start");
+  const ir::Label loop_condition = context_->Label(".Lwhile_condition");
+  const ir::Label loop_end = context_->Label(".Lwhile_end");
+  ExpressionInfo condition =
+      EnsureInt64(x.condition.location(), CheckValue(x.condition));
   Environment while_environment(*environment_, Environment::ShadowMode::kDeny);
   while_environment.SetBreak(loop_end);
   while_environment.SetContinue(loop_condition);
@@ -1387,7 +1458,7 @@ ir::Code ModuleStatementChecker::operator()(const ast::DiscardedExpression& x) {
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
-  const ir::Label function = context_->Label("function");
+  const ir::Label function = context_->Label(x.name);
   ir::Type return_type = CheckType(x.return_type);
   std::vector<ir::Type> parameters;
   for (const auto& [name, type] : x.parameters) {
