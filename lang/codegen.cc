@@ -127,7 +127,7 @@ class ExpressionGenerator {
                 "  xor %rbx, %rbx\n"
                 "  cmp %rax, (%rsp)\n"
                 "  setl %bl\n"
-                "  push %rbx\n";
+                "  mov %rbx, (%rsp)\n";
   }
 
   void operator()(const ir::LessOrEqual& x) {
@@ -138,7 +138,7 @@ class ExpressionGenerator {
                 "  xor %rbx, %rbx\n"
                 "  cmp %rax, (%rsp)\n"
                 "  setle %bl\n"
-                "  push %rbx\n";
+                "  mov %rbx, (%rsp)\n";
   }
 
   void operator()(const ir::Equal& x) {
@@ -149,7 +149,7 @@ class ExpressionGenerator {
                 "  xor %rbx, %rbx\n"
                 "  test %rax, (%rsp)\n"
                 "  sete %bl\n"
-                "  push %rbx\n";
+                "  mov %rbx, (%rsp)\n";
   }
 
   void operator()(const ir::NotEqual& x) {
@@ -160,7 +160,7 @@ class ExpressionGenerator {
                 "  xor %rbx, %rbx\n"
                 "  cmp %rax, (%rsp)\n"
                 "  setne %bl\n"
-                "  push %rbx\n";
+                "  mov %rbx, (%rsp)\n";
   }
 
   void operator()(const ir::BitwiseAnd& x) {
