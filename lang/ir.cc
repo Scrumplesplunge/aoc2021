@@ -47,10 +47,10 @@ class CodeFlattener {
 Label::Label(std::string_view name) noexcept : value(name) {}
 
 Label::Label(std::string_view prefix, std::int64_t suffix) noexcept
-    : value(StrCat("label_", prefix, '_', suffix)) {}
+    : value(StrCat(prefix, '_', suffix)) {}
 
 Global::Global(std::string_view prefix, std::int64_t suffix)
-    : value(StrCat("global_", prefix, '_', suffix)) {}
+    : value(StrCat(prefix, '_', suffix)) {}
 
 const ExpressionVariant& Expression::operator*() const noexcept {
   return *value_;
