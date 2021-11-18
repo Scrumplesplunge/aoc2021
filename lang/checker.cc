@@ -928,14 +928,21 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
     value.value.type = std::move(type);
     return value;
   }
-  // Conversion to or from *void.
-  {
-    const auto* from = std::get_if<ir::Pointer>(&value.value.type->value);
-    const auto* to = std::get_if<ir::Pointer>(&type->value);
-    if (from && to &&
-        (from->pointee == ir::Primitive::kVoid ||
-         to->pointee == ir::Primitive::kVoid)) {
-      value.value.type = type;
+  // Conversion from *T or []T to *void.
+  if (const auto* to = std::get_if<ir::Pointer>(&type->value);
+      to && to->pointee == ir::Primitive::kVoid) {
+    if (std::get_if<ir::Pointer>(&value.value.type->value) ||
+        std::get_if<ir::Span>(&value.value.type->value)) {
+      value.value.type = std::move(type);
+      return value;
+    }
+  }
+  // Conversion from *void to *T or []T.
+  if (const auto* from = std::get_if<ir::Pointer>(&value.value.type->value);
+      from && from->pointee == ir::Primitive::kVoid) {
+    if (std::get_if<ir::Pointer>(&type->value) ||
+        std::get_if<ir::Span>(&type->value)) {
+      value.value.type = std::move(type);
       return value;
     }
   }
