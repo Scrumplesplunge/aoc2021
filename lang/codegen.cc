@@ -147,7 +147,7 @@ class ExpressionGenerator {
     *output_ << "  // " << x
              << "\n  pop %rax\n"
                 "  xor %rbx, %rbx\n"
-                "  test %rax, (%rsp)\n"
+                "  cmp %rax, (%rsp)\n"
                 "  sete %bl\n"
                 "  mov %rbx, (%rsp)\n";
   }
