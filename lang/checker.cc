@@ -1384,7 +1384,7 @@ ir::Code StatementChecker::operator()(const ast::Break& x) {
 }
 
 ir::Code StatementChecker::operator()(const ast::Continue& x) {
-  auto label = environment_->Break();
+  auto label = environment_->Continue();
   if (!label) {
     throw Error(x.location, "continue statement outside of a loop");
   }

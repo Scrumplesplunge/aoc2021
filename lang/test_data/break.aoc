@@ -1,0 +1,13 @@
+function main(): int64 {
+  var a: int64;
+  var b: int64;
+  a = 1;
+  b = 0;
+  while a {
+    b = 1;
+    break;
+    b = 2;
+    a = 0;
+  }
+  return b;
+}

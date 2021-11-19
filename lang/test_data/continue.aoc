@@ -1,0 +1,12 @@
+function main(): int64 {
+  var i: int64;
+  var o: int64;
+  i = 0;
+  o = 0;
+  while i < 2 {
+    i = i + 1;
+    continue;
+    o = 1;
+  }
+  return o;
+}
