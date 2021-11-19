@@ -377,6 +377,20 @@ TEST_F(ParserTest, Ternary) {
                                        ast::Name(At(3, 1), "v3"))));
 }
 
+TEST_F(ParserTest, Import) {
+  WithSource(R"(import "foo.aoc" as foo;)");
+  EXPECT_EQ(ParseStatement(),
+            ast::Import(At(1, 1), "foo.aoc", ast::Name(At(1, 21), "foo")));
+}
+
+TEST_F(ParserTest, Export) {
+  WithSource(R"(export var x: int64;)");
+  EXPECT_EQ(
+      ParseStatement(),
+      ast::Export(At(1, 1), ast::DeclareVariable(
+                                At(1, 8), "x", ast::Name(At(1, 15), "int64"))));
+}
+
 TEST_F(ParserTest, Break) {
   WithSource("break;");
   EXPECT_EQ(ParseStatement(), ast::Break(At(1, 1)));

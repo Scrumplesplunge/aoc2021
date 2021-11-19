@@ -53,6 +53,8 @@ Expression Parser::ParseExpression() { return ParseTernary(); }
 
 Statement Parser::ParseStatement() {
   const std::string_view keyword = PeekWord();
+  if (keyword == "import") return ParseImport();
+  if (keyword == "export") return ParseExport();
   if (keyword == "break") return ParseBreak();
   if (keyword == "continue") return ParseContinue();
   if (keyword == "function") return ParseFunctionDefinition();
@@ -148,7 +150,9 @@ IntegerLiteral Parser::ParseIntegerLiteral() {
 }
 
 StringLiteral Parser::ParseStringLiteral() {
-  assert(!reader_.empty() && reader_.front() == '"');
+  if (reader_.empty() || reader_.front() != '"') {
+    throw Error("expected string literal");
+  }
   const Location location = reader_.location();
   reader_.Advance(1);
   std::string value;
@@ -548,6 +552,27 @@ std::vector<Statement> Parser::ParseBlock() {
     if (reader_.ConsumePrefix("}")) return body;
     body.push_back(ParseStatement());
   }
+}
+
+Statement Parser::ParseImport() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("import")) throw Error("expected import statement");
+  SkipWhitespaceAndComments();
+  StringLiteral path = ParseStringLiteral();
+  SkipWhitespaceAndComments();
+  if (!ConsumeWord("as")) throw Error("expected 'as'");
+  SkipWhitespaceAndComments();
+  Name name = ParseName();
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  return Import(location, path.value, std::move(name));
+}
+
+Statement Parser::ParseExport() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("export")) throw Error("expected export statement");
+  SkipWhitespaceAndComments();
+  return Export(location, ParseStatement());
 }
 
 Statement Parser::ParseBreak() {

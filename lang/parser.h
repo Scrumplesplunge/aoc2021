@@ -48,6 +48,8 @@ class Parser {
 
   std::vector<ast::Statement> ParseBlock();
 
+  ast::Statement ParseImport();
+  ast::Statement ParseExport();
   ast::Statement ParseBreak();
   ast::Statement ParseContinue();
   ast::Statement ParseFunctionDefinition();
