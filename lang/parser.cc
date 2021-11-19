@@ -92,10 +92,7 @@ void Parser::ExpectEnd() {
 
 Name Parser::ParseName() {
   const std::string_view word = PeekWord();
-  // We should always have at least one character here, since we dispatch to
-  // ParseName based on the lookahead, which would have been an alpha character.
-  assert(!word.empty());
-  assert(IsAlpha(word.front()));
+  if (word.empty() || !IsAlpha(word.front())) throw Error("expected a name");
   const Location location = reader_.location();
   reader_.Advance(word.size());
   return Name(location, std::string(word));
@@ -254,7 +251,10 @@ Expression Parser::ParseSuffix() {
   while (true) {
     SkipWhitespaceAndComments();
     const Location location = reader_.location();
-    if (reader_.ConsumePrefix("(")) {
+    if (reader_.ConsumePrefix(".")) {
+      SkipWhitespaceAndComments();
+      term = Access(location, std::move(term), ParseName());
+    } else if (reader_.ConsumePrefix("(")) {
       // Function call.
       SkipWhitespaceAndComments();
       std::vector<Expression> arguments;

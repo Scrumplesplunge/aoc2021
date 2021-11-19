@@ -77,6 +77,17 @@ TEST_F(ParserTest, MissingBracket) {
   EXPECT_ERROR(ParseExpression(), "expected ')'");
 }
 
+TEST_F(ParserTest, Access) {
+  WithSource("foo.bar");
+  EXPECT_EQ(ParseExpression(), ast::Access(At(1, 4), ast::Name(At(1, 1), "foo"),
+                                           ast::Name(At(1, 5), "bar")));
+  WithSource("foo . bar");
+  EXPECT_EQ(ParseExpression(), ast::Access(At(1, 5), ast::Name(At(1, 1), "foo"),
+                                           ast::Name(At(1, 7), "bar")));
+  WithSource("foo.2");
+  EXPECT_ERROR(ParseExpression(), "expected a name");
+}
+
 TEST_F(ParserTest, Call) {
   WithSource("f(1, x)");
   EXPECT_EQ(ParseExpression(), ast::Call(At(1, 2), ast::Name(At(1, 1), "f"),
