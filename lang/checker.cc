@@ -577,6 +577,7 @@ class ExpressionChecker {
   ExpressionInfo operator()(const ast::CharacterLiteral&);
   ExpressionInfo operator()(const ast::IntegerLiteral&);
   ExpressionInfo operator()(const ast::StringLiteral&);
+  ExpressionInfo operator()(const ast::Access&);
   ExpressionInfo operator()(const ast::Call&);
   ExpressionInfo operator()(const ast::Index&);
   ExpressionInfo operator()(const ast::Negate&);
@@ -729,6 +730,10 @@ ExpressionInfo ExpressionChecker::operator()(const ast::StringLiteral& x) {
           // A string literal is an array of bytes including a null-terminator.
           ir::Pointer(ir::Array(x.value.size() + 1, ir::Scalar::kByte)),
           Representation::kDirect, address)};
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::Access& x) {
+  throw Error(x.location, "access is not implemented yet");
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {

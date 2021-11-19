@@ -75,6 +75,10 @@ std::ostream& operator<<(std::ostream& output,
   return output << "StringLiteral(" << Escaped(x.value) << ")";
 }
 
+std::ostream& operator<<(std::ostream& output, const Access& x) noexcept {
+  return output << "Access(" << x.object << ", " << x.field << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Call& x) noexcept {
   return output << "Call(" << x.function << ", " << List(x.arguments) << ")";
 }
