@@ -219,7 +219,8 @@ class CodeGenerator {
     ExpressionGenerator generator(*output_);
     std::visit(generator, x.value->value);
     std::visit(generator, x.address->value);
-    *output_ << "  // ir::Store8\n"
+    *output_ << "  // " << x
+             << "\n"
                 "  pop %rbx\n"
                 "  pop %rax\n"
                 "  movb %al, (%rbx)\n";
@@ -229,7 +230,8 @@ class CodeGenerator {
     ExpressionGenerator generator(*output_);
     std::visit(generator, x.value->value);
     std::visit(generator, x.address->value);
-    *output_ << "  // ir::Store64\n"
+    *output_ << "  // " << x
+             << "\n"
                 "  pop %rbx\n"
                 "  pop (%rbx)\n";
   }
@@ -240,7 +242,8 @@ class CodeGenerator {
       std::visit(generator, x.arguments[i]->value);
     }
     std::visit(generator, x.function_address->value);
-    *output_ << "  // ir::Call\n"
+    *output_ << "  // " << x
+             << "\n"
                 "  pop %rax\n"
                 "  call *%rax\n"
                 "  add $"
@@ -248,7 +251,8 @@ class CodeGenerator {
   }
 
   void operator()(const ir::BeginFrame& x) {
-    *output_ << "  // ir::BeginFrame\n"
+    *output_ << "  // " << x
+             << "\n"
                 "  push %rbp\n"
                 "  mov %rsp, %rbp\n"
                 "  sub $"
@@ -257,32 +261,40 @@ class CodeGenerator {
 
   void operator()(const ir::Return& x) {
     ExpressionGenerator generator(*output_);
-    *output_ << "  // ir::Return\n"
+    *output_ << "  // " << x
+             << "\n"
                 "  mov %rbp, %rsp\n"
                 "  pop %rbp\n"
                 "  ret\n";
   }
 
   void operator()(const ir::Jump& x) {
-    *output_ << "  jmp " << x.target.value << "\n";
+    *output_ << "  // " << x
+             << "\n"
+                "  jmp "
+             << x.target.value << "\n";
   }
 
   void operator()(const ir::JumpIf& x) {
     ExpressionGenerator generator(*output_);
     std::visit(generator, x.condition->value);
-    *output_ << "  // ir::JumpIf\n"
+    *output_ << "  // " << x
+             << "\n"
                 "  pop %rax\n"
                 "  test %rax, %rax\n"
-                "  jnz " << x.target.value << "\n";
+                "  jnz "
+             << x.target.value << "\n";
   }
 
   void operator()(const ir::JumpUnless& x) {
     ExpressionGenerator generator(*output_);
     std::visit(generator, x.condition->value);
-    *output_ << "  // ir::JumpUnless\n"
+    *output_ << "  // " << x
+             << "\n"
                 "  pop %rax\n"
                 "  test %rax, %rax\n"
-                "  jz " << x.target.value << "\n";
+                "  jz "
+             << x.target.value << "\n";
   }
 
   void operator()(const ir::Sequence& x) {
