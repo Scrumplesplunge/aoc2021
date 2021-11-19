@@ -15,6 +15,8 @@ namespace aoc2021 {
 // A single source file.
 class Source {
  public:
+  Source() = default;
+
   explicit Source(std::string_view filename);
   explicit Source(std::string_view name, std::string_view contents);
 
@@ -22,7 +24,7 @@ class Source {
   std::string_view contents() const noexcept;
 
  private:
-  const std::string filename_;
+  std::string filename_;
   std::string contents_;
 };
 

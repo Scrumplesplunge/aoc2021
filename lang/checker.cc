@@ -1,8 +1,10 @@
 #include "checker.h"
 
+#include <cassert>
 #include <map>
 #include <variant>
 
+#include "parser.h"
 #include "string_utils.h"
 
 namespace aoc2021 {
@@ -209,8 +211,69 @@ std::optional<std::int64_t> Evaluate(const ir::Expression& expression) {
   return std::visit(evaluator, expression->value);
 }
 
+Location BuiltinLocation() {
+  const Source& instance = *new Source("builtin", "");
+  Reader reader(instance);
+  return reader.location();
+}
+
+void AddBuiltins(Environment& environment) {
+  environment.Define("void",
+                     Environment::Definition{.location = BuiltinLocation(),
+                                             .value = ir::Void{}});
+  environment.Define("byte",
+                     Environment::Definition{.location = BuiltinLocation(),
+                                             .value = ir::Scalar::kByte});
+  environment.Define("int64",
+                     Environment::Definition{.location = BuiltinLocation(),
+                                             .value = ir::Scalar::kInt64});
+  environment.Define(
+      "read",
+      Environment::Definition{
+          .location = BuiltinLocation(),
+          .value = TypedExpression(
+              Category::kRvalue,
+              ir::FunctionPointer(ir::Scalar::kInt64,
+                                  {ir::Scalar::kInt64, ir::Pointer(ir::Void{}),
+                                   ir::Scalar::kInt64}),
+              Representation::kDirect, ir::Label("read"))});
+  environment.Define(
+      "write",
+      Environment::Definition{
+          .location = BuiltinLocation(),
+          .value = TypedExpression(
+              Category::kRvalue,
+              ir::FunctionPointer(ir::Scalar::kInt64,
+                                  {ir::Scalar::kInt64, ir::Pointer(ir::Void{}),
+                                   ir::Scalar::kInt64}),
+              Representation::kDirect, ir::Label("write"))});
+  environment.Define(
+      "exit", Environment::Definition{
+                  .location = BuiltinLocation(),
+                  .value = TypedExpression(
+                      Category::kRvalue,
+                      ir::FunctionPointer(ir::Void{}, {ir::Scalar::kInt64}),
+                      Representation::kDirect, ir::Label("exit"))});
+}
+
+Environment CreateBuiltinEnvironment() {
+  Environment environment;
+  AddBuiltins(environment);
+  return environment;
+}
+
+Environment& BuiltinEnvironment() {
+  static Environment& instance = *new Environment(CreateBuiltinEnvironment());
+  return instance;
+}
+
 class Context {
  public:
+  Context(Checker& checker, Checker::Entry& entry) noexcept
+      : checker_(&checker),
+        entry_(&entry),
+        unexported_(entry.exports, Environment::ShadowMode::kDeny) {}
+
   ir::Label Label(std::string_view prefix) {
     return ir::Label(prefix, next_label_index_++);
   }
@@ -239,7 +302,20 @@ class Context {
     return string_literals_;
   }
 
+  Environment& ExportedEnvironment() { return entry_->exports; }
+  Environment& UnexportedEnvironment() { return unexported_; }
+
+  const Environment& EnvironmentFor(const std::filesystem::path& path) const {
+    return checker_->EnvironmentFor(path);
+  }
+
+  const std::filesystem::path& Path() const { return entry_->path; }
+
  private:
+  Checker* checker_;
+  Checker::Entry* entry_;
+  Environment unexported_;
+
   std::optional<ir::Label> main_;
   std::int64_t next_label_index_ = 0;
   std::map<ir::Global, std::int64_t> globals_;
@@ -282,30 +358,6 @@ class FrameAllocator {
   std::int64_t size_ = 0;
   std::int64_t max_size_ = 0;
 };
-
-enum class Category {
-  kLvalue,
-  kRvalue,
-};
-
-enum class Representation {
-  kDirect,
-  kAddress,
-};
-
-struct TypedExpression {
-  Category category;
-  ir::Type type;
-  Representation representation;
-  ir::Expression value;
-};
-
-struct ExpressionInfo {
-  ir::Code code = ir::Sequence{};
-  TypedExpression value;
-};
-
-using Value = std::variant<TypedExpression, ir::Type>;
 
 TypedExpression AsValue(Location location, const TypedExpression& x) {
   return x;
@@ -494,80 +546,6 @@ const ir::FunctionPointer& AsFunctionPointer(Location location,
       x->value);
 }
 
-class Environment {
- public:
-  enum class ShadowMode {
-    kAllow,
-    kDeny,
-  };
-
-  struct Definition {
-    Location location;
-    Value value;
-  };
-
-  Environment() noexcept : parent_(nullptr), shadow_mode_(ShadowMode::kDeny) {}
-  Environment(Environment& parent, ShadowMode shadow_mode) noexcept
-      : parent_(&parent), shadow_mode_(shadow_mode) {}
-
-  void Define(std::string_view name, Definition definition) {
-    if (shadow_mode_ == ShadowMode::kDeny && parent_) {
-      auto* previous = parent_->LookupWithinShadowDomain(name);
-      if (previous) {
-        throw RedeclarationError(name, previous->location, definition.location);
-      }
-    }
-    auto [i, is_new] = names_.emplace(name, definition);
-    if (!is_new) {
-      throw RedeclarationError(name, i->second.location, definition.location);
-    }
-  }
-
-  void SetBreak(ir::Label label) { break_ = label; }
-  void SetContinue(ir::Label label) { continue_ = label; }
-
-  const ir::Label* Break() const noexcept {
-    return break_ ? &*break_ : parent_ ? parent_->Break() : nullptr;
-  }
-
-  const ir::Label* Continue() const noexcept {
-    return continue_ ? &*continue_ : parent_ ? parent_->Continue() : nullptr;
-  }
-
-  const Definition* Lookup(std::string_view name) const {
-    auto i = names_.find(name);
-    if (i != names_.end()) return &i->second;
-    return parent_ ? parent_->Lookup(name) : nullptr;
-  }
-
-  // Like Lookup(), except that it only searches within the broadest lexical
-  // scope that forbids shadowing: variables outside this scope are ignored.
-  const Definition* LookupWithinShadowDomain(std::string_view name) const {
-    auto i = names_.find(name);
-    if (i != names_.end()) return &i->second;
-    return shadow_mode_ == ShadowMode::kDeny && parent_
-               ? parent_->LookupWithinShadowDomain(name)
-               : nullptr;
-  }
-
-  void SetFunctionType(ir::FunctionPointer type) {
-    function_type_ = std::move(type);
-  }
-
-  const ir::FunctionPointer* FunctionType() const {
-    return function_type_ ? &*function_type_
-           : parent_      ? parent_->FunctionType()
-                          : nullptr;
-  }
-
- private:
-  Environment* parent_;
-  ShadowMode shadow_mode_;
-  std::map<std::string, Definition, std::less<>> names_;
-  std::optional<ir::Label> break_, continue_;
-  std::optional<ir::FunctionPointer> function_type_;
-};
-
 class ExpressionChecker {
  public:
   ExpressionChecker(Context& context, Environment& environment,
@@ -737,7 +715,14 @@ ExpressionInfo ExpressionChecker::operator()(const ast::StringLiteral& x) {
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Access& x) {
-  throw Error(x.location, "access is not implemented yet");
+  ExpressionInfo object = CheckValue(x.object);
+  if (auto* m = std::get_if<ir::Module>(&object.value.type->value)) {
+    auto* definition = context_->EnvironmentFor(m->path).Lookup(x.field.value);
+    if (!definition) throw UndeclaredError(x.field.value, x.location);
+    return ExpressionInfo{.value = AsValue(x.location, definition->value)};
+  } else {
+    throw Error(x.location, "access is only implemented for modules");
+  }
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {
@@ -1434,11 +1419,23 @@ ir::Code StatementChecker::CheckBlock(std::span<const ast::Statement> block) {
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::Import& x) {
-  throw Error(x.location, "import statements are not implemented");
+  std::filesystem::path import_path = context_->Path().parent_path() / x.path;
+  environment_->Define(
+      x.alias.value,
+      Environment::Definition{
+          .location = x.location,
+          .value = TypedExpression(
+              Category::kRvalue, ir::Module(std::move(import_path)),
+              Representation::kDirect, ir::IntegerLiteral(0))});
+  return ir::Sequence();
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::Export& x) {
-  throw Error(x.location, "export statements are not implemented");
+  if (environment_ == &context_->ExportedEnvironment()) {
+    throw Error(x.location, "redundant export keyword");
+  }
+  ModuleStatementChecker checker(*context_, context_->ExportedEnvironment());
+  return std::visit(checker, x.target->value);
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::DeclareVariable& x) {
@@ -1537,59 +1534,120 @@ ir::Type ModuleStatementChecker::CheckType(const ast::Expression& x) {
   return aoc2021::CheckType(*context_, *environment_, frame, x);
 }
 
-Location BuiltinLocation() {
-  const Source& instance = *new Source("builtin", "");
-  Reader reader(instance);
-  return reader.location();
-}
-
 }  // namespace
 
-ir::Unit Check(std::span<const ast::Statement> program) {
-  Context context;
-  Environment global;
-  global.Define("void", Environment::Definition{.location = BuiltinLocation(),
-                                                .value = ir::Void{}});
-  global.Define("byte", Environment::Definition{.location = BuiltinLocation(),
-                                                .value = ir::Scalar::kByte});
-  global.Define("int64", Environment::Definition{.location = BuiltinLocation(),
-                                                 .value = ir::Scalar::kInt64});
-  global.Define(
-      "read",
-      Environment::Definition{
-          .location = BuiltinLocation(),
-          .value = TypedExpression(
-              Category::kRvalue,
-              ir::FunctionPointer(ir::Scalar::kInt64,
-                                  {ir::Scalar::kInt64, ir::Pointer(ir::Void{}),
-                                   ir::Scalar::kInt64}),
-              Representation::kDirect, ir::Label("read"))});
-  global.Define(
-      "write",
-      Environment::Definition{
-          .location = BuiltinLocation(),
-          .value = TypedExpression(
-              Category::kRvalue,
-              ir::FunctionPointer(ir::Scalar::kInt64,
-                                  {ir::Scalar::kInt64, ir::Pointer(ir::Void{}),
-                                   ir::Scalar::kInt64}),
-              Representation::kDirect, ir::Label("write"))});
-  global.Define("exit",
-                Environment::Definition{
-                    .location = BuiltinLocation(),
-                    .value = TypedExpression(
-                        Category::kRvalue,
-                        ir::FunctionPointer(ir::Void{}, {ir::Scalar::kInt64}),
-                        Representation::kDirect, ir::Label("exit"))});
+void Environment::Define(std::string_view name, Definition definition) {
+  if (shadow_mode_ == ShadowMode::kDeny && parent_) {
+    auto* previous = parent_->LookupWithinShadowDomain(name);
+    if (previous) {
+      throw RedeclarationError(name, previous->location, definition.location);
+    }
+  }
+  auto [i, is_new] = names_.emplace(name, definition);
+  if (!is_new) {
+    throw RedeclarationError(name, i->second.location, definition.location);
+  }
+}
+
+const ir::Label* Environment::Break() const noexcept {
+  return break_ ? &*break_ : parent_ ? parent_->Break() : nullptr;
+}
+
+const ir::Label* Environment::Continue() const noexcept {
+  return continue_ ? &*continue_ : parent_ ? parent_->Continue() : nullptr;
+}
+
+const Environment::Definition* Environment::Lookup(
+    std::string_view name) const {
+  auto i = names_.find(name);
+  if (i != names_.end()) return &i->second;
+  return parent_ ? parent_->Lookup(name) : nullptr;
+}
+
+// Like Lookup(), except that it only searches within the broadest lexical
+// scope that forbids shadowing: variables outside this scope are ignored.
+const Environment::Definition* Environment::LookupWithinShadowDomain(
+    std::string_view name) const {
+  auto i = names_.find(name);
+  if (i != names_.end()) return &i->second;
+  return shadow_mode_ == ShadowMode::kDeny && parent_
+             ? parent_->LookupWithinShadowDomain(name)
+             : nullptr;
+}
+
+const ir::FunctionPointer* Environment::FunctionType() const {
+  return function_type_ ? &*function_type_
+         : parent_      ? parent_->FunctionType()
+                        : nullptr;
+}
+
+const Environment& Checker::EnvironmentFor(const std::filesystem::path& path) {
+  return EntryFor(path).exports;
+}
+
+const ir::Unit& Checker::Check(const std::filesystem::path& path) {
+  return *EntryFor(path).ir;
+}
+
+const Checker::Entry& Checker::EntryFor(const std::filesystem::path& path) {
+  auto [i, is_new] = entries_.emplace(
+      std::filesystem::absolute(path),
+      Entry{.path = std::filesystem::absolute(path),
+            .source = std::nullopt,
+            .ast = std::nullopt,
+            .ir = std::nullopt,
+            .exports = Environment(BuiltinEnvironment(),
+                                   Environment::ShadowMode::kDeny)});
+  assert(is_new);
+  Entry& entry = i->second;
+  entry.source.emplace(loader_(path.native()));
+  entry.ast.emplace(aoc2021::Parser(*entry.source).ParseProgram());
+  Context context(*this, entry);
   std::vector<ir::Code> code;
-  for (const auto& statement : program) {
-    ModuleStatementChecker checker(context, global);
+  for (const auto& statement : *entry.ast) {
+    ModuleStatementChecker checker(context, context.UnexportedEnvironment());
     code.push_back(std::visit(checker, statement->value));
   }
-  return ir::Unit{.main = context.Main(),
-                  .data = context.Globals(),
-                  .string_literals = context.StringLiterals(),
-                  .code = ir::Flatten(ir::Sequence(std::move(code)))};
+  entry.ir.emplace(
+      ir::Unit{.main = context.Main(),
+               .data = context.Globals(),
+               .string_literals = context.StringLiterals(),
+               .code = ir::Flatten(ir::Sequence(std::move(code)))});
+  return entry;
+}
+
+ir::Unit Checker::Finish() {
+  struct Main {
+    std::filesystem::path path;
+    ir::Label label;
+  };
+  std::vector<Main> mains;
+  std::map<ir::Global, std::int64_t> data;
+  std::map<ir::Global, std::string> string_literals;
+  std::vector<ir::Code> code;
+
+  for (auto& [path, entry] : entries_) {
+    ir::Unit& unit = entry.ir.value();
+    if (unit.main) mains.push_back(Main(path, *unit.main));
+    data.merge(unit.data);
+    string_literals.merge(unit.string_literals);
+    code.push_back(std::move(unit.code));
+  }
+  entries_.clear();
+
+  if (mains.empty()) throw std::runtime_error("no main function");
+
+  if (mains.size() > 1) {
+    std::ostringstream output;
+    output << "error: multiple main functions:\n";
+    for (const auto& main : mains) output << main.path << '\n';
+    throw std::runtime_error(output.str());
+  }
+
+  return ir::Unit{.main = std::move(mains.front().label),
+                  .data = std::move(data),
+                  .string_literals = std::move(string_literals),
+                  .code = ir::Sequence(std::move(code))};
 }
 
 }  // namespace aoc2021

@@ -2,6 +2,7 @@
 #define IR_H_
 
 #include <concepts>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <optional>
@@ -296,11 +297,19 @@ struct Span {
   Type element;
 };
 
+struct Module {
+  bool operator==(const Module&) const = default;
+  auto operator<=>(const Module&) const = default;
+
+  std::filesystem::path path;
+};
+
 struct TypeVariant {
   bool operator==(const TypeVariant&) const = default;
   auto operator<=>(const TypeVariant&) const = default;
 
-  std::variant<Void, Scalar, Pointer, FunctionPointer, Array, Span> value;
+  std::variant<Void, Scalar, Pointer, FunctionPointer, Array, Span, Module>
+      value;
 };
 
 template <HoldableBy<TypeVariant> T>
@@ -313,6 +322,7 @@ std::ostream& operator<<(std::ostream&, const Pointer&) noexcept;
 std::ostream& operator<<(std::ostream&, const FunctionPointer&) noexcept;
 std::ostream& operator<<(std::ostream&, const Array&) noexcept;
 std::ostream& operator<<(std::ostream&, const Span&) noexcept;
+std::ostream& operator<<(std::ostream&, const Module&) noexcept;
 std::ostream& operator<<(std::ostream&, const Type&) noexcept;
 
 std::int64_t Size(Void) noexcept;
@@ -320,6 +330,7 @@ std::int64_t Size(Scalar) noexcept;
 std::int64_t Size(const Pointer&) noexcept;
 std::int64_t Size(const Array&) noexcept;
 std::int64_t Size(const Span&) noexcept;
+std::int64_t Size(const Module&) noexcept;
 std::int64_t Size(const Type&) noexcept;
 
 std::int64_t Alignment(Void) noexcept;
@@ -327,6 +338,7 @@ std::int64_t Alignment(Scalar) noexcept;
 std::int64_t Alignment(const Pointer&) noexcept;
 std::int64_t Alignment(const Array&) noexcept;
 std::int64_t Alignment(const Span&) noexcept;
+std::int64_t Alignment(const Module&) noexcept;
 std::int64_t Alignment(const Type&) noexcept;
 
 struct CodeVariant;

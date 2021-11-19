@@ -214,6 +214,10 @@ std::ostream& operator<<(std::ostream& output, const Span& x) noexcept {
   return output << "Span(" << x.element << ")";
 }
 
+std::ostream& operator<<(std::ostream& output, const Module& x) noexcept {
+  return output << "Module(" << Escaped(x.path.native()) << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Type& x) noexcept {
   return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
                     x->value);
@@ -237,6 +241,7 @@ std::int64_t Size(const Array& x) noexcept {
 }
 
 std::int64_t Size(const Span& x) noexcept { return 8; }
+std::int64_t Size(const Module& x) noexcept { return 0; }
 
 std::int64_t Size(const Type& x) noexcept {
   return std::visit([](const auto& x) { return Size(x); }, x->value);
@@ -248,6 +253,7 @@ std::int64_t Alignment(const Pointer& x) noexcept { return 8; }
 std::int64_t Alignment(const FunctionPointer& x) noexcept { return 8; }
 std::int64_t Alignment(const Array& x) noexcept { return Alignment(x.element); }
 std::int64_t Alignment(const Span& x) noexcept { return 8; }
+std::int64_t Alignment(const Module& x) noexcept { return 1; }
 
 std::int64_t Alignment(const Type& x) noexcept {
   return std::visit([](const auto& x) { return Alignment(x); }, x->value);

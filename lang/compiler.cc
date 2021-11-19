@@ -49,15 +49,17 @@ int main(int argc, char* argv[]) {
   aoc2021::Source source(argv[1]);
   aoc2021::Parser parser(source);
   try {
-    const auto program = parser.ParseProgram();
     if (options.output_type == OutputType::kAst) {
+      const auto program = parser.ParseProgram();
       // Print the statements as an initializer list.
       for (const auto& statement : program) {
         std::cout << statement << ";\n";
       }
       return EXIT_SUCCESS;
     }
-    const aoc2021::ir::Unit unit = aoc2021::Check(program);
+    aoc2021::Checker checker;
+    checker.Check(argv[1]);
+    const aoc2021::ir::Unit unit = checker.Finish();
     if (options.output_type == OutputType::kIr) {
       std::cout << unit.code << '\n';
       return EXIT_SUCCESS;
