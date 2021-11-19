@@ -386,6 +386,23 @@ class Statement {
   std::shared_ptr<const StatementVariant> value_;
 };
 
+struct Import {
+  bool operator==(const Import&) const = default;
+  auto operator<=>(const Import&) const = default;
+
+  Location location;
+  std::string path;
+  Name alias;
+};
+
+struct Export {
+  bool operator==(const Export&) const = default;
+  auto operator<=>(const Export&) const = default;
+
+  Location location;
+  Statement target;
+};
+
 struct DeclareVariable {
   bool operator==(const DeclareVariable&) const = default;
   auto operator<=>(const DeclareVariable&) const = default;
@@ -474,8 +491,8 @@ struct StatementVariant {
   bool operator==(const StatementVariant&) const = default;
   auto operator<=>(const StatementVariant&) const = default;
 
-  std::variant<DeclareVariable, Assign, If, While, Return, Break, Continue,
-               DiscardedExpression, FunctionDefinition>
+  std::variant<Import, Export, DeclareVariable, Assign, If, While, Return,
+               Break, Continue, DiscardedExpression, FunctionDefinition>
       value;
 };
 
@@ -483,6 +500,8 @@ template <HoldableBy<StatementVariant> T>
 Statement::Statement(T value) noexcept
     : value_(std::make_shared<StatementVariant>(std::move(value))) {}
 
+std::ostream& operator<<(std::ostream&, const Import&) noexcept;
+std::ostream& operator<<(std::ostream&, const Export&) noexcept;
 std::ostream& operator<<(std::ostream&, const DeclareVariable&) noexcept;
 std::ostream& operator<<(std::ostream&, const Assign&) noexcept;
 std::ostream& operator<<(std::ostream&, const If&) noexcept;

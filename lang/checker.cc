@@ -657,6 +657,8 @@ class StatementChecker {
   StatementChecker(Context& context, Environment& environment,
                    FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
+  ir::Code operator()(const ast::Import&);
+  ir::Code operator()(const ast::Export&);
   ir::Code operator()(const ast::DeclareVariable&);
   ir::Code operator()(const ast::Assign&);
   ir::Code operator()(const ast::If&);
@@ -684,6 +686,8 @@ class ModuleStatementChecker {
  public:
   ModuleStatementChecker(Context& context, Environment& environment) noexcept
       : context_(&context), environment_(&environment) {}
+  ir::Code operator()(const ast::Import&);
+  ir::Code operator()(const ast::Export&);
   ir::Code operator()(const ast::DeclareVariable&);
   ir::Code operator()(const ast::Assign&);
   ir::Code operator()(const ast::If&);
@@ -1309,6 +1313,14 @@ ir::Code CheckBlock(Context& context, Environment& parent_environment,
   return ir::Sequence(std::move(code));
 }
 
+ir::Code StatementChecker::operator()(const ast::Import& x) {
+  throw Error(x.location, "import statements must appear at module scope");
+}
+
+ir::Code StatementChecker::operator()(const ast::Export& x) {
+  throw Error(x.location, "export statements must appear at module scope");
+}
+
 ir::Code StatementChecker::operator()(const ast::DeclareVariable& x) {
   ir::Type type = CheckType(x.type);
   const ir::Local::Offset offset = frame_->Allocate(type);
@@ -1419,6 +1431,14 @@ ir::Code StatementChecker::CheckBlock(Environment& parent_environment,
 
 ir::Code StatementChecker::CheckBlock(std::span<const ast::Statement> block) {
   return CheckBlock(*environment_, block);
+}
+
+ir::Code ModuleStatementChecker::operator()(const ast::Import& x) {
+  throw Error(x.location, "import statements are not implemented");
+}
+
+ir::Code ModuleStatementChecker::operator()(const ast::Export& x) {
+  throw Error(x.location, "export statements are not implemented");
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::DeclareVariable& x) {

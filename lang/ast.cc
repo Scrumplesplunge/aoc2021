@@ -227,6 +227,14 @@ std::strong_ordering Statement::operator<=>(const Statement& other) const {
   return *value_ <=> *other.value_;
 }
 
+std::ostream& operator<<(std::ostream& output, const Import& x) noexcept {
+  return output << "Import(" << Escaped(x.path) << ", " << x.alias << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Export& x) noexcept {
+  return output << "Export(" << x.target << ")";
+}
+
 std::ostream& operator<<(std::ostream& output,
                          const DeclareVariable& x) noexcept {
   return output << "DeclareVariable(" << Escaped(x.name) << ", " << x.type
