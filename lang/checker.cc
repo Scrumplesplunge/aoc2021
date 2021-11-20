@@ -275,20 +275,18 @@ class ModuleContext {
         unexported_(entry.exports, Environment::ShadowMode::kDeny) {}
 
   ir::Label Label(std::string_view prefix) {
-    return ir::Label(prefix, next_label_index_++);
+    return checker_->NextLabel(prefix);
   }
 
   ir::Global Global(std::string_view prefix, std::int64_t size) {
-    const ir::Global result(prefix, next_global_index_);
-    next_global_index_++;
+    ir::Global result = checker_->NextGlobal(prefix);
     // TODO: Handle alignment.
     globals_.emplace(result, size);
     return result;
   }
 
   ir::Global StringLiteral(std::string_view value) {
-    const ir::Global result("string_literal", next_global_index_);
-    next_global_index_++;
+    ir::Global result = checker_->NextGlobal("string_literal");
     string_literals_.emplace(result, value);
     return result;
   }
@@ -317,10 +315,8 @@ class ModuleContext {
   Environment unexported_;
 
   std::optional<ir::Label> main_;
-  std::int64_t next_label_index_ = 0;
   std::map<ir::Global, std::int64_t> globals_;
   std::map<ir::Global, std::string> string_literals_;
-  std::int64_t next_global_index_ = 0;
 };
 
 class FrameAllocator {

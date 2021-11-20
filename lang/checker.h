@@ -105,11 +105,20 @@ class Checker {
 
   ir::Unit Finish();
 
+  ir::Global NextGlobal(std::string_view prefix) {
+    return ir::Global(prefix, next_index_++);
+  }
+
+  ir::Label NextLabel(std::string_view prefix) {
+    return ir::Label(prefix, next_index_++);
+  }
+
  private:
   const Entry& EntryFor(const std::filesystem::path&);
 
   std::function<Source(const std::filesystem::path&)> loader_;
   std::map<std::filesystem::path, Entry> entries_;
+  std::int64_t next_index_ = 0;
 };
 
 }  // namespace aoc2021
