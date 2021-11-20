@@ -267,9 +267,9 @@ Environment& BuiltinEnvironment() {
   return instance;
 }
 
-class Context {
+class ModuleContext {
  public:
-  Context(Checker& checker, Checker::Entry& entry) noexcept
+  ModuleContext(Checker& checker, Checker::Entry& entry) noexcept
       : checker_(&checker),
         entry_(&entry),
         unexported_(entry.exports, Environment::ShadowMode::kDeny) {}
@@ -548,7 +548,7 @@ const ir::FunctionPointer& AsFunctionPointer(Location location,
 
 class ExpressionChecker {
  public:
-  ExpressionChecker(Context& context, Environment& environment,
+  ExpressionChecker(ModuleContext& context, Environment& environment,
                     FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
   ExpressionInfo operator()(const ast::Name&);
@@ -590,12 +590,12 @@ class ExpressionChecker {
   ExpressionInfo CheckValue(const ast::Expression& expression);
   ir::Type CheckType(const ast::Expression& expression);
 
-  Context* context_;
+  ModuleContext* context_;
   Environment* environment_;
   FrameAllocator* frame_;
 };
 
-ExpressionInfo CheckValue(Context& context, Environment& environment,
+ExpressionInfo CheckValue(ModuleContext& context, Environment& environment,
                           FrameAllocator& frame,
                           const ast::Expression& expression) {
   ExpressionChecker checker(context, environment, frame);
@@ -604,7 +604,7 @@ ExpressionInfo CheckValue(Context& context, Environment& environment,
 
 class TypeChecker {
  public:
-  TypeChecker(Context& context, Environment& environment,
+  TypeChecker(ModuleContext& context, Environment& environment,
               FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
   ir::Type operator()(const ast::Name&);
@@ -619,12 +619,12 @@ class TypeChecker {
   ExpressionInfo CheckValue(const ast::Expression& expression);
   ir::Type CheckType(const ast::Expression& expression);
 
-  Context* context_;
+  ModuleContext* context_;
   Environment* environment_;
   FrameAllocator* frame_;
 };
 
-ir::Type CheckType(Context& context, Environment& environment,
+ir::Type CheckType(ModuleContext& context, Environment& environment,
                    FrameAllocator& frame, const ast::Expression& expression) {
   TypeChecker checker(context, environment, frame);
   return std::visit(checker, expression->value);
@@ -632,7 +632,7 @@ ir::Type CheckType(Context& context, Environment& environment,
 
 class StatementChecker {
  public:
-  StatementChecker(Context& context, Environment& environment,
+  StatementChecker(ModuleContext& context, Environment& environment,
                    FrameAllocator& frame) noexcept
       : context_(&context), environment_(&environment), frame_(&frame) {}
   ir::Code operator()(const ast::Import&);
@@ -655,14 +655,15 @@ class StatementChecker {
                       std::span<const ast::Statement> block);
   ir::Code CheckBlock(std::span<const ast::Statement> block);
 
-  Context* context_;
+  ModuleContext* context_;
   Environment* environment_;
   FrameAllocator* frame_;
 };
 
 class ModuleStatementChecker {
  public:
-  ModuleStatementChecker(Context& context, Environment& environment) noexcept
+  ModuleStatementChecker(
+      ModuleContext& context, Environment& environment) noexcept
       : context_(&context), environment_(&environment) {}
   ir::Code operator()(const ast::Import&);
   ir::Code operator()(const ast::Export&);
@@ -680,7 +681,7 @@ class ModuleStatementChecker {
   // ExpressionInfo CheckAddress(const ast::Expression& expression);
   ir::Type CheckType(const ast::Expression& expression);
 
-  Context* context_;
+  ModuleContext* context_;
   Environment* environment_;
 };
 
@@ -1285,7 +1286,7 @@ ir::Type TypeChecker::CheckType(const ast::Expression& x) {
   return aoc2021::CheckType(*context_, *environment_, *frame_, x);
 }
 
-ir::Code CheckBlock(Context& context, Environment& parent_environment,
+ir::Code CheckBlock(ModuleContext& context, Environment& parent_environment,
                     FrameAllocator& parent_frame,
                     std::span<const ast::Statement> block) {
   std::vector<ir::Code> code;
@@ -1602,7 +1603,7 @@ const Checker::Entry& Checker::EntryFor(const std::filesystem::path& path) {
   Entry& entry = i->second;
   entry.source.emplace(loader_(path.native()));
   entry.ast.emplace(aoc2021::Parser(*entry.source).ParseProgram());
-  Context context(*this, entry);
+  ModuleContext context(*this, entry);
   std::vector<ir::Code> code;
   for (const auto& statement : *entry.ast) {
     ModuleStatementChecker checker(context, context.UnexportedEnvironment());
