@@ -1,19 +1,7 @@
-function printInt(x: int64): void {
-  var buffer: [16]byte;
-  buffer[15] = '\n';
-  var i: int64;
-  i = 15;
-  while 1 {
-    i = i - 1;
-    buffer[i] = ('0' + (x % 10)) as byte;
-    x = x / 10;
-    if x == 0 { break; }
-  }
-  write(1, (&buffer + i) as *void, 16 - i);
-}
+import "std/std.aoc" as std;
 
 function main(): int64 {
-  printInt(1);
-  printInt(12);
+  std.printInt(1);
+  std.printInt(12);
   return 0;
 }

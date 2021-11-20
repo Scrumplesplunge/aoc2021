@@ -1,23 +1,7 @@
-function strlen(message: []byte): int64 {
-  var i: int64;
-  while message[i] {
-    i = i + 1;
-  }
-  return i;
-}
-
-function die(message: []byte): void {
-  write(2, message as *void, strlen(message));
-  write(2, "\n" as *void, 1);
-  exit(1);
-}
-
-function isDigit(x: byte): int64 {
-  return '0' <= x && x <= '9';
-}
+import "std/std.aoc" as std;
 
 function main(): int64 {
-  if isDigit('a') { die("bad"); }
-  if !isDigit('0') { die("bad"); }
+  if std.isDigit('a') { std.die("bad"); }
+  if !std.isDigit('0') { std.die("bad"); }
   return 0;
 }

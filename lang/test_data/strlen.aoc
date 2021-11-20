@@ -1,11 +1,5 @@
-function strlen(message: []byte): int64 {
-  var i: int64;
-  while message[i] {
-    i = i + 1;
-  }
-  return i;
-}
+import "std/std.aoc" as std;
 
 function main(): int64 {
-  return strlen("This sentence has forty-two letters in it.");
+  return std.strlen("This sentence has forty-two letters in it.");
 }

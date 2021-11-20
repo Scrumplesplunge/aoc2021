@@ -1,38 +1,10 @@
-function strlen(message: []byte): int64 {
-  var i: int64;
-  while message[i] {
-    i = i + 1;
-  }
-  return i;
-}
-
-function die(message: []byte): void {
-  write(2, message as *void, strlen(message));
-  write(2, "\n" as *void, 1);
-  exit(1);
-}
-
-function isDigit(x: byte): int64 {
-  return '0' <= x && x <= '9';
-}
-
-function readInt(input: []byte, value: *int64): []byte {
-  if !isDigit(input[0]) { die("bad"); }
-  var temp: int64;
-  temp = 0;
-  while isDigit(input[0]) {
-    temp = 10 * temp + (input[0] - '0');
-    input = input + 1;
-  }
-  *value = temp;
-  return input;
-}
+import "std/std.aoc" as std;
 
 function main(): int64 {
   var i: []byte;
   i = "42";
   var x: int64;
-  i = readInt(i, &x);
-  if i[0] != 0 as byte { die("did not consume the whole input"); }
+  i = std.readInt(i, &x);
+  if i[0] != 0 as byte { std.die("did not consume the whole input"); }
   return x;
 }

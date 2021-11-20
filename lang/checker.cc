@@ -1595,6 +1595,10 @@ const Checker::Entry& Checker::EntryFor(const std::filesystem::path& path) {
             .ir = std::nullopt,
             .exports = Environment(BuiltinEnvironment(),
                                    Environment::ShadowMode::kDeny)});
+  if (!is_new) {
+    if (i->second.ir) return i->second;
+    throw std::runtime_error("circular include dependency");
+  }
   assert(is_new);
   Entry& entry = i->second;
   entry.source.emplace(loader_(path.native()));
