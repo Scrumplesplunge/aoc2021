@@ -1,47 +1,4 @@
-function strlen(message: []byte): int64 {
-  var i: int64;
-  i = 0;
-  while message[i] {
-    i = i + 1;
-  }
-  return i;
-}
-
-function die(message: []byte): void {
-  write(2, message as *void, strlen(message));
-  write(2, "\n" as *void, 1);
-  exit(1);
-}
-
-function isDigit(x: byte): int64 {
-  return '0' <= x && x <= '9';
-}
-
-function readInt(input: []byte, value: *int64): []byte {
-  if !isDigit(input[0]) { die("bad"); }
-  var temp: int64;
-  temp = 0;
-  while isDigit(input[0]) {
-    temp = 10 * temp + (input[0] - '0');
-    input = input + 1;
-  }
-  *value = temp;
-  return input;
-}
-
-function printInt(x: int64): void {
-  var buffer: [16]byte;
-  buffer[15] = '\n';
-  var i: int64;
-  i = 15;
-  while 1 {
-    i = i - 1;
-    buffer[i] = ('0' + (x % 10)) as byte;
-    x = x / 10;
-    if x == 0 { break; }
-  }
-  write(1, (&buffer + i) as *void, 16 - i);
-}
+import "std/std.aoc" as std;
 
 var buffer: [1024]byte;
 var numbers: [200]int64;
@@ -51,19 +8,19 @@ var set: [2021]byte;
 function readInput(): void {
   var length: int64;
   length = read(0, &buffer as *void, 1024);
-  if length <= 0 { die("bad"); }
-  if buffer[length - 1] != '\n' { die ("bad"); }
+  if length <= 0 { std.die("bad"); }
+  if buffer[length - 1] != '\n' { std.die ("bad"); }
   var i: []byte;
   i = &buffer;
   var end: []byte;
   end = i + length;
   while i != end {
-    if numNumbers == 200 { die("too many"); }
-    i = readInt(i, &numbers[numNumbers]);
-    if numbers[numNumbers] > 2020 { die("too large"); }
+    if numNumbers == 200 { std.die("too many"); }
+    i = std.readInt(i, &numbers[numNumbers]);
+    if numbers[numNumbers] > 2020 { std.die("too large"); }
     set[numbers[numNumbers]] = 1 as byte;
     numNumbers = numNumbers + 1;
-    if i[0] != '\n' { die("bad"); }
+    if i[0] != '\n' { std.die("bad"); }
     i = i + 1;
   }
 }
@@ -77,7 +34,7 @@ function part1(): int64 {
     }
     i = i + 1;
   }
-  die("not found");
+  std.die("not found");
 }
 
 function part2(): int64 {
@@ -102,11 +59,11 @@ function part2(): int64 {
     }
     i = i + 1;
   }
-  die("not found");
+  std.die("not found");
 }
 
 function main(): int64 {
   readInput();
-  printInt(part1());
-  printInt(part2());
+  std.printInt(part1());
+  std.printInt(part2());
 }
