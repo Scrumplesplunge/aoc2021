@@ -29,6 +29,7 @@ for e2e_test_file in test_data/*.aoc; do
     echo -e "${r}FAILED${reset} (linking) $e2e_test"
     continue
   fi
+  llvm-strip --strip-all "build/$e2e_test"
   "build/$e2e_test" <"test_data/$e2e_test.input"  \
                     >"build/$e2e_test.stdout"  \
                     2>"build/$e2e_test.stderr"
