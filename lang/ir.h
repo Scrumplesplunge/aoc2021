@@ -249,6 +249,8 @@ struct TypeVariant;
 
 class Type {
  public:
+  Type() noexcept = default;
+
   // Implicit conversion from any type of expression.
   template <HoldableBy<TypeVariant> T>
   Type(T value) noexcept;
