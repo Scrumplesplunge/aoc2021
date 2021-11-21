@@ -6,14 +6,11 @@ var numNumbers: int64;
 var set: [2021]byte;
 
 function readInput(): void {
-  var length: int64;
-  length = read(0, &buffer as *void, 1024);
+  var length = read(0, &buffer as *void, 1024);
   if length <= 0 { std.die("bad"); }
   if buffer[length - 1] != '\n' { std.die ("bad"); }
-  var i: []byte;
-  i = &buffer;
-  var end: []byte;
-  end = i + length;
+  var i: []byte = &buffer;
+  var end = i + length;
   while i != end {
     if numNumbers == 200 { std.die("too many"); }
     i = std.readInt(i, &numbers[numNumbers]);
@@ -26,8 +23,7 @@ function readInput(): void {
 }
 
 function part1(): int64 {
-  var i: int64;
-  i = 0;
+  var i = 0;
   while i < numNumbers {
     if set[2020 - numbers[i]] {
       return numbers[i] * (2020 - numbers[i]);
@@ -38,20 +34,17 @@ function part1(): int64 {
 }
 
 function part2(): int64 {
-  var i: int64;
-  i = 0;
+  var i = 0;
   while i < numNumbers {
     var remaining: int64;
     remaining = 2020 - numbers[i];
-    var j: int64;
-    j = i + 1;
+    var j = i + 1;
     while j < numNumbers {
       if numbers[j] > remaining {
         j = j + 1;
         continue;
       }
-      var numK: int64;
-      numK = remaining - numbers[j];
+      var numK = remaining - numbers[j];
       if set[numK] {
         return numbers[i] * numbers[j] * numK;
       }

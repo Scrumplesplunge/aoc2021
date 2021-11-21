@@ -426,7 +426,7 @@ struct DeclareAndAssign {
 
   Location location;
   std::string name;
-  Expression type;
+  std::optional<Expression> type;
   Expression value;
 };
 

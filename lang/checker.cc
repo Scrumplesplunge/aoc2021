@@ -1329,8 +1329,10 @@ ir::Code StatementChecker::operator()(const ast::Assign& x) {
 }
 
 ir::Code StatementChecker::operator()(const ast::DeclareAndAssign& x) {
-  ir::Type type = CheckType(x.type);
+  ir::Type type;
+  if (x.type) type = CheckType(*x.type);
   ExpressionInfo value = CheckValue(x.value);
+  if (!x.type) type = value.value.type;
   const ir::Local::Offset offset = frame_->Allocate(type);
   environment_->Define(
       x.name, Environment::Definition{

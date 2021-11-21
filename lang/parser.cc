@@ -677,6 +677,17 @@ Statement Parser::ParseDeclaration() {
   }
   reader_.Advance(name.size());
   SkipWhitespaceAndComments();
+  if (ConsumeOperator("=")) {
+    // Deduced variable type.
+    SkipWhitespaceAndComments();
+    SkipWhitespaceAndComments();
+    Expression value = ParseExpression();
+    if (!reader_.ConsumePrefix(";")) {
+      throw Error("expected ';'");
+    }
+    return DeclareAndAssign(location, std::string(name), std::nullopt,
+                            std::move(value));
+  }
   if (!reader_.ConsumePrefix(":")) throw Error("expected ':'");
   SkipWhitespaceAndComments();
   Expression type = ParseExpression();

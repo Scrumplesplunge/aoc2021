@@ -247,8 +247,13 @@ std::ostream& operator<<(std::ostream& output, const Assign& x) noexcept {
 
 std::ostream& operator<<(std::ostream& output,
                          const DeclareAndAssign& x) noexcept {
-  return output << "DeclareAndAssign(" << Escaped(x.name) << ", " << x.type
-                << ", " << x.value << ")";
+  output << "DeclareAndAssign(" << Escaped(x.name) << ", ";
+  if (x.type) {
+    output << *x.type;
+  } else {
+    output << "nullopt";
+  }
+  return output << ", " << x.value << ")";
 }
 
 std::ostream& operator<<(std::ostream& output, const If& x) noexcept {

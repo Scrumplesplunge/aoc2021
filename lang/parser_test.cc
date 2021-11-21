@@ -491,6 +491,10 @@ TEST_F(ParserTest, Declaration) {
   EXPECT_EQ(ParseStatement(),
             ast::DeclareAndAssign(At(1, 1), "x", ast::Name(At(1, 8), "int64"),
                                   ast::IntegerLiteral(At(1, 16), 1)));
+  WithSource("var x = 1;");
+  EXPECT_EQ(ParseStatement(),
+            ast::DeclareAndAssign(At(1, 1), "x", std::nullopt,
+                                  ast::IntegerLiteral(At(1, 9), 1)));
   WithSource("var x");
   EXPECT_ERROR(ParseStatement(), "expected ':'");
   WithSource("var x: any");

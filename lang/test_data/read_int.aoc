@@ -1,8 +1,7 @@
 import "std/std.aoc" as std;
 
 function main(): int64 {
-  var i: []byte;
-  i = "42";
+  var i: []byte = "42";
   var x: int64;
   i = std.readInt(i, &x);
   if i[0] != 0 as byte { std.die("did not consume the whole input"); }
