@@ -680,8 +680,19 @@ Statement Parser::ParseDeclaration() {
   if (!reader_.ConsumePrefix(":")) throw Error("expected ':'");
   SkipWhitespaceAndComments();
   Expression type = ParseExpression();
-  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
-  return DeclareVariable(location, std::string(name), std::move(type));
+  if (reader_.ConsumePrefix(";")) {
+    return DeclareVariable(location, std::string(name), std::move(type));
+  }
+  if (!ConsumeOperator("=")) {
+    throw Error("expected ';' or '='");
+  }
+  SkipWhitespaceAndComments();
+  Expression value = ParseExpression();
+  if (!reader_.ConsumePrefix(";")) {
+    throw Error("expected ';'");
+  }
+  return DeclareAndAssign(location, std::string(name), std::move(type),
+                          std::move(value));
 }
 
 Statement Parser::ParseWhile() {

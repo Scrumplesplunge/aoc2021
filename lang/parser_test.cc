@@ -487,10 +487,14 @@ TEST_F(ParserTest, Declaration) {
   WithSource("var x : any ;");
   EXPECT_EQ(ParseStatement(),
             ast::DeclareVariable(At(1, 1), "x", ast::Name(At(1, 9), "any")));
+  WithSource("var x: int64 = 1;");
+  EXPECT_EQ(ParseStatement(),
+            ast::DeclareAndAssign(At(1, 1), "x", ast::Name(At(1, 8), "int64"),
+                                  ast::IntegerLiteral(At(1, 16), 1)));
   WithSource("var x");
   EXPECT_ERROR(ParseStatement(), "expected ':'");
   WithSource("var x: any");
-  EXPECT_ERROR(ParseStatement(), "expected ';'");
+  EXPECT_ERROR(ParseStatement(), "expected ';' or '='");
   WithSource("var 123;");
   EXPECT_ERROR(ParseStatement(), "variable name must begin with a letter");
 }

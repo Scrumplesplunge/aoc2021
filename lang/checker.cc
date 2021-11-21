@@ -635,6 +635,7 @@ class StatementChecker {
   ir::Code operator()(const ast::Export&);
   ir::Code operator()(const ast::DeclareVariable&);
   ir::Code operator()(const ast::Assign&);
+  ir::Code operator()(const ast::DeclareAndAssign&);
   ir::Code operator()(const ast::If&);
   ir::Code operator()(const ast::While&);
   ir::Code operator()(const ast::Return&);
@@ -665,6 +666,7 @@ class ModuleStatementChecker {
   ir::Code operator()(const ast::Export&);
   ir::Code operator()(const ast::DeclareVariable&);
   ir::Code operator()(const ast::Assign&);
+  ir::Code operator()(const ast::DeclareAndAssign&);
   ir::Code operator()(const ast::If&);
   ir::Code operator()(const ast::While&);
   ir::Code operator()(const ast::Return&);
@@ -1326,6 +1328,22 @@ ir::Code StatementChecker::operator()(const ast::Assign& x) {
                                std::move(left.value.type), std::move(right))});
 }
 
+ir::Code StatementChecker::operator()(const ast::DeclareAndAssign& x) {
+  ir::Type type = CheckType(x.type);
+  ExpressionInfo value = CheckValue(x.value);
+  const ir::Local::Offset offset = frame_->Allocate(type);
+  environment_->Define(
+      x.name, Environment::Definition{
+                  .location = x.location,
+                  .value = TypedExpression(Category::kLvalue, type,
+                                           Representation::kAddress,
+                                           ir::Local(offset))});
+  return ir::Sequence({
+      std::move(value.code),
+      DoStore(x.location, ir::Local(offset), std::move(type),
+              std::move(value))});
+}
+
 ir::Code StatementChecker::operator()(const ast::If& x) {
   ExpressionInfo condition =
       EnsureComparable(x.condition.location(), CheckValue(x.condition));
@@ -1449,6 +1467,11 @@ ir::Code ModuleStatementChecker::operator()(const ast::DeclareVariable& x) {
 ir::Code ModuleStatementChecker::operator()(const ast::Assign& x) {
   throw Error(x.location,
               "assignment statements are forbidden at module scope");
+}
+
+ir::Code ModuleStatementChecker::operator()(const ast::DeclareAndAssign& x) {
+  throw Error(x.location,
+              "declarations with assignments are forbidden at module scope");
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::If& x) {

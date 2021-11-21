@@ -1,8 +1,6 @@
 function main(): int64 {
-  var i: int64;
-  var o: int64;
-  i = 0;
-  o = 0;
+  var i: int64 = 0;
+  var o: int64 = 0;
   while i < 2 {
     i = i + 1;
     continue;

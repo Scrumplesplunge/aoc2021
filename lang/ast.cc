@@ -245,6 +245,12 @@ std::ostream& operator<<(std::ostream& output, const Assign& x) noexcept {
   return output << "Assign(" << x.left << ", " << x.right << ")";
 }
 
+std::ostream& operator<<(std::ostream& output,
+                         const DeclareAndAssign& x) noexcept {
+  return output << "DeclareAndAssign(" << Escaped(x.name) << ", " << x.type
+                << ", " << x.value << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const If& x) noexcept {
   return output << "If(" << x.condition << ", " << List(x.then_branch) << ", "
                 << List(x.else_branch) << ")";

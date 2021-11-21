@@ -420,6 +420,16 @@ struct Assign {
   Expression left, right;
 };
 
+struct DeclareAndAssign {
+  bool operator==(const DeclareAndAssign&) const = default;
+  auto operator<=>(const DeclareAndAssign&) const = default;
+
+  Location location;
+  std::string name;
+  Expression type;
+  Expression value;
+};
+
 struct If {
   bool operator==(const If&) const = default;
   auto operator<=>(const If&) const = default;
@@ -491,8 +501,9 @@ struct StatementVariant {
   bool operator==(const StatementVariant&) const = default;
   auto operator<=>(const StatementVariant&) const = default;
 
-  std::variant<Import, Export, DeclareVariable, Assign, If, While, Return,
-               Break, Continue, DiscardedExpression, FunctionDefinition>
+  std::variant<Import, Export, DeclareVariable, Assign, DeclareAndAssign, If,
+               While, Return, Break, Continue, DiscardedExpression,
+               FunctionDefinition>
       value;
 };
 
@@ -504,6 +515,7 @@ std::ostream& operator<<(std::ostream&, const Import&) noexcept;
 std::ostream& operator<<(std::ostream&, const Export&) noexcept;
 std::ostream& operator<<(std::ostream&, const DeclareVariable&) noexcept;
 std::ostream& operator<<(std::ostream&, const Assign&) noexcept;
+std::ostream& operator<<(std::ostream&, const DeclareAndAssign&) noexcept;
 std::ostream& operator<<(std::ostream&, const If&) noexcept;
 std::ostream& operator<<(std::ostream&, const While&) noexcept;
 std::ostream& operator<<(std::ostream&, const Return&) noexcept;
