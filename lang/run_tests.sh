@@ -25,7 +25,7 @@ for e2e_test_file in test_data/*.aoc; do
     echo -e "${r}FAILED${reset} (assembly) $e2e_test"
     continue
   fi
-  if ! ld "build/$e2e_test.o" -o "build/$e2e_test"; then
+  if ! ld -T link.ld "build/$e2e_test.o" -o "build/$e2e_test"; then
     echo -e "${r}FAILED${reset} (linking) $e2e_test"
     continue
   fi
