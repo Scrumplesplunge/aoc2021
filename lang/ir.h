@@ -299,6 +299,28 @@ struct Span {
   Type element;
 };
 
+struct Struct {
+  struct Field {
+    bool operator==(const Field&) const = default;
+    auto operator<=>(const Field&) const = default;
+
+    std::string name;
+    ir::Type type;
+    std::int64_t offset;
+  };
+  enum class Id : std::int64_t {};
+
+  Struct(Id id, std::vector<Field> fields) noexcept;
+
+  bool operator==(const Struct&) const = default;
+  auto operator<=>(const Struct&) const = default;
+
+  Id id;
+  std::vector<Field> fields;
+  std::map<std::string_view, const Field*> by_name;
+  std::int64_t size, alignment;
+};
+
 struct Module {
   bool operator==(const Module&) const = default;
   auto operator<=>(const Module&) const = default;
@@ -310,7 +332,8 @@ struct TypeVariant {
   bool operator==(const TypeVariant&) const = default;
   auto operator<=>(const TypeVariant&) const = default;
 
-  std::variant<Void, Scalar, Pointer, FunctionPointer, Array, Span, Module>
+  std::variant<Void, Scalar, Pointer, FunctionPointer, Array, Span, Struct,
+               Module>
       value;
 };
 
@@ -324,6 +347,7 @@ std::ostream& operator<<(std::ostream&, const Pointer&) noexcept;
 std::ostream& operator<<(std::ostream&, const FunctionPointer&) noexcept;
 std::ostream& operator<<(std::ostream&, const Array&) noexcept;
 std::ostream& operator<<(std::ostream&, const Span&) noexcept;
+std::ostream& operator<<(std::ostream&, const Struct&) noexcept;
 std::ostream& operator<<(std::ostream&, const Module&) noexcept;
 std::ostream& operator<<(std::ostream&, const Type&) noexcept;
 
@@ -332,6 +356,7 @@ std::int64_t Size(Scalar) noexcept;
 std::int64_t Size(const Pointer&) noexcept;
 std::int64_t Size(const Array&) noexcept;
 std::int64_t Size(const Span&) noexcept;
+std::int64_t Size(const Struct&) noexcept;
 std::int64_t Size(const Module&) noexcept;
 std::int64_t Size(const Type&) noexcept;
 
@@ -340,6 +365,7 @@ std::int64_t Alignment(Scalar) noexcept;
 std::int64_t Alignment(const Pointer&) noexcept;
 std::int64_t Alignment(const Array&) noexcept;
 std::int64_t Alignment(const Span&) noexcept;
+std::int64_t Alignment(const Struct&) noexcept;
 std::int64_t Alignment(const Module&) noexcept;
 std::int64_t Alignment(const Type&) noexcept;
 

@@ -184,6 +184,18 @@ std::strong_ordering Type::operator<=>(const Type& other) const {
   return *value_ <=> *other.value_;
 }
 
+Struct::Struct(Id id, std::vector<Struct::Field> f) noexcept
+    : id(id), fields(std::move(f)) {
+  size = 0;
+  alignment = 1;
+  for (const auto& field : fields) {
+    by_name.emplace(field.name, &field);
+    alignment = std::max(alignment, ir::Alignment(field.type));
+    size = (size + (alignment - 1)) / alignment * alignment;
+    size += ir::Size(field.type);
+  }
+}
+
 std::ostream& operator<<(std::ostream& output, Void) noexcept {
   return output << "Void{}";
 }
@@ -214,6 +226,17 @@ std::ostream& operator<<(std::ostream& output, const Span& x) noexcept {
   return output << "Span(" << x.element << ")";
 }
 
+std::ostream& operator<<(std::ostream& output,
+                         const Struct::Field& x) noexcept {
+  return output << "Field(" << Escaped(x.name) << ", " << x.type << ", "
+                << x.offset << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Struct& x) noexcept {
+  return output << "Struct(Id{" << (std::int64_t)x.id << ", "
+                << List(x.fields) << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Module& x) noexcept {
   return output << "Module(" << Escaped(x.path.native()) << ")";
 }
@@ -241,6 +264,7 @@ std::int64_t Size(const Array& x) noexcept {
 }
 
 std::int64_t Size(const Span& x) noexcept { return 8; }
+std::int64_t Size(const Struct& x) noexcept { return x.size; }
 std::int64_t Size(const Module& x) noexcept { return 0; }
 
 std::int64_t Size(const Type& x) noexcept {
@@ -253,6 +277,7 @@ std::int64_t Alignment(const Pointer& x) noexcept { return 8; }
 std::int64_t Alignment(const FunctionPointer& x) noexcept { return 8; }
 std::int64_t Alignment(const Array& x) noexcept { return Alignment(x.element); }
 std::int64_t Alignment(const Span& x) noexcept { return 8; }
+std::int64_t Alignment(const Struct& x) noexcept { return x.alignment; }
 std::int64_t Alignment(const Module& x) noexcept { return 1; }
 
 std::int64_t Alignment(const Type& x) noexcept {
