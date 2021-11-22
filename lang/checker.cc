@@ -554,6 +554,7 @@ class ExpressionChecker {
   ExpressionInfo operator()(const ast::IntegerLiteral&);
   ExpressionInfo operator()(const ast::StringLiteral&);
   ExpressionInfo operator()(const ast::Access&);
+  ExpressionInfo operator()(const ast::PointerAccess&);
   ExpressionInfo operator()(const ast::Call&);
   ExpressionInfo operator()(const ast::Index&);
   ExpressionInfo operator()(const ast::Negate&);
@@ -746,6 +747,33 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Access& x) {
     throw Error(x.location, "cannot perform member access for ",
                 object.value.type);
   }
+}
+
+ExpressionInfo ExpressionChecker::operator()(const ast::PointerAccess& x) {
+  ExpressionInfo object = CheckValue(x.object);
+  auto* p = std::get_if<ir::Pointer>(&object.value.type->value);
+  if (!p) throw Error(x.location, "cannot use '->' on ", object.value.type);
+  auto* s = std::get_if<ir::Struct>(&p->pointee->value);
+  if (!s) throw Error(x.location, "cannot use '->' on ", object.value.type);
+  auto i = s->fields.find(x.field.value);
+  if (i == s->fields.end()) {
+    throw Error(x.location, "no such field ", x.field.value, " in ",
+                object.value.type);
+  }
+  TypedExpression address = EnsureLoaded(x.location, std::move(object.value));
+  if (object.value.representation != Representation::kAddress) {
+    throw Error(x.location,
+                "member access for directly-represented objects is not "
+                "implemented in the compiler");
+  }
+  return ExpressionInfo{
+      .code = std::move(object.code),
+      .value = TypedExpression{
+          .category = Category::kLvalue,
+          .type = i->second.type,
+          .representation = Representation::kAddress,
+          .value = ir::Add(std::move(address.value),
+                           ir::IntegerLiteral(i->second.offset))}};
 }
 
 ExpressionInfo ExpressionChecker::operator()(const ast::Call& x) {

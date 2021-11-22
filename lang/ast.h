@@ -79,6 +79,15 @@ struct Access {
   Name field;
 };
 
+struct PointerAccess {
+  bool operator==(const PointerAccess&) const = default;
+  auto operator<=>(const PointerAccess&) const = default;
+
+  Location location;
+  Expression object;
+  Name field;
+};
+
 struct Call {
   bool operator==(const Call&) const = default;
   auto operator<=>(const Call&) const = default;
@@ -318,11 +327,12 @@ struct ExpressionVariant {
   auto operator<=>(const ExpressionVariant&) const = default;
 
   std::variant<Name, CharacterLiteral, IntegerLiteral, StringLiteral, Access,
-               Call, Index, Negate, LogicalNot, BitwiseNot, Dereference,
-               AddressOf, Add, Subtract, Multiply, Divide, Modulo, As, LessThan,
-               LessOrEqual, GreaterThan, GreaterOrEqual, Equal, NotEqual,
-               LogicalAnd, LogicalOr, BitwiseAnd, BitwiseOr, BitwiseXor,
-               ShiftLeft, ShiftRight, TernaryExpression, ArrayType, SpanType>
+               PointerAccess, Call, Index, Negate, LogicalNot, BitwiseNot,
+               Dereference, AddressOf, Add, Subtract, Multiply, Divide, Modulo,
+               As, LessThan, LessOrEqual, GreaterThan, GreaterOrEqual, Equal,
+               NotEqual, LogicalAnd, LogicalOr, BitwiseAnd, BitwiseOr,
+               BitwiseXor, ShiftLeft, ShiftRight, TernaryExpression, ArrayType,
+               SpanType>
       value;
 };
 
@@ -335,6 +345,7 @@ std::ostream& operator<<(std::ostream&, const CharacterLiteral&) noexcept;
 std::ostream& operator<<(std::ostream&, const IntegerLiteral&) noexcept;
 std::ostream& operator<<(std::ostream&, const StringLiteral&) noexcept;
 std::ostream& operator<<(std::ostream&, const Access&) noexcept;
+std::ostream& operator<<(std::ostream&, const PointerAccess&) noexcept;
 std::ostream& operator<<(std::ostream&, const Call&) noexcept;
 std::ostream& operator<<(std::ostream&, const Index&) noexcept;
 std::ostream& operator<<(std::ostream&, const Negate&) noexcept;

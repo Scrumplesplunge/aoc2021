@@ -260,6 +260,9 @@ Expression Parser::ParseSuffix() {
     if (reader_.ConsumePrefix(".")) {
       SkipWhitespaceAndComments();
       term = Access(location, std::move(term), ParseName());
+    } else if (ConsumeOperator("->")) {
+      SkipWhitespaceAndComments();
+      term = PointerAccess(location, std::move(term), ParseName());
     } else if (reader_.ConsumePrefix("(")) {
       // Function call.
       SkipWhitespaceAndComments();

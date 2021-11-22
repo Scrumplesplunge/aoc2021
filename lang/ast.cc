@@ -79,6 +79,11 @@ std::ostream& operator<<(std::ostream& output, const Access& x) noexcept {
   return output << "Access(" << x.object << ", " << x.field << ")";
 }
 
+std::ostream& operator<<(std::ostream& output,
+                         const PointerAccess& x) noexcept {
+  return output << "PointerAccess(" << x.object << ", " << x.field << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Call& x) noexcept {
   return output << "Call(" << x.function << ", " << List(x.arguments) << ")";
 }
