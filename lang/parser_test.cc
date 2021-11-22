@@ -532,6 +532,24 @@ TEST_F(ParserTest, While) {
   EXPECT_ERROR(ParseStatement(), "expected statement block");
 }
 
+TEST_F(ParserTest, For) {
+  WithSource(
+      "for var i = 0;\n"
+      "    i < 10;\n"
+      "    i = i + 1 {\n"
+      "}");
+  EXPECT_EQ(ParseStatement(),
+            ast::For(At(1, 1),
+                     ast::DeclareAndAssign(At(1, 5), "i", std::nullopt,
+                                           ast::IntegerLiteral(At(1, 13), 0)),
+                     ast::LessThan(At(2, 7), ast::Name(At(2, 5), "i"),
+                                   ast::IntegerLiteral(At(2, 9), 10)),
+                     ast::Assign(At(3, 7), ast::Name(At(3, 5), "i"),
+                                 ast::Add(At(3, 11), ast::Name(At(3, 9), "i"),
+                                          ast::IntegerLiteral(At(3, 13), 1))),
+                     {}));
+}
+
 TEST_F(ParserTest, Program) {
   WithSource(
       "// Leading comments or whitespace are allowed\n"

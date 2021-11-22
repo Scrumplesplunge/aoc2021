@@ -459,6 +459,17 @@ struct While {
   std::vector<Statement> body;
 };
 
+struct For {
+  bool operator==(const For&) const = default;
+  auto operator<=>(const For&) const = default;
+
+  Location location;
+  Statement initializer;
+  Expression condition;
+  Statement step;
+  std::vector<Statement> body;
+};
+
 struct Return {
   bool operator==(const Return&) const = default;
   auto operator<=>(const Return&) const = default;
@@ -530,7 +541,7 @@ struct StatementVariant {
   auto operator<=>(const StatementVariant&) const = default;
 
   std::variant<Import, Export, DeclareVariable, Assign, DeclareAndAssign, If,
-               While, Return, Break, Continue, DiscardedExpression,
+               While, For, Return, Break, Continue, DiscardedExpression,
                FunctionDefinition, StructDefinition>
       value;
 };
@@ -546,6 +557,7 @@ std::ostream& operator<<(std::ostream&, const Assign&) noexcept;
 std::ostream& operator<<(std::ostream&, const DeclareAndAssign&) noexcept;
 std::ostream& operator<<(std::ostream&, const If&) noexcept;
 std::ostream& operator<<(std::ostream&, const While&) noexcept;
+std::ostream& operator<<(std::ostream&, const For&) noexcept;
 std::ostream& operator<<(std::ostream&, const Return&) noexcept;
 std::ostream& operator<<(std::ostream&, const Break&) noexcept;
 std::ostream& operator<<(std::ostream&, const Continue&) noexcept;

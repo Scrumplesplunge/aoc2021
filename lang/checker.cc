@@ -641,6 +641,7 @@ class StatementChecker {
   ir::Code operator()(const ast::DeclareAndAssign&);
   ir::Code operator()(const ast::If&);
   ir::Code operator()(const ast::While&);
+  ir::Code operator()(const ast::For&);
   ir::Code operator()(const ast::Return&);
   ir::Code operator()(const ast::Break&);
   ir::Code operator()(const ast::Continue&);
@@ -673,6 +674,7 @@ class ModuleStatementChecker {
   ir::Code operator()(const ast::DeclareAndAssign&);
   ir::Code operator()(const ast::If&);
   ir::Code operator()(const ast::While&);
+  ir::Code operator()(const ast::For&);
   ir::Code operator()(const ast::Return&);
   ir::Code operator()(const ast::Break&);
   ir::Code operator()(const ast::Continue&);
@@ -1428,6 +1430,37 @@ ir::Code StatementChecker::operator()(const ast::While& x) {
                        loop_end});
 }
 
+ir::Code StatementChecker::operator()(const ast::For& x) {
+  // for init; cond; step { body }
+  // ->
+  // {
+  //   init;
+  //   while cond {
+  //     body;
+  //     step;
+  //   }
+  // }
+  const ir::Label loop_start = context_->Label(".Lfor_body_start");
+  const ir::Label loop_continue = context_->Label(".Lfor_continue");
+  const ir::Label loop_condition = context_->Label(".Lfor_condition");
+  const ir::Label loop_end = context_->Label(".Lfor_end");
+  Environment for_environment(*environment_, Environment::ShadowMode::kDeny);
+  for_environment.SetBreak(loop_end);
+  for_environment.SetContinue(loop_continue);
+  FrameAllocator for_frame(*frame_);
+  StatementChecker for_scope(*context_, for_environment, for_frame);
+  ir::Code initializer = std::visit(for_scope, x.initializer->value);
+  ExpressionInfo condition =
+      EnsureInt64(x.condition.location(), for_scope.CheckValue(x.condition));
+  ir::Code step = std::visit(for_scope, x.step->value);
+  ir::Code body = for_scope.CheckBlock(for_environment, x.body);
+  return ir::Sequence(
+      {std::move(initializer), ir::Jump(loop_condition), loop_start,
+       std::move(body), loop_continue, std::move(step), loop_condition,
+       std::move(condition.code),
+       ir::JumpIf(std::move(condition.value.value), loop_start), loop_end});
+}
+
 ir::Code StatementChecker::operator()(const ast::Return& x) {
   if (x.value) {
     ExpressionInfo value = CheckValue(*x.value);
@@ -1538,6 +1571,10 @@ ir::Code ModuleStatementChecker::operator()(const ast::If& x) {
 
 ir::Code ModuleStatementChecker::operator()(const ast::While& x) {
   throw Error(x.location, "while statements are forbidden at module scope");
+}
+
+ir::Code ModuleStatementChecker::operator()(const ast::For& x) {
+  throw Error(x.location, "for statements are forbidden at module scope");
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::Return& x) {

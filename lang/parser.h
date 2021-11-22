@@ -17,10 +17,16 @@ struct ParseError : public SourceError {
 // A parser for an aoclang source file.
 class Parser {
  public:
+  enum StatementTerminator {
+    kWithColon,
+    kWithoutColon,
+  };
+
   explicit Parser(const Source& source) noexcept : reader_(source) {}
 
   ast::Expression ParseExpression();
-  ast::Statement ParseStatement();
+  ast::Statement ParseStatement(StatementTerminator terminator = kWithColon);
+
   std::vector<ast::Statement> ParseProgram();
   void ExpectEnd();
 
@@ -48,16 +54,17 @@ class Parser {
 
   std::vector<ast::Statement> ParseBlock();
 
-  ast::Statement ParseImport();
-  ast::Statement ParseExport();
-  ast::Statement ParseBreak();
-  ast::Statement ParseContinue();
+  ast::Statement ParseImport(StatementTerminator terminator);
+  ast::Statement ParseExport(StatementTerminator terminator);
+  ast::Statement ParseBreak(StatementTerminator terminator);
+  ast::Statement ParseContinue(StatementTerminator terminator);
   ast::Statement ParseFunctionDefinition();
   ast::Statement ParseStructDefinition();
   ast::Statement ParseIf();
-  ast::Statement ParseReturn();
-  ast::Statement ParseDeclaration();
+  ast::Statement ParseReturn(StatementTerminator terminator);
+  ast::Statement ParseDeclaration(StatementTerminator terminator);
   ast::Statement ParseWhile();
+  ast::Statement ParseFor();
 
   std::string_view PeekWord() const noexcept;
   std::string_view PeekOperator() const noexcept;

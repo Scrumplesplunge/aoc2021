@@ -52,32 +52,35 @@ constexpr bool IsAlphaNumeric(char c) { return IsDigit(c) || IsAlpha(c); }
 
 Expression Parser::ParseExpression() { return ParseTernary(); }
 
-Statement Parser::ParseStatement() {
+Statement Parser::ParseStatement(Parser::StatementTerminator terminator) {
   const std::string_view keyword = PeekWord();
-  if (keyword == "import") return ParseImport();
-  if (keyword == "export") return ParseExport();
-  if (keyword == "break") return ParseBreak();
-  if (keyword == "continue") return ParseContinue();
+  if (keyword == "import") return ParseImport(terminator);
+  if (keyword == "export") return ParseExport(terminator);
+  if (keyword == "break") return ParseBreak(terminator);
+  if (keyword == "continue") return ParseContinue(terminator);
   if (keyword == "function") return ParseFunctionDefinition();
   if (keyword == "struct") return ParseStructDefinition();
   if (keyword == "if") return ParseIf();
-  if (keyword == "return") return ParseReturn();
-  if (keyword == "var") return ParseDeclaration();
+  if (keyword == "return") return ParseReturn(terminator);
+  if (keyword == "var") return ParseDeclaration(terminator);
   if (keyword == "while") return ParseWhile();
+  if (keyword == "for") return ParseFor();
   Expression expression = ParseExpression();
   SkipWhitespaceAndComments();
-  if (reader_.ConsumePrefix(";")) {
-    return DiscardedExpression(std::move(expression));
-  }
   const Location location = reader_.location();
   if (ConsumeOperator("=")) {
     SkipWhitespaceAndComments();
     Expression value = ParseExpression();
     SkipWhitespaceAndComments();
-    if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+    if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
+      throw Error("expected ';'");
+    }
     return Assign(location, std::move(expression), std::move(value));
   }
-  throw Error("expected statement");
+  if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
+    throw Error("expected ';'");
+  }
+  return DiscardedExpression(std::move(expression));
 }
 
 std::vector<Statement> Parser::ParseProgram() {
@@ -559,7 +562,7 @@ std::vector<Statement> Parser::ParseBlock() {
   }
 }
 
-Statement Parser::ParseImport() {
+Statement Parser::ParseImport(Parser::StatementTerminator terminator) {
   const Location location = reader_.location();
   if (!ConsumeWord("import")) throw Error("expected import statement");
   SkipWhitespaceAndComments();
@@ -569,30 +572,36 @@ Statement Parser::ParseImport() {
   SkipWhitespaceAndComments();
   Name name = ParseName();
   SkipWhitespaceAndComments();
-  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
+    throw Error("expected ';'");
+  }
   return Import(location, path.value, std::move(name));
 }
 
-Statement Parser::ParseExport() {
+Statement Parser::ParseExport(Parser::StatementTerminator terminator) {
   const Location location = reader_.location();
   if (!ConsumeWord("export")) throw Error("expected export statement");
   SkipWhitespaceAndComments();
-  return Export(location, ParseStatement());
+  return Export(location, ParseStatement(terminator));
 }
 
-Statement Parser::ParseBreak() {
+Statement Parser::ParseBreak(Parser::StatementTerminator terminator) {
   const Location location = reader_.location();
   if (!ConsumeWord("break")) throw Error("expected break statement");
   SkipWhitespaceAndComments();
-  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
+    throw Error("expected ';'");
+  }
   return Break(location);
 }
 
-Statement Parser::ParseContinue() {
+Statement Parser::ParseContinue(Parser::StatementTerminator terminator) {
   const Location location = reader_.location();
   if (!ConsumeWord("continue")) throw Error("expected continue statement");
   SkipWhitespaceAndComments();
-  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
+    throw Error("expected ';'");
+  }
   return Continue(location);
 }
 
@@ -680,18 +689,20 @@ Statement Parser::ParseIf() {
   }
 }
 
-Statement Parser::ParseReturn() {
+Statement Parser::ParseReturn(Parser::StatementTerminator terminator) {
   const Location location = reader_.location();
   if (!ConsumeWord("return")) throw Error("expected return statement");
   SkipWhitespaceAndComments();
   if (reader_.ConsumePrefix(";")) return Return(location);
   Expression value = ParseExpression();
   SkipWhitespaceAndComments();
-  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
+    throw Error("expected ';'");
+  }
   return Return(location, std::move(value));
 }
 
-Statement Parser::ParseDeclaration() {
+Statement Parser::ParseDeclaration(Parser::StatementTerminator terminator) {
   const Location location = reader_.location();
   if (!ConsumeWord("var")) throw Error("expected variable declaration");
   SkipWhitespaceAndComments();
@@ -710,7 +721,7 @@ Statement Parser::ParseDeclaration() {
     SkipWhitespaceAndComments();
     SkipWhitespaceAndComments();
     Expression value = ParseExpression();
-    if (!reader_.ConsumePrefix(";")) {
+    if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
       throw Error("expected ';'");
     }
     return DeclareAndAssign(location, std::string(name), std::nullopt,
@@ -719,15 +730,15 @@ Statement Parser::ParseDeclaration() {
   if (!reader_.ConsumePrefix(":")) throw Error("expected ':'");
   SkipWhitespaceAndComments();
   Expression type = ParseExpression();
-  if (reader_.ConsumePrefix(";")) {
-    return DeclareVariable(location, std::string(name), std::move(type));
-  }
   if (!ConsumeOperator("=")) {
-    throw Error("expected ';' or '='");
+    if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
+      throw Error("expected ';' or '='");
+    }
+    return DeclareVariable(location, std::string(name), std::move(type));
   }
   SkipWhitespaceAndComments();
   Expression value = ParseExpression();
-  if (!reader_.ConsumePrefix(";")) {
+  if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
     throw Error("expected ';'");
   }
   return DeclareAndAssign(location, std::string(name), std::move(type),
@@ -741,6 +752,21 @@ Statement Parser::ParseWhile() {
   Expression condition = ParseExpression();
   SkipWhitespaceAndComments();
   return While(location, std::move(condition), ParseBlock());
+}
+
+Statement Parser::ParseFor() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("for")) throw Error("expected for statement");
+  SkipWhitespaceAndComments();
+  Statement initializer = ParseStatement(kWithColon);
+  SkipWhitespaceAndComments();
+  Expression condition = ParseExpression();
+  if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  SkipWhitespaceAndComments();
+  Statement step = ParseStatement(kWithoutColon);
+  SkipWhitespaceAndComments();
+  return For(location, std::move(initializer), std::move(condition),
+             std::move(step), ParseBlock());
 }
 
 std::string_view Parser::PeekWord() const noexcept {

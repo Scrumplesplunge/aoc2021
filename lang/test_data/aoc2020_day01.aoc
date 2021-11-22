@@ -23,23 +23,19 @@ function readInput(): void {
 }
 
 function part1(): int64 {
-  var i = 0;
-  while i < numNumbers {
+  for var i = 0; i < numNumbers; i = i + 1 {
     if set[2020 - numbers[i]] {
       return numbers[i] * (2020 - numbers[i]);
     }
-    i = i + 1;
   }
   std.die("not found");
 }
 
 function part2(): int64 {
-  var i = 0;
-  while i < numNumbers {
+  for var i = 0; i < numNumbers; i = i + 1 {
     var remaining: int64;
     remaining = 2020 - numbers[i];
-    var j = i + 1;
-    while j < numNumbers {
+    for var j = i + 1; j < numNumbers; j = j + 1 {
       if numbers[j] > remaining {
         j = j + 1;
         continue;
@@ -48,9 +44,7 @@ function part2(): int64 {
       if set[numK] {
         return numbers[i] * numbers[j] * numK;
       }
-      j = j + 1;
     }
-    i = i + 1;
   }
   std.die("not found");
 }

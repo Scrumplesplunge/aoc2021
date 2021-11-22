@@ -270,6 +270,11 @@ std::ostream& operator<<(std::ostream& output, const While& x) noexcept {
   return output << "While(" << x.condition << ", " << List(x.body) << ")";
 }
 
+std::ostream& operator<<(std::ostream& output, const For& x) noexcept {
+  return output << "For(" << x.initializer << ", " << x.condition << ", "
+                << x.step << ", " << List(x.body) << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Return& x) noexcept {
   if (x.value) {
     return output << "Return(" << *x.value << ")";
