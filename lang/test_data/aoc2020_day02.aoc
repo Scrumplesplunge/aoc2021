@@ -1,0 +1,83 @@
+import "std/std.aoc" as std;
+
+var buffer: [65536]byte;
+
+struct entry {
+  min: byte;
+  max: byte;
+  c: byte;
+  password: []byte;
+}
+
+var entries: [1000]entry;
+var numEntries: int64;
+
+function part1(): int64 {
+  var total = 0;
+  var i = 0;
+  while i < numEntries {
+    var count = 0;
+    var j = entries[i].password;
+    while j[0] {
+      if j[0] == entries[i].c {
+        count = count + 1;
+      }
+      j = j + 1;
+    }
+    if entries[i].min <= count && count <= entries[i].max {
+      total = total + 1;
+    }
+    i = i + 1;
+  }
+  return total;
+}
+
+function part2(): int64 {
+  var total = 0;
+  var i = 0;
+  while i < numEntries {
+    var e = &entries[i];
+    var length = std.strlen((*e).password);
+    if length < (*e).min || length < (*e).max { std.die("bad index"); }
+    var firstMatches = (*e).password[(*e).min - 1] == (*e).c;
+    var secondMatches = (*e).password[(*e).max - 1] == (*e).c;
+    if firstMatches != secondMatches { total = total + 1; }
+    i = i + 1;
+  }
+  return total;
+}
+
+function main() : int64 {
+  var length = read(0, &buffer as *void, 65536);
+  if length < 0 { std.die("read"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numEntries == 1000 { std.die("too many"); }
+    var min: int64;
+    i = std.readInt(i, &min);
+    if min > 255 { std.die("lower bound"); }
+    if i[0] != '-' { std.die("hyphen"); }
+    var max: int64;
+    i = std.readInt(i + 1, &max);
+    if max > 255 { std.die("upper bound"); }
+    if i[0] != ' ' { std.die("space"); }
+    var c = i[1];
+    if i[2] != ':' || i[3] != ' ' { std.die("colon"); }
+    i = i + 4;
+    var password = i;
+    while i != end && i[0] != '\n' { i = i + 1; }
+    i[0] = '\0';
+    var e: entry;
+    e.min = min as byte;
+    e.max = max as byte;
+    e.c = c;
+    e.password = password;
+    entries[numEntries] = e;
+    numEntries = numEntries + 1;
+    i = i + 1;
+  }
+  std.printInt(part1());
+  std.printInt(part2());
+  return 0;
+}

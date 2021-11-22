@@ -304,20 +304,20 @@ struct Struct {
     bool operator==(const Field&) const = default;
     auto operator<=>(const Field&) const = default;
 
-    std::string name;
     ir::Type type;
     std::int64_t offset;
   };
   enum class Id : std::int64_t {};
 
-  Struct(Id id, std::vector<Field> fields) noexcept;
-
   bool operator==(const Struct&) const = default;
   auto operator<=>(const Struct&) const = default;
 
+  // Two modules can declare structs with the same name, so we need to ensure
+  // that we can distinguish those. We do this by giving each struct type
+  // a unique ID.
   Id id;
-  std::vector<Field> fields;
-  std::map<std::string_view, const Field*> by_name;
+  std::string name;
+  std::map<std::string, Field> fields;
   std::int64_t size, alignment;
 };
 

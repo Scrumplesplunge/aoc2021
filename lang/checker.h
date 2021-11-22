@@ -105,6 +105,10 @@ class Checker {
 
   ir::Unit Finish();
 
+  ir::Struct::Id NextStruct() {
+    return ir::Struct::Id{next_index_++};
+  }
+
   ir::Global NextGlobal(std::string_view prefix) {
     return ir::Global(prefix, next_index_++);
   }

@@ -291,6 +291,8 @@ class ModuleContext {
     return result;
   }
 
+  ir::Struct::Id Struct() { return checker_->NextStruct(); }
+
   void SetMain(ir::Label label) { main_ = std::move(label); }
   const std::optional<ir::Label>& Main() const { return main_; }
 
@@ -721,8 +723,28 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Access& x) {
     auto* definition = context_->EnvironmentFor(m->path).Lookup(x.field.value);
     if (!definition) throw UndeclaredError(x.field.value, x.location);
     return ExpressionInfo{.value = AsValue(x.location, definition->value)};
+  } else if (auto* s = std::get_if<ir::Struct>(&object.value.type->value)) {
+    auto i = s->fields.find(x.field.value);
+    if (i == s->fields.end()) {
+      throw Error(x.location, "no such field ", x.field.value, " in ",
+                  object.value.type);
+    }
+    if (object.value.representation != Representation::kAddress) {
+      throw Error(x.location,
+                  "member access for directly-represented objects is not "
+                  "implemented in the compiler");
+    }
+    return ExpressionInfo{
+        .code = std::move(object.code),
+        .value = TypedExpression{
+            .category = object.value.category,
+            .type = i->second.type,
+            .representation = Representation::kAddress,
+            .value = ir::Add(std::move(object.value.value),
+                             ir::IntegerLiteral(i->second.offset))}};
   } else {
-    throw Error(x.location, "access is only implemented for modules");
+    throw Error(x.location, "cannot perform member access for ",
+                object.value.type);
   }
 }
 
@@ -1556,7 +1578,28 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::StructDefinition& x) {
-  throw Error(x.location, "struct definitions are not implemented");
+  // TODO: Merge this functionality with FrameAllocator.
+  std::int64_t size = 0, alignment = 1;
+  std::map<std::string, ir::Struct::Field> fields;
+  for (const auto& field : x.fields) {
+    ir::Type type = CheckType(field.type);
+    alignment = std::max(alignment, ir::Alignment(type));
+    // Pad to the alignment.
+    size = (size + alignment - 1) / alignment * alignment;
+    const std::int64_t offset = size;
+    size += ir::Size(type);
+    auto [i, is_new] = fields.emplace(
+        field.name.value, ir::Struct::Field(std::move(type), offset));
+    if (!is_new) throw Error(field.name.location, "duplicate field name");
+  }
+  // Pad the size of the struct to be a multiple of its alignment.
+  size = (size + alignment - 1) / alignment * alignment;
+  environment_->Define(
+      x.name, Environment::Definition{
+                  .location = x.location,
+                  .value = ir::Struct(context_->Struct(), x.name,
+                                      std::move(fields), size, alignment)});
+  return ir::Sequence();
 }
 
 ir::Type ModuleStatementChecker::CheckType(const ast::Expression& x) {

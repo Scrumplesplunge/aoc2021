@@ -1,6 +1,7 @@
 #include "parser.h"
 
 #include <cassert>
+#include <map>
 
 namespace aoc2021 {
 namespace {
@@ -58,6 +59,7 @@ Statement Parser::ParseStatement() {
   if (keyword == "break") return ParseBreak();
   if (keyword == "continue") return ParseContinue();
   if (keyword == "function") return ParseFunctionDefinition();
+  if (keyword == "struct") return ParseStructDefinition();
   if (keyword == "if") return ParseIf();
   if (keyword == "return") return ParseReturn();
   if (keyword == "var") return ParseDeclaration();
@@ -117,7 +119,7 @@ CharacterLiteral Parser::ParseCharacterLiteral() {
       case 'n': value = '\n'; break;
       case 'r': value = '\r'; break;
       case 't': value = '\t'; break;
-      case '\0': value = '\0'; break;
+      case '0': value = '\0'; break;
       default: throw Error("unrecognised escape sequence");
     }
     reader_.Advance(2);
@@ -624,6 +626,29 @@ Statement Parser::ParseFunctionDefinition() {
   SkipWhitespaceAndComments();
   return FunctionDefinition(location, std::string(name), std::move(parameters),
                             std::move(return_type), ParseBlock());
+}
+
+Statement Parser::ParseStructDefinition() {
+  const Location location = reader_.location();
+  if (!ConsumeWord("struct")) throw Error("expected struct definition");
+  SkipWhitespaceAndComments();
+  const std::string_view name = PeekWord();
+  if (name.empty()) throw Error("expected struct name");
+  reader_.Advance(name.size());
+  SkipWhitespaceAndComments();
+  if (!reader_.ConsumePrefix("{")) throw Error("expected '{'");
+  std::vector<StructDefinition::Field> fields;
+  while (true) {
+    SkipWhitespaceAndComments();
+    if (reader_.ConsumePrefix("}")) break;
+    Name name = ParseName();
+    SkipWhitespaceAndComments();
+    if (!reader_.ConsumePrefix(":")) throw Error("expected ':'");
+    SkipWhitespaceAndComments();
+    fields.emplace_back(std::move(name), ParseExpression());
+    if (!reader_.ConsumePrefix(";")) throw Error("expected ';'");
+  }
+  return StructDefinition(location, std::string(name), std::move(fields));
 }
 
 Statement Parser::ParseIf() {

@@ -53,6 +53,7 @@ class Parser {
   ast::Statement ParseBreak();
   ast::Statement ParseContinue();
   ast::Statement ParseFunctionDefinition();
+  ast::Statement ParseStructDefinition();
   ast::Statement ParseIf();
   ast::Statement ParseReturn();
   ast::Statement ParseDeclaration();

@@ -184,18 +184,6 @@ std::strong_ordering Type::operator<=>(const Type& other) const {
   return *value_ <=> *other.value_;
 }
 
-Struct::Struct(Id id, std::vector<Struct::Field> f) noexcept
-    : id(id), fields(std::move(f)) {
-  size = 0;
-  alignment = 1;
-  for (const auto& field : fields) {
-    by_name.emplace(field.name, &field);
-    alignment = std::max(alignment, ir::Alignment(field.type));
-    size = (size + (alignment - 1)) / alignment * alignment;
-    size += ir::Size(field.type);
-  }
-}
-
 std::ostream& operator<<(std::ostream& output, Void) noexcept {
   return output << "Void{}";
 }
@@ -226,15 +214,19 @@ std::ostream& operator<<(std::ostream& output, const Span& x) noexcept {
   return output << "Span(" << x.element << ")";
 }
 
-std::ostream& operator<<(std::ostream& output,
-                         const Struct::Field& x) noexcept {
-  return output << "Field(" << Escaped(x.name) << ", " << x.type << ", "
-                << x.offset << ")";
-}
-
 std::ostream& operator<<(std::ostream& output, const Struct& x) noexcept {
-  return output << "Struct(Id{" << (std::int64_t)x.id << ", "
-                << List(x.fields) << ")";
+  output << "Struct(Id{" << (std::int64_t)x.id << ", " << Escaped(x.name)
+         << ", {";
+  bool first = true;
+  for (const auto& [name, field] : x.fields) {
+    if (first) {
+      first = false;
+    } else {
+      output << ", ";
+    }
+    output << '{' << Escaped(name) << ", " << field.type << '}';
+  }
+  return output << "})";
 }
 
 std::ostream& operator<<(std::ostream& output, const Module& x) noexcept {

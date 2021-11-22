@@ -441,6 +441,21 @@ TEST_F(ParserTest, FunctionDefinition) {
   EXPECT_ERROR(ParseStatement(), "expected '('");
 }
 
+TEST_F(ParserTest, StructDefinition) {
+  WithSource("struct empty {}");
+  EXPECT_EQ(ParseStatement(), ast::StructDefinition(At(1, 1), "empty", {}));
+  WithSource(
+      "struct vec2 {\n"
+      "  x: int64;\n"
+      "  y: int64;\n"
+      "}");
+  EXPECT_EQ(ParseStatement(),
+            ast::StructDefinition(
+                At(1, 1), "vec2",
+                {{ast::Name(At(2, 3), "x"), ast::Name(At(2, 6), "int64")},
+                 {ast::Name(At(3, 3), "y"), ast::Name(At(3, 6), "int64")}}));
+}
+
 TEST_F(ParserTest, If) {
   WithSource("if x {}");
   EXPECT_EQ(ParseStatement(),
