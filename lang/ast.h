@@ -497,13 +497,30 @@ struct FunctionDefinition {
   std::vector<Statement> body;
 };
 
+struct StructDefinition {
+  struct Field {
+    bool operator==(const Field&) const = default;
+    auto operator<=>(const Field&) const = default;
+
+    Name name;
+    Expression type;
+  };
+
+  bool operator==(const StructDefinition&) const = default;
+  auto operator<=>(const StructDefinition&) const = default;
+
+  Location location;
+  std::string name;
+  std::vector<Field> fields;
+};
+
 struct StatementVariant {
   bool operator==(const StatementVariant&) const = default;
   auto operator<=>(const StatementVariant&) const = default;
 
   std::variant<Import, Export, DeclareVariable, Assign, DeclareAndAssign, If,
                While, Return, Break, Continue, DiscardedExpression,
-               FunctionDefinition>
+               FunctionDefinition, StructDefinition>
       value;
 };
 

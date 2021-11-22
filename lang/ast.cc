@@ -299,6 +299,17 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 std::ostream& operator<<(std::ostream& output,
+                         const StructDefinition::Field& x) noexcept {
+  return output << "Field(" << x.name << ", " << x.type << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const StructDefinition& x) noexcept {
+  return output << "StructDefinition(" << Escaped(x.name) << ", "
+                << List(x.fields) << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
                          const Statement& statement) noexcept {
   return std::visit([&](const auto& x) -> std::ostream& { return output << x; },
                     statement->value);

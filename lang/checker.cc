@@ -643,6 +643,7 @@ class StatementChecker {
   ir::Code operator()(const ast::Continue&);
   ir::Code operator()(const ast::DiscardedExpression&);
   ir::Code operator()(const ast::FunctionDefinition&);
+  ir::Code operator()(const ast::StructDefinition&);
 
  private:
   // ExpressionInfo CheckAddress(const ast::Expression& expression);
@@ -674,6 +675,7 @@ class ModuleStatementChecker {
   ir::Code operator()(const ast::Continue&);
   ir::Code operator()(const ast::DiscardedExpression&);
   ir::Code operator()(const ast::FunctionDefinition&);
+  ir::Code operator()(const ast::StructDefinition&);
 
  private:
   // ExpressionInfo CheckAddress(const ast::Expression& expression);
@@ -1418,6 +1420,10 @@ ir::Code StatementChecker::operator()(const ast::FunctionDefinition& x) {
   throw Error(x.location, "nested function definitions are forbidden");
 }
 
+ir::Code StatementChecker::operator()(const ast::StructDefinition& x) {
+  throw Error(x.location, "function-local struct definitions are forbidden");
+}
+
 ExpressionInfo StatementChecker::CheckValue(const ast::Expression& x) {
   return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
 }
@@ -1547,6 +1553,10 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   ir::Code code = CheckBlock(*context_, function_environment, frame, x.body);
   return ir::Sequence({function, ir::BeginFrame(frame.max_size()),
                        std::move(code), ir::Return()});
+}
+
+ir::Code ModuleStatementChecker::operator()(const ast::StructDefinition& x) {
+  throw Error(x.location, "struct definitions are not implemented");
 }
 
 ir::Type ModuleStatementChecker::CheckType(const ast::Expression& x) {
