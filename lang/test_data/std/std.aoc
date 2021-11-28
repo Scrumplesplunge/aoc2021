@@ -10,6 +10,11 @@ export function strlen(message: []byte): int64 {
   return i;
 }
 
+export function puts(message: []byte): void {
+  write(stdout, message as *void, strlen(message));
+  write(stdout, "\n" as *void, 1);
+}
+
 export function die(message: []byte): void {
   write(stderr, message as *void, strlen(message));
   write(stderr, "\n" as *void, 1);
@@ -28,6 +33,13 @@ export function readInt(input: []byte, value: *int64): []byte {
     input = input + 1;
   }
   *value = temp;
+  return input;
+}
+
+export function readInt8(input: []byte, value: *byte): []byte {
+  var temp: int64;
+  input = readInt(input, &temp);
+  *value = temp as byte;
   return input;
 }
 
