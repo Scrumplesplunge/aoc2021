@@ -8,7 +8,7 @@ var numNumbers: int64;
 var set: [2021]byte;
 
 function readInput(): void {
-  var length = read(0, &buffer as *void, bufferSize);
+  var length = read(std.stdin, &buffer as *void, bufferSize);
   if length <= 0 { std.die("bad"); }
   if buffer[length - 1] != '\n' { std.die ("bad"); }
   var i: []byte = &buffer;
