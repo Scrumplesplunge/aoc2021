@@ -1,0 +1,210 @@
+// Input: The cards in each of two player hands.
+// Part 1: Find the score of the winning player in a game of Combat.
+// A game of Combat proceeds as follows:
+//   Each player turns over their top card. The player with the higher value
+//   wins the round. The winner receives both cards and places them on the
+//   bottom of their own pile such that the winner's card is above the loser's
+//   card. Play proceeds until one player holds every card, at which point they
+//   win. Their score is computed by multiplying each card by its position in
+//   the hand (starting at 1 for the bottom card) and taking the sum.
+// Part 2: Find the score of the winning player in a game of Recursive Combat.
+// A game of Recursive Combat proceeds as follows:
+//   If the two players' hands are exactly the same as they have been at an
+//   earlier point in the same game, player 1 wins. Otherwise, each player draws
+//   and plays their top card. If either player has fewer cards than the value
+//   of the card they just played, then the winner of the round is the one with
+//   the higher valued card. Otherwise, each player copies a subset of their
+//   deck of cards equal in size to the value of the card they played, and a new
+//   game of Recursive Combat is played to determine the winner of the round.
+//   The winner of that game wins the round. Upon winning a round, the winner
+//   takes both cards (as they do in Combat). The game continues until one
+//   player holds all the cards.
+//
+// Approach: part 1 is straightforward: we simulate the game one turn at a time
+// until it naturally concludes. For part 2, we have the additional constraint
+// that we need to identify hands that we have seen before. To do this in
+// a memory-efficient manner, we will simulate two copies of the game alongside
+// each other and use the "tortoise and the hare" trick to detect any cycles. If
+// the hare terminates, we don't have a cycle and proceed as described above.
+// Otherwise, the tortoise hands and the hare hands will eventually match and we
+// will exit with a win for player 1. This technique has a single drawback: it
+// will not necessarily detect the cycle right at the start. This doesn't matter
+// unless the outermost game terminates due to a cycle, so we will assume that
+// this is impossible.
+
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+alias maxCards = 64;
+alias Card = byte;
+struct Hand {
+  cards: [maxCards]Card;
+  numCards: int64;
+}
+var inputHands: [2]Hand;
+
+function readInput(): void {
+  alias bufferSize = 1024;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if length <= 0 { std.die("read"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  // Keep the count of cards that we have seen across both players. If this
+  // exceeds maxCards, we won't have space in a single player's hand for them to
+  // with the game.
+  var numCards = 0;
+  for var player = 1; player <= 2; player = player + 1 {
+    if strings.strncmp(i, "Player ", 7) != 0 { std.die("syntax"); }
+    i = i + 7;
+    if i[0] - '0' != player { std.die("wrong player"); }
+    i = i + 1;
+    if strings.strncmp(i, ":\n", 2) != 0 { std.die("syntax"); }
+    i = i + 2;
+    var h = &inputHands[player - 1];
+    while i != end && i[0] != '\n' {
+      if numCards == maxCards { std.die("too many"); }
+      i = std.readInt8(i, &h->cards[h->numCards]);
+      h->numCards = h->numCards + 1;
+      if i[0] != '\n' { std.die("line"); }
+      i = i + 1;
+    }
+    i = i + 1;
+  }
+}
+
+struct CircularBuffer {
+  cards: [maxCards]Card;
+  begin: int64;
+  size: int64;
+}
+
+function popFront(b: *CircularBuffer): Card {
+  var value = b->cards[b->begin];
+  b->begin = (b->begin + 1) % maxCards;
+  b->size = b->size - 1;
+  return value;
+}
+
+function pushBack(b: *CircularBuffer, value: Card): void {
+  var i = (b->begin + b->size) % maxCards;
+  b->cards[i] = value;
+  b->size = b->size + 1;
+}
+
+function popBack(b: *CircularBuffer): Card {
+  b->size = b->size - 1;
+  var i = (b->begin + b->size) % maxCards;
+  return b->cards[i];
+}
+
+function initHands(hands: *[2]CircularBuffer): void {
+  for var i = 0; i < 2; i = i + 1 {
+    var input = &inputHands[i];
+    var hand = &(*hands)[i];
+    copy(&hand->cards, &input->cards, input->numCards);
+    hand->begin = 0;
+    hand->size = input->numCards;
+  }
+}
+
+function score(winner: *CircularBuffer): int64 {
+  var points = 0;
+  for var i = 1; winner->size; i = i + 1 {
+    points = points + i * popBack(winner);
+  }
+  return points;
+}
+
+function part1(): int64 {
+  var hands: [2]CircularBuffer;
+  initHands(&hands);
+  while hands[0].size && hands[1].size {
+    var a = popFront(&hands[0]);
+    var b = popFront(&hands[1]);
+    if a < b {
+      pushBack(&hands[1], b);
+      pushBack(&hands[1], a);
+    } else if a > b {
+      pushBack(&hands[0], a);
+      pushBack(&hands[0], b);
+    } else {
+      std.die("draw");
+    }
+  }
+  return score(hands[0].size ? &hands[0] : &hands[1]);
+}
+
+// Runs a single round of recursive combat. Returns true if the game finishes as
+// a result of this round.
+function recursiveCombatRound(hands: *[2]CircularBuffer): int64 {
+  var a = popFront(&(*hands)[0]);
+  var b = popFront(&(*hands)[1]);
+  var aWins: int64;
+  if a <= (*hands)[0].size && b <= (*hands)[1].size {
+    // Recursive game.
+    var newHands = *hands;
+    newHands[0].size = a;
+    newHands[1].size = b;
+    aWins = recursiveCombat(&newHands) == &newHands[0];
+  } else {
+    // Direct combat.
+    aWins = a > b;
+  }
+  if aWins {
+    pushBack(&(*hands)[0], a);
+    pushBack(&(*hands)[0], b);
+    return (*hands)[1].size == 0;
+  } else {
+    pushBack(&(*hands)[1], b);
+    pushBack(&(*hands)[1], a);
+    return (*hands)[0].size == 0;
+  }
+}
+
+// Returns true if two circular buffers have the same contents.
+function buffersEqual(l: *CircularBuffer, r: *CircularBuffer): int64 {
+  if l->size != r->size { return 0; }
+  var i = l->begin;
+  var j = r->begin;
+  var end = i + l->size;
+  if end >= maxCards { end = end - maxCards; }
+  while i != end {
+    if l->cards[i] != r->cards[j] { return 0; }
+    i = i + 1;
+    j = j + 1;
+    if i == maxCards { i = 0; }
+    if j == maxCards { j = 0; }
+  }
+  return 1;
+}
+
+function recursiveCombat(hareHands: *[2]CircularBuffer): *CircularBuffer {
+  var hands = *hareHands;
+  while 1 {
+    if recursiveCombatRound(hareHands) || recursiveCombatRound(hareHands) {
+      // The hare has finished the game.
+      break;
+    }
+    recursiveCombatRound(&hands);
+    if buffersEqual(&hands[0], &(*hareHands)[0]) &&
+       buffersEqual(&hands[1], &(*hareHands)[1]) {
+      // The tortoise and the hare met up again: there is a cycle in the hands.
+      return &(*hareHands)[0];
+    }
+  }
+  return (*hareHands)[0].size ? &(*hareHands)[0] : &(*hareHands)[1];
+}
+
+function part2(): int64 {
+  var hands: [2]CircularBuffer;
+  initHands(&hands);
+  return score(recursiveCombat(&hands));
+}
+
+function main(): void {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
