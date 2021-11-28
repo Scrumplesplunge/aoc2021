@@ -464,6 +464,12 @@ TypedExpression ConvertTo(Location location, const ir::Type& target,
       return x;
     }
   }
+  // Scalar promotion.
+  {
+    const auto* t = std::get_if<ir::Scalar>(&target->value);
+    const auto* s = std::get_if<ir::Scalar>(&x.type->value);
+    if (s && t && *s < *t) return EnsureLoaded(location, std::move(x));
+  }
   throw Error(location, "cannot implicitly convert ", x.type, " to ", target);
 }
 

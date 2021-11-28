@@ -267,6 +267,8 @@ class Type {
 };
 
 enum class Void { kVoid };
+
+// Scalars should be sorted in order of increasing size to allow comparisons.
 enum class Scalar { kByte, kInt64 };
 
 struct Pointer {
