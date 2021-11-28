@@ -451,38 +451,43 @@ ExpressionInfo EnsureComparable(Location location, ExpressionInfo info) {
   }
 }
 
-ExpressionInfo ConvertTo(Location location, const ir::Type& target,
-                         ExpressionInfo info) {
-  if (info.value.type == target) return info;
+TypedExpression ConvertTo(Location location, const ir::Type& target,
+                          TypedExpression x) {
+  if (x.type == target) return x;
   // *[n]T -> []T
   {
     const auto* s = std::get_if<ir::Span>(&target->value);
-    const auto* p = std::get_if<ir::Pointer>(&info.value.type->value);
+    const auto* p = std::get_if<ir::Pointer>(&x.type->value);
     const auto* a = p ? std::get_if<ir::Array>(&p->pointee->value) : nullptr;
     if (s && a && s->element == a->element) {
-      info.value.type = target;
-      return info;
+      x.type = target;
+      return x;
     }
   }
-  throw Error(location, "cannot implicitly convert ", info.value.type, " to ",
-              target);
+  throw Error(location, "cannot implicitly convert ", x.type, " to ", target);
+}
+
+ExpressionInfo ConvertTo(Location location, const ir::Type& target,
+                         ExpressionInfo info) {
+  info.value = ConvertTo(location, target, std::move(info.value));
+  return info;
 }
 
 ir::Code DoStore(Location location, ir::Expression address, ir::Type type,
-                 ExpressionInfo info) {
-  info = ConvertTo(location, type, std::move(info));
+                 TypedExpression x) {
+  x = ConvertTo(location, type, std::move(x));
   switch (ir::Size(type)) {
     case 0:
       return ir::Sequence();
     case 1:
       return ir::Store8(std::move(address),
-                        EnsureLoaded(location, std::move(info.value)).value);
+                        EnsureLoaded(location, std::move(x)).value);
     case 8:
       return ir::Store64(std::move(address),
-                         EnsureLoaded(location, std::move(info.value)).value);
+                         EnsureLoaded(location, std::move(x)).value);
     default:
       return ir::Call(ir::Label("copy"),
-                      {std::move(address), std::move(info.value.value),
+                      {std::move(address), std::move(x.value),
                        ir::IntegerLiteral(ir::Size(type))});
   }
 }
@@ -1325,10 +1330,10 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
            ir::JumpUnless(std::move(condition.value.value), if_false),
            std::move(then_branch.code),
            DoStore(x.then_branch.location(), ir::Local(offset), type,
-                   std::move(then_branch)),
+                   std::move(then_branch.value)),
            ir::Jump(end), if_false, std::move(else_branch.code),
            DoStore(x.else_branch.location(), ir::Local(offset), type,
-                   std::move(else_branch)),
+                   std::move(else_branch.value)),
            end}),
       .value = TypedExpression(
           Category::kRvalue, type,
@@ -1464,9 +1469,10 @@ ir::Code StatementChecker::operator()(const ast::Assign& x) {
   if (left.value.category != Category::kLvalue) {
     throw Error(x.left.location(), "not an lvalue");
   }
-  return ir::Sequence({std::move(left.code), std::move(right.code),
-                       DoStore(x.location, std::move(left.value.value),
-                               std::move(left.value.type), std::move(right))});
+  return ir::Sequence(
+      {std::move(left.code), std::move(right.code),
+       DoStore(x.location, std::move(left.value.value),
+               std::move(left.value.type), std::move(right.value))});
 }
 
 ir::Code StatementChecker::operator()(const ast::DeclareAndAssign& x) {
@@ -1481,10 +1487,9 @@ ir::Code StatementChecker::operator()(const ast::DeclareAndAssign& x) {
                   .value = TypedExpression(Category::kLvalue, type,
                                            Representation::kAddress,
                                            ir::Local(offset))});
-  return ir::Sequence({
-      std::move(value.code),
-      DoStore(x.location, ir::Local(offset), std::move(type),
-              std::move(value))});
+  return ir::Sequence({std::move(value.code),
+                       DoStore(x.location, ir::Local(offset), std::move(type),
+                               std::move(value.value))});
 }
 
 ir::Code StatementChecker::operator()(const ast::If& x) {
@@ -1554,7 +1559,8 @@ ir::Code StatementChecker::operator()(const ast::Return& x) {
     return ir::Sequence(
         {std::move(value.code),
          DoStore(x.location, ir::Load64(ir::Local(ir::Local::Offset{16})),
-                 environment_->FunctionType()->return_type, std::move(value)),
+                 environment_->FunctionType()->return_type,
+                 std::move(value.value)),
          ir::Return()});
   } else {
     if (environment_->FunctionType()->return_type != ir::Void{}) {
