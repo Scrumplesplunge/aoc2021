@@ -87,21 +87,21 @@ const char* ByteName(Register r) {
     case Register::kRdi:
       return "%dil";
     case Register::kR8:
-      return "%r8l";
+      return "%r8b";
     case Register::kR9:
-      return "%r9l";
+      return "%r9b";
     case Register::kR10:
-      return "%r10l";
+      return "%r10b";
     case Register::kR11:
-      return "%r11l";
+      return "%r11b";
     case Register::kR12:
-      return "%r12l";
+      return "%r12b";
     case Register::kR13:
-      return "%r13l";
+      return "%r13b";
     case Register::kR14:
-      return "%r14l";
+      return "%r14b";
     case Register::kR15:
-      return "%r15l";
+      return "%r15b";
   }
   std::abort();
 }
