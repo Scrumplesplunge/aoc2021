@@ -2,6 +2,7 @@
 #define VARIANT_UTILS_H_
 
 #include <type_traits>
+#include <variant>
 
 namespace aoc2021 {
 
