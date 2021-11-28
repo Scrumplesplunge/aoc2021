@@ -704,6 +704,21 @@ class StatementChecker {
   FrameAllocator* frame_;
 };
 
+class FunctionDefinitionChecker {
+ public:
+  FunctionDefinitionChecker(
+      ModuleContext& context, Environment& environment) noexcept
+      : context_(&context), environment_(&environment) {}
+
+  ir::Code operator()(const ast::Export&);
+  ir::Code operator()(const ast::FunctionDefinition&);
+  ir::Code operator()(const auto&) { return ir::Sequence(); }
+
+ private:
+  ModuleContext* context_;
+  Environment* environment_;
+};
+
 class ModuleStatementChecker {
  public:
   ModuleStatementChecker(
@@ -1617,6 +1632,53 @@ ir::Code StatementChecker::CheckBlock(std::span<const ast::Statement> block) {
   return CheckBlock(*environment_, block);
 }
 
+ir::Code FunctionDefinitionChecker::operator()(const ast::Export& x) {
+  FunctionDefinitionChecker checker(*context_, context_->ExportedEnvironment());
+  return std::visit(checker, x.target->value);
+}
+
+ir::Code FunctionDefinitionChecker::operator()(
+    const ast::FunctionDefinition& x) {
+  const Environment::Definition* definition = environment_->Lookup(x.name);
+  if (!definition) throw Error(x.location, "compiler bug");
+  const auto* value = std::get_if<TypedExpression>(&definition->value);
+  if (!value) throw Error(x.location, "compiler bug");
+  const auto* type = std::get_if<ir::FunctionPointer>(&value->type->value);
+  if (!type) throw Error(x.location, "compiler bug");
+  const auto* function = std::get_if<ir::Label>(&value->value->value);
+  if (!function) throw Error(x.location, "compiler bug");
+  Environment function_environment(*environment_,
+                                   Environment::ShadowMode::kAllow);
+  function_environment.SetFunctionType(*type);
+  const int n = x.parameters.size();
+  // Parameters are arranged above the function stack frame:
+  //  ...
+  //  arg2
+  //  arg1
+  //  [return slot] <- omitted for zero-sized return types.
+  //  return address
+  //  saved frame pointer <- frame pointer points here
+  //  ...
+  //  local2
+  //  local1
+  const int args_begin = ir::Size(type->return_type) == 0 ? 2 : 3;
+  for (int i = 0; i < n; i++) {
+    const auto& parameter = x.parameters[i];
+    function_environment.Define(
+        parameter.name.value,
+        Environment::Definition{
+            .location = parameter.name.location,
+            .value =
+                AccessParameter(parameter.name.location, type->parameters[i],
+                                8 * (i + args_begin))});
+  }
+
+  FrameAllocator frame;
+  ir::Code code = CheckBlock(*context_, function_environment, frame, x.body);
+  return ir::Sequence({*function, ir::BeginFrame(frame.max_size()),
+                       std::move(code), ir::Return()});
+}
+
 ir::Code ModuleStatementChecker::operator()(const ast::Import& x) {
   std::filesystem::path import_path = context_->Path().parent_path() / x.path;
   environment_->Define(
@@ -1703,7 +1765,6 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
   for (const auto& [name, type] : x.parameters) {
     parameters.push_back(CheckType(type));
   }
-  // TODO: Derive symbolic constant names in a better way.
   environment_->Define(
       x.name,
       Environment::Definition{
@@ -1712,36 +1773,7 @@ ir::Code ModuleStatementChecker::operator()(const ast::FunctionDefinition& x) {
                                    ir::FunctionPointer(return_type, parameters),
                                    Representation::kDirect, function)});
   if (x.name == "main") context_->SetMain(function);
-  Environment function_environment(*environment_,
-                                   Environment::ShadowMode::kAllow);
-  function_environment.SetFunctionType(
-      ir::FunctionPointer(return_type, parameters));
-  const int n = x.parameters.size();
-  // Parameters are arranged above the function stack frame:
-  //  ...
-  //  arg2
-  //  arg1
-  //  [return slot] <- omitted for zero-sized return types.
-  //  return address
-  //  saved frame pointer <- frame pointer points here
-  //  ...
-  //  local2
-  //  local1
-  const int args_begin = ir::Size(return_type) == 0 ? 2 : 3;
-  for (int i = 0; i < n; i++) {
-    const auto& parameter = x.parameters[i];
-    function_environment.Define(
-        parameter.name.value,
-        Environment::Definition{
-            .location = parameter.name.location,
-            .value = AccessParameter(parameter.name.location, parameters[i],
-                                     8 * (i + args_begin))});
-  }
-
-  FrameAllocator frame;
-  ir::Code code = CheckBlock(*context_, function_environment, frame, x.body);
-  return ir::Sequence({function, ir::BeginFrame(frame.max_size()),
-                       std::move(code), ir::Return()});
+  return ir::Sequence();
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::StructDefinition& x) {
@@ -1847,8 +1879,17 @@ const Checker::Entry& Checker::EntryFor(const std::filesystem::path& path) {
   entry.ast.emplace(aoc2021::Parser(*entry.source).ParseProgram());
   ModuleContext context(*this, entry);
   std::vector<ir::Code> code;
+  // First pass: check all top-level declarations, but ignore function
+  // definitions. This will populate the environment with the names of all
+  // globals before checking any function, to eliminate any order dependencies
+  // there.
   for (const auto& statement : *entry.ast) {
     ModuleStatementChecker checker(context, context.UnexportedEnvironment());
+    code.push_back(std::visit(checker, statement->value));
+  }
+  // Second pass: check function definitions.
+  for (const auto& statement : *entry.ast) {
+    FunctionDefinitionChecker checker(context, context.UnexportedEnvironment());
     code.push_back(std::visit(checker, statement->value));
   }
   entry.ir.emplace(

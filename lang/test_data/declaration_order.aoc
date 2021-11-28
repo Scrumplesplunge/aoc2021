@@ -1,0 +1,7 @@
+function main(): int64 {
+  return f();
+}
+
+function f(): int64 {
+  return 42;
+}
