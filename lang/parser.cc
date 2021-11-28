@@ -62,6 +62,7 @@ Statement Parser::ParseStatement(Parser::StatementTerminator terminator) {
   if (keyword == "struct") return ParseStructDefinition();
   if (keyword == "if") return ParseIf();
   if (keyword == "return") return ParseReturn(terminator);
+  if (keyword == "alias") return ParseAlias(terminator);
   if (keyword == "var") return ParseDeclaration(terminator);
   if (keyword == "while") return ParseWhile();
   if (keyword == "for") return ParseFor();
@@ -700,6 +701,30 @@ Statement Parser::ParseReturn(Parser::StatementTerminator terminator) {
     throw Error("expected ';'");
   }
   return Return(location, std::move(value));
+}
+
+Statement Parser::ParseAlias(Parser::StatementTerminator terminator) {
+  const Location location = reader_.location();
+  if (!ConsumeWord("alias")) throw Error("expected alias declaration");
+  SkipWhitespaceAndComments();
+  const std::string_view name = PeekWord();
+  if (name.empty() || !IsAlpha(name.front())) {
+    throw ParseError({Message{
+        .location = location,
+        .type = Message::Type::kError,
+        .text = "alias name must begin with a letter",
+    }});
+  }
+  reader_.Advance(name.size());
+  SkipWhitespaceAndComments();
+  if (!ConsumeOperator("=")) throw Error("expected '='");
+  // Deduced variable type.
+  SkipWhitespaceAndComments();
+  Expression value = ParseExpression();
+  if (terminator == kWithColon && !reader_.ConsumePrefix(";")) {
+    throw Error("expected ';'");
+  }
+  return DeclareAlias(location, std::string(name), std::move(value));
 }
 
 Statement Parser::ParseDeclaration(Parser::StatementTerminator terminator) {

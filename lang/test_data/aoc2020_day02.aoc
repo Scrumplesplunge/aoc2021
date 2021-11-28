@@ -1,15 +1,17 @@
 import "std/std.aoc" as std;
 
-var buffer: [65536]byte;
+alias bufferSize = 65536;
+var buffer: [bufferSize]byte;
 
-struct entry {
+struct Entry {
   min: byte;
   max: byte;
   c: byte;
   password: []byte;
 }
 
-var entries: [1000]entry;
+alias maxEntries = 1000;
+var entries: [maxEntries]Entry;
 var numEntries: int64;
 
 function part1(): int64 {
@@ -42,12 +44,12 @@ function part2(): int64 {
 }
 
 function main() : int64 {
-  var length = read(0, &buffer as *void, 65536);
+  var length = read(0, &buffer as *void, bufferSize);
   if length < 0 { std.die("read"); }
   var i: []byte = &buffer;
   var end = i + length;
   while i != end {
-    if numEntries == 1000 { std.die("too many"); }
+    if numEntries == maxEntries { std.die("too many"); }
     var min: int64;
     i = std.readInt(i, &min);
     if min > 255 { std.die("lower bound"); }
@@ -62,7 +64,7 @@ function main() : int64 {
     var password = i;
     while i != end && i[0] != '\n' { i = i + 1; }
     i[0] = '\0';
-    var e: entry;
+    var e: Entry;
     e.min = min as byte;
     e.max = max as byte;
     e.c = c;

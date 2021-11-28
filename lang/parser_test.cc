@@ -495,6 +495,13 @@ TEST_F(ParserTest, Return) {
   EXPECT_ERROR(ParseStatement(), "expected ';'");
 }
 
+TEST_F(ParserTest, Alias) {
+  WithSource("alias x = 42;");
+  EXPECT_EQ(
+      ParseStatement(),
+      ast::DeclareAlias(At(1, 1), "x", ast::IntegerLiteral(At(1, 11), 42)));
+}
+
 TEST_F(ParserTest, Declaration) {
   WithSource("var x: any;");
   EXPECT_EQ(ParseStatement(),

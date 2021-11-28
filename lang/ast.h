@@ -414,6 +414,15 @@ struct Export {
   Statement target;
 };
 
+struct DeclareAlias {
+  bool operator==(const DeclareAlias&) const = default;
+  auto operator<=>(const DeclareAlias&) const = default;
+
+  Location location;
+  std::string name;
+  Expression value;
+};
+
 struct DeclareVariable {
   bool operator==(const DeclareVariable&) const = default;
   auto operator<=>(const DeclareVariable&) const = default;
@@ -540,9 +549,9 @@ struct StatementVariant {
   bool operator==(const StatementVariant&) const = default;
   auto operator<=>(const StatementVariant&) const = default;
 
-  std::variant<Import, Export, DeclareVariable, Assign, DeclareAndAssign, If,
-               While, For, Return, Break, Continue, DiscardedExpression,
-               FunctionDefinition, StructDefinition>
+  std::variant<Import, Export, DeclareAlias, DeclareVariable, Assign,
+               DeclareAndAssign, If, While, For, Return, Break, Continue,
+               DiscardedExpression, FunctionDefinition, StructDefinition>
       value;
 };
 
@@ -552,6 +561,7 @@ Statement::Statement(T value) noexcept
 
 std::ostream& operator<<(std::ostream&, const Import&) noexcept;
 std::ostream& operator<<(std::ostream&, const Export&) noexcept;
+std::ostream& operator<<(std::ostream&, const DeclareAlias&) noexcept;
 std::ostream& operator<<(std::ostream&, const DeclareVariable&) noexcept;
 std::ostream& operator<<(std::ostream&, const Assign&) noexcept;
 std::ostream& operator<<(std::ostream&, const DeclareAndAssign&) noexcept;

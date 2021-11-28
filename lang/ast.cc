@@ -241,6 +241,11 @@ std::ostream& operator<<(std::ostream& output, const Export& x) noexcept {
 }
 
 std::ostream& operator<<(std::ostream& output,
+                         const DeclareAlias& x) noexcept {
+  return output << "DeclareAlias(" << Escaped(x.name) << ", " << x.value << ")";
+}
+
+std::ostream& operator<<(std::ostream& output,
                          const DeclareVariable& x) noexcept {
   return output << "DeclareVariable(" << Escaped(x.name) << ", " << x.type
                 << ")";

@@ -62,6 +62,7 @@ class Parser {
   ast::Statement ParseStructDefinition();
   ast::Statement ParseIf();
   ast::Statement ParseReturn(StatementTerminator terminator);
+  ast::Statement ParseAlias(StatementTerminator terminator);
   ast::Statement ParseDeclaration(StatementTerminator terminator);
   ast::Statement ParseWhile();
   ast::Statement ParseFor();

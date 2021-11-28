@@ -202,5 +202,14 @@ TEST_F(CheckerTest, ImportExport) {
   )");
 }
 
+TEST_F(CheckerTest, Alias) {
+  Check("alias x = 1;");
+  Check("var x: int64;\n"
+        "alias y = x;");
+  Check("alias x = [123]int64;");
+  EXPECT_ERROR(Check("alias x = 1 + 2;"),
+               "invalid (or unsupported) definition for alias");
+}
+
 }  // namespace
 }  // namespace aoc2021

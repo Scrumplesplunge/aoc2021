@@ -603,9 +603,8 @@ ExpressionInfo CheckValue(ModuleContext& context, Environment& environment,
 
 class TypeChecker {
  public:
-  TypeChecker(ModuleContext& context, Environment& environment,
-              FrameAllocator& frame) noexcept
-      : context_(&context), environment_(&environment), frame_(&frame) {}
+  TypeChecker(ModuleContext& context, Environment& environment) noexcept
+      : context_(&context), environment_(&environment) {}
   ir::Type operator()(const ast::Name&);
   ir::Type operator()(const ast::Dereference&);
   ir::Type operator()(const ast::ArrayType&);
@@ -620,12 +619,39 @@ class TypeChecker {
 
   ModuleContext* context_;
   Environment* environment_;
-  FrameAllocator* frame_;
 };
 
 ir::Type CheckType(ModuleContext& context, Environment& environment,
-                   FrameAllocator& frame, const ast::Expression& expression) {
-  TypeChecker checker(context, environment, frame);
+                   const ast::Expression& expression) {
+  TypeChecker checker(context, environment);
+  return std::visit(checker, expression->value);
+}
+
+class AliasChecker {
+ public:
+  AliasChecker(ModuleContext& context, Environment& environment) noexcept
+      : context_(&context), environment_(&environment) {}
+
+  Value operator()(const ast::Name&);
+  Value operator()(const ast::CharacterLiteral&);
+  Value operator()(const ast::IntegerLiteral&);
+  Value operator()(const ast::StringLiteral&);
+  Value operator()(const ast::Dereference&);
+  Value operator()(const ast::ArrayType&);
+  Value operator()(const ast::SpanType&);
+  Value operator()(const auto& x) {
+    throw Error(x.location, "invalid (or unsupported) definition for alias");
+  }
+
+ private:
+  ModuleContext* context_;
+  Environment* environment_;
+  FrameAllocator* frame_;
+};
+
+Value CheckAlias(ModuleContext& context, Environment& environment,
+                 const ast::Expression& expression) {
+  AliasChecker checker(context, environment);
   return std::visit(checker, expression->value);
 }
 
@@ -636,6 +662,7 @@ class StatementChecker {
       : context_(&context), environment_(&environment), frame_(&frame) {}
   ir::Code operator()(const ast::Import&);
   ir::Code operator()(const ast::Export&);
+  ir::Code operator()(const ast::DeclareAlias&);
   ir::Code operator()(const ast::DeclareVariable&);
   ir::Code operator()(const ast::Assign&);
   ir::Code operator()(const ast::DeclareAndAssign&);
@@ -669,6 +696,7 @@ class ModuleStatementChecker {
       : context_(&context), environment_(&environment) {}
   ir::Code operator()(const ast::Import&);
   ir::Code operator()(const ast::Export&);
+  ir::Code operator()(const ast::DeclareAlias&);
   ir::Code operator()(const ast::DeclareVariable&);
   ir::Code operator()(const ast::Assign&);
   ir::Code operator()(const ast::DeclareAndAssign&);
@@ -1304,7 +1332,7 @@ ExpressionInfo ExpressionChecker::CheckValue(const ast::Expression& x) {
 }
 
 ir::Type ExpressionChecker::CheckType(const ast::Expression& x) {
-  return aoc2021::CheckType(*context_, *environment_, *frame_, x);
+  return aoc2021::CheckType(*context_, *environment_, x);
 }
 
 ir::Type TypeChecker::operator()(const ast::Name& x) {
@@ -1331,11 +1359,51 @@ ir::Type TypeChecker::operator()(const ast::SpanType& x) {
 }
 
 ExpressionInfo TypeChecker::CheckValue(const ast::Expression& x) {
-  return aoc2021::CheckValue(*context_, *environment_, *frame_, x);
+  // All expressions in type scope must be constant expressions, so the frame is
+  // not actually needed at runtime.
+  FrameAllocator frame;
+  return aoc2021::CheckValue(*context_, *environment_, frame, x);
 }
 
 ir::Type TypeChecker::CheckType(const ast::Expression& x) {
-  return aoc2021::CheckType(*context_, *environment_, *frame_, x);
+  return aoc2021::CheckType(*context_, *environment_, x);
+}
+
+Value AliasChecker::operator()(const ast::Name& x) {
+  auto* definition = environment_->Lookup(x.value);
+  if (!definition) throw UndeclaredError(x.value, x.location);
+  return definition->value;
+}
+
+Value AliasChecker::operator()(const ast::CharacterLiteral& x) {
+  return TypedExpression{Category::kRvalue, ir::Scalar::kByte,
+                         Representation::kDirect, ir::IntegerLiteral(x.value)};
+}
+
+Value AliasChecker::operator()(const ast::IntegerLiteral& x) {
+  return TypedExpression{Category::kRvalue, ir::Scalar::kInt64,
+                         Representation::kDirect, ir::IntegerLiteral(x.value)};
+}
+
+Value AliasChecker::operator()(const ast::StringLiteral& x) {
+  const ir::Global address = context_->StringLiteral(x.value);
+  return TypedExpression(
+      Category::kRvalue,
+      // A string literal is an array of bytes including a null-terminator.
+      ir::Pointer(ir::Array(x.value.size() + 1, ir::Scalar::kByte)),
+      Representation::kDirect, address);
+}
+
+Value AliasChecker::operator()(const ast::Dereference& x) {
+  return CheckType(*context_, *environment_, x);
+}
+
+Value AliasChecker::operator()(const ast::ArrayType& x) {
+  return CheckType(*context_, *environment_, x);
+}
+
+Value AliasChecker::operator()(const ast::SpanType& x) {
+  return CheckType(*context_, *environment_, x);
 }
 
 ir::Code CheckBlock(ModuleContext& context, Environment& parent_environment,
@@ -1357,6 +1425,15 @@ ir::Code StatementChecker::operator()(const ast::Import& x) {
 
 ir::Code StatementChecker::operator()(const ast::Export& x) {
   throw Error(x.location, "export statements must appear at module scope");
+}
+
+ir::Code StatementChecker::operator()(const ast::DeclareAlias& x) {
+  Value value = CheckAlias(*context_, *environment_, x.value);
+  environment_->Define(
+      x.name, Environment::Definition{
+                  .location = x.location,
+                  .value = CheckAlias(*context_, *environment_, x.value)});
+  return ir::Sequence();
 }
 
 ir::Code StatementChecker::operator()(const ast::DeclareVariable& x) {
@@ -1512,7 +1589,7 @@ ExpressionInfo StatementChecker::CheckValue(const ast::Expression& x) {
 }
 
 ir::Type StatementChecker::CheckType(const ast::Expression& x) {
-  return aoc2021::CheckType(*context_, *environment_, *frame_, x);
+  return aoc2021::CheckType(*context_, *environment_, x);
 }
 
 ir::Code StatementChecker::CheckBlock(Environment& parent_environment,
@@ -1542,6 +1619,15 @@ ir::Code ModuleStatementChecker::operator()(const ast::Export& x) {
   }
   ModuleStatementChecker checker(*context_, context_->ExportedEnvironment());
   return std::visit(checker, x.target->value);
+}
+
+ir::Code ModuleStatementChecker::operator()(const ast::DeclareAlias& x) {
+  Value value = CheckAlias(*context_, *environment_, x.value);
+  environment_->Define(
+      x.name, Environment::Definition{
+                  .location = x.location,
+                  .value = CheckAlias(*context_, *environment_, x.value)});
+  return ir::Sequence();
 }
 
 ir::Code ModuleStatementChecker::operator()(const ast::DeclareVariable& x) {
@@ -1668,10 +1754,7 @@ ir::Code ModuleStatementChecker::operator()(const ast::StructDefinition& x) {
 }
 
 ir::Type ModuleStatementChecker::CheckType(const ast::Expression& x) {
-  // All expressions at global scope must be constant expressions, so the frame
-  // is not actually needed at runtime.
-  FrameAllocator frame;
-  return aoc2021::CheckType(*context_, *environment_, frame, x);
+  return aoc2021::CheckType(*context_, *environment_, x);
 }
 
 }  // namespace
