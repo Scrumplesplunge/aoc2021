@@ -248,6 +248,16 @@ void AddBuiltins(Environment& environment) {
                                    ir::Scalar::kInt64}),
               Representation::kDirect, ir::Label("write"))});
   environment.Define(
+      "copy",
+      Environment::Definition{
+          .location = BuiltinLocation(),
+          .value = TypedExpression(
+              Category::kRvalue,
+              ir::FunctionPointer(ir::Void{}, {ir::Span(ir::Scalar::kByte),
+                                               ir::Span(ir::Scalar::kByte),
+                                               ir::Scalar::kInt64}),
+              Representation::kDirect, ir::Label("copy"))});
+  environment.Define(
       "exit", Environment::Definition{
                   .location = BuiltinLocation(),
                   .value = TypedExpression(
@@ -1283,23 +1293,21 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
   ExpressionInfo condition =
       EnsureComparable(x.condition.location(), CheckValue(x.condition));
   // TODO: Improve temporary allocation to allow using the same space for the
-  // then branch and the else branch.
+  // then branch and the else branch. Alternatively, propagate an "output slot"
+  // inwards so that both branches can arrange to produce their values in the
+  // same destination.
   ExpressionInfo then_branch = EnsureRvalue(x.then_branch.location(), *frame_,
                                             CheckValue(x.then_branch));
   ExpressionInfo else_branch = EnsureRvalue(x.else_branch.location(), *frame_,
                                             CheckValue(x.else_branch));
-  if (then_branch.value.representation != Representation::kAddress ||
-      else_branch.value.representation != Representation::kAddress) {
-    // We need addresses for each value for the implementation below.
-    std::abort();
-  }
   if (then_branch.value.type != else_branch.value.type) {
     throw Error(x.location,
                 "ternary expression branches yield different types: ",
                 then_branch.value.type, " and ", else_branch.value.type);
   }
+  const ir::Type type = then_branch.value.type;
   // Allocate space for the function result.
-  const ir::Local::Offset offset = frame_->Allocate(then_branch.value.type);
+  const ir::Local::Offset offset = frame_->Allocate(type);
   const ir::Label if_false = context_->Label(".Lternary_else");
   const ir::Label end = context_->Label(".Lternary_end");
   // cond ? a : b compiles into:
@@ -1316,15 +1324,17 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
           {std::move(condition.code),
            ir::JumpUnless(std::move(condition.value.value), if_false),
            std::move(then_branch.code),
-           ir::Store64(ir::Local(offset), std::move(then_branch.value.value)),
+           DoStore(x.then_branch.location(), ir::Local(offset), type,
+                   std::move(then_branch)),
            ir::Jump(end), if_false, std::move(else_branch.code),
-           ir::Store64(ir::Local(offset), std::move(else_branch.value.value)),
+           DoStore(x.else_branch.location(), ir::Local(offset), type,
+                   std::move(else_branch)),
            end}),
       .value = TypedExpression(
-          Category::kRvalue, std::move(then_branch.value.type),
+          Category::kRvalue, type,
           // EnsureRvalue gives us address representations and the
           // expression ensures that we put this address in the output slot.
-          Representation::kAddress, ir::Load64(ir::Local(offset)))};
+          Representation::kAddress, ir::Local(offset))};
 }
 
 ExpressionInfo ExpressionChecker::CheckValue(const ast::Expression& x) {
