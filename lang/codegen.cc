@@ -119,7 +119,8 @@ constexpr Register kRegisterOrder[] = {
   // kRsp is required for the stack pointer
   Register::kRsi,
   Register::kRdi,
-  // kR8..kR15
+  Register::kR8,
+  // kR9..kR15
 };
 constexpr int kNumWorkingRegisters = std::size(kRegisterOrder);
 
