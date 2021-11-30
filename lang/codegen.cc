@@ -182,6 +182,20 @@ class ExpressionGenerator {
   }
 
   ProductionResult Produce(const ir::Load8& x) {
+    if (auto* local = std::get_if<ir::Local>(&x.address->value)) {
+      // Directly load a byte from a local.
+      return ProductionResult{
+          .code = StrCat("  movzxb ", (std::int64_t)local->offset, "(%rbp), ",
+                         kRegisterOrder[0], "\n"),
+          .registers_used = 1};
+    }
+    if (auto* global = std::get_if<ir::Global>(&x.address->value)) {
+      // Directly load a byte from a global.
+      return ProductionResult{.code = StrCat("  movzxb ", global->value, ", ",
+                                             kRegisterOrder[0], "\n"),
+                              .registers_used = 1};
+    }
+    // Compute an address first and then load a byte from that address.
     const ProductionResult& address = Get(x.address);
     return ProductionResult{
         .code = StrCat(address.code, "  movzxb (", address.result(), "), ",
@@ -190,6 +204,20 @@ class ExpressionGenerator {
   }
 
   ProductionResult Produce(const ir::Load64& x) {
+    if (auto* local = std::get_if<ir::Local>(&x.address->value)) {
+      // Directly load a value from a local.
+      return ProductionResult{
+          .code = StrCat("  mov ", (std::int64_t)local->offset, "(%rbp), ",
+                         kRegisterOrder[0], "\n"),
+          .registers_used = 1};
+    }
+    if (auto* global = std::get_if<ir::Global>(&x.address->value)) {
+      // Directly load a value from a global.
+      return ProductionResult{.code = StrCat("  mov ", global->value, ", ",
+                                             kRegisterOrder[0], "\n"),
+                              .registers_used = 1};
+    }
+    // Compute an address first and then load a value from that address.
     const ProductionResult& address = Get(x.address);
     return ProductionResult{
         .code = StrCat(address.code, "  mov (", address.result(), "), ",
@@ -709,6 +737,19 @@ class CodeGenerator {
   void operator()(const ir::Store8& x) {
     *output_ << "  // " << x << "\n";
     ProductionResult value = ExpressionGenerator().Get(x.value);
+    if (auto* local = std::get_if<ir::Local>(&x.address->value)) {
+      // Directly store a byte to a local.
+      *output_ << value.code << "  mov " << ByteName(value.result()) << ", "
+               << (std::int64_t)local->offset << "(%rbp)\n";
+      return;
+    }
+    if (auto* global = std::get_if<ir::Global>(&x.address->value)) {
+      // Directly store a byte to a global.
+      *output_ << value.code << "  mov " << ByteName(value.result()) << ", "
+               << global->value << "\n";
+      return;
+    }
+    // Compute an address and then store a byte to that address.
     ProductionResult address = ExpressionGenerator().Get(x.address);
     if (value.registers_used > address.registers_used) {
       // We can compute the value first, leave the result where it is, then
@@ -736,6 +777,19 @@ class CodeGenerator {
   void operator()(const ir::Store64& x) {
     *output_ << "  // " << x << "\n";
     ProductionResult value = ExpressionGenerator().Get(x.value);
+    if (auto* local = std::get_if<ir::Local>(&x.address->value)) {
+      // Directly store a value to a local.
+      *output_ << value.code << "  mov " << value.result() << ", "
+               << (std::int64_t)local->offset << "(%rbp)\n";
+      return;
+    }
+    if (auto* global = std::get_if<ir::Global>(&x.address->value)) {
+      // Directly store a value to a global.
+      *output_ << value.code << "  mov " << value.result() << ", "
+               << global->value << "\n";
+      return;
+    }
+    // Compute an address and then store a byte to that address.
     ProductionResult address = ExpressionGenerator().Get(x.address);
     if (value.registers_used > address.registers_used) {
       // We can compute the value first, leave the result where it is, then
