@@ -143,6 +143,73 @@ std::optional<std::int64_t> GetConstant(const ir::Expression& x) {
   return value;
 }
 
+struct Comparison {
+  enum class Type {
+    kLessThan,
+    kLessOrEqual,
+    kGreaterThan,
+    kGreaterOrEqual,
+    kEqual,
+    kNotEqual,
+  };
+  Type type;
+  ProductionResult result;
+};
+
+Comparison::Type operator!(Comparison::Type type) {
+  switch (type) {
+    case Comparison::Type::kLessThan:
+      return Comparison::Type::kGreaterOrEqual;
+    case Comparison::Type::kLessOrEqual:
+      return Comparison::Type::kGreaterThan;
+    case Comparison::Type::kGreaterThan:
+      return Comparison::Type::kLessOrEqual;
+    case Comparison::Type::kGreaterOrEqual:
+      return Comparison::Type::kLessThan;
+    case Comparison::Type::kEqual:
+      return Comparison::Type::kNotEqual;
+    case Comparison::Type::kNotEqual:
+      return Comparison::Type::kEqual;
+  }
+  std::abort();
+}
+
+std::string_view Set(Comparison::Type type) {
+  switch (type) {
+    case Comparison::Type::kLessThan:
+      return "setl";
+    case Comparison::Type::kLessOrEqual:
+      return "setle";
+    case Comparison::Type::kGreaterThan:
+      return "setg";
+    case Comparison::Type::kGreaterOrEqual:
+      return "setge";
+    case Comparison::Type::kEqual:
+      return "sete";
+    case Comparison::Type::kNotEqual:
+      return "setne";
+  }
+  std::abort();
+}
+
+std::string_view Jump(Comparison::Type type) {
+  switch (type) {
+    case Comparison::Type::kLessThan:
+      return "jl";
+    case Comparison::Type::kLessOrEqual:
+      return "jle";
+    case Comparison::Type::kGreaterThan:
+      return "jg";
+    case Comparison::Type::kGreaterOrEqual:
+      return "jge";
+    case Comparison::Type::kEqual:
+      return "je";
+    case Comparison::Type::kNotEqual:
+      return "jne";
+  }
+  std::abort();
+}
+
 class ExpressionGenerator {
  public:
   const ProductionResult& Get(const ir::Expression& e) {
@@ -153,7 +220,129 @@ class ExpressionGenerator {
     return i->second;
   }
 
+  Comparison Compare(const ir::Expression& e) {
+    return std::visit([&](const auto& x) { return DoCompare(x); }, e->value);
+  }
+
  private:
+  Comparison DoCompare(const ir::LogicalNot& x) {
+    Comparison inner = Compare(x.inner);
+    return Comparison{!inner.type, std::move(inner.result)};
+  }
+
+  Comparison DoCompare(const ir::LessThan& x) {
+    std::optional<std::int64_t> left_value = GetConstant(x.left);
+    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    if (right_value || !left_value) {
+      return Comparison{Comparison::Type::kLessThan,
+                        ProduceCompare(x.left, x.right)};
+    } else {
+      // Produce a comparison against a constant, but where we need to flip the
+      // comparison direction because the constant is on the left side instead.
+      return Comparison{Comparison::Type::kGreaterThan,
+                        ProduceCompare(x.right, x.left)};
+    }
+  }
+
+  Comparison DoCompare(const ir::LessOrEqual& x) {
+    std::optional<std::int64_t> left_value = GetConstant(x.left);
+    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    if (right_value || !left_value) {
+      return Comparison{Comparison::Type::kLessOrEqual,
+                        ProduceCompare(x.left, x.right)};
+    } else {
+      // Produce a comparison against a constant, but where we need to flip the
+      // comparison direction because the constant is on the left side instead.
+      return Comparison{Comparison::Type::kGreaterOrEqual,
+                        ProduceCompare(x.right, x.left)};
+    }
+  }
+
+  Comparison DoCompare(const ir::Equal& x) {
+    std::optional<std::int64_t> left_value = GetConstant(x.left);
+    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    if (right_value || !left_value) {
+      return Comparison{Comparison::Type::kEqual,
+                        ProduceCompare(x.left, x.right)};
+    } else {
+      // Produce a comparison against a constant, but where we need to flip the
+      // comparison direction because the constant is on the left side instead.
+      return Comparison{Comparison::Type::kEqual,
+                        ProduceCompare(x.right, x.left)};
+    }
+  }
+
+  Comparison DoCompare(const ir::NotEqual& x) {
+    std::optional<std::int64_t> left_value = GetConstant(x.left);
+    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    if (right_value || !left_value) {
+      return Comparison{Comparison::Type::kNotEqual,
+                        ProduceCompare(x.left, x.right)};
+    } else {
+      // Produce a comparison against a constant, but where we need to flip the
+      // comparison direction because the constant is on the left side instead.
+      return Comparison{Comparison::Type::kNotEqual,
+                        ProduceCompare(x.right, x.left)};
+    }
+  }
+
+  Comparison DoCompare(const auto& x) {
+    return Comparison{Comparison::Type::kNotEqual,
+                      ProduceCompare(x, ir::IntegerLiteral(0))};
+  }
+
+  // Produce a comparison between two expressions, optimizing the case where the
+  // right operand is a constant.
+  ProductionResult ProduceCompare(const ir::Expression& l,
+                                  const ir::Expression& r) {
+    const ProductionResult& left = Get(l);
+    const ProductionResult& right = Get(r);
+    std::optional<std::int64_t> right_value = GetConstant(r);
+    if (right_value) {
+      // Compare against an immediate value.
+      return ProductionResult{.code = StrCat(left.code, "  cmp $", *right_value,
+                                             ", ", left.result(), "\n"),
+                              .registers_used = left.registers_used};
+    } else if (left.registers_used > right.registers_used) {
+      // We can compute left first, leave the result where it is, then compute
+      // right without accidentally clobbering left, then perform the
+      // comparison.
+      return ProductionResult{
+          .code = StrCat(left.code, right.code, "  cmp ", right.result(), ", ",
+                         left.result(), "\n"),
+          .registers_used = left.registers_used};
+    } else if (right.registers_used > left.registers_used) {
+      // We can compute right first, leave the result where it is, then compute
+      // left without accidentally clobbering right, then perform the
+      // comparison.
+      return ProductionResult{
+          .code = StrCat(right.code, left.code, "  cmp ", right.result(), ", ",
+                         left.result(), "\n"),
+          .registers_used = left.registers_used};
+    } else {
+      // We need to use one extra slot to stow the value of left while we
+      // compute the value of right.
+      const int registers_used = left.registers_used + 1;
+      EnsureEnoughRegisters(registers_used);
+      const Register result = kRegisterOrder[registers_used - 1];
+      return ProductionResult{
+          .code =
+              StrCat(left.code, "  mov ", left.result(), ", ", result, "\n",
+                     right.code, "  cmp ", right.result(), ", ", result, "\n"),
+          .registers_used = registers_used};
+    }
+  }
+
+  ProductionResult ProduceSet(const ir::Expression& e) {
+    Comparison compare = Compare(e);
+    return ProductionResult{
+        .code = StrCat(compare.result.code, "  ", Set(compare.type), " ",
+                       ByteName(compare.result.result()), "\n", "  movzx ",
+                       ByteName(compare.result.result()), ", ",
+                       compare.result.result(), "\n"),
+        .registers_used = compare.result.registers_used};
+  }
+
   void EnsureEnoughRegisters(int registers_used) {
     if (registers_used > kNumWorkingRegisters) {
       throw std::runtime_error(
@@ -238,18 +427,7 @@ class ExpressionGenerator {
         .registers_used = inner.registers_used};
   }
 
-  ProductionResult Produce(const ir::LogicalNot& x) {
-    const ProductionResult& inner = Get(x.inner);
-    // TODO: Find a way to avoid always using an extra register here.
-    EnsureEnoughRegisters(inner.registers_used + 1);
-    const Register result = kRegisterOrder[inner.registers_used];
-    return ProductionResult{
-        .code = StrCat(inner.code,
-                       "  xor ", result, ", ", result, "\n",
-                       "  test ", inner.result(), ", ", inner.result(), "\n",
-                       "  sete ", ByteName(result), "\n"),
-        .registers_used = inner.registers_used + 1};
-  }
+  ProductionResult Produce(const ir::LogicalNot& x) { return ProduceSet(x); }
 
   ProductionResult Produce(const ir::BitwiseNot& x) {
     const ProductionResult& inner = Get(x.inner);
@@ -489,121 +667,10 @@ class ExpressionGenerator {
     }
   }
 
-  ProductionResult Produce(const ir::LessThan& x) {
-    const ProductionResult& left = Get(x.left);
-    const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
-      // We can compute left first, leave the result where it is, then compute
-      // right without accidentally clobbering left, then store the result
-      // where left is.
-      return ProductionResult{
-          .code = StrCat(left.code, right.code, "  cmp ", right.result(), ", ",
-                         left.result(), "\n", "  setl ",
-                         ByteName(left.result()), "\n", "  movzx ",
-                         ByteName(left.result()), ", ", left.result(), "\n"),
-          .registers_used = left.registers_used};
-    } else {
-      // We need to use one extra slot to stow the value of left while we
-      // compute the value of right.
-      const int registers_used =
-          std::max(left.registers_used, right.registers_used) + 1;
-      EnsureEnoughRegisters(registers_used);
-      const Register result = kRegisterOrder[registers_used - 1];
-      return ProductionResult{
-          .code = StrCat(left.code, "  mov ", left.result(), ", ", result, "\n",
-                         right.code, "  cmp ", right.result(), ", ", result,
-                         "\n", "  setl ", ByteName(result), "\n", "  movzx ",
-                         ByteName(result), ", ", result, "\n"),
-          .registers_used = registers_used};
-    }
-  }
-
-  ProductionResult Produce(const ir::LessOrEqual& x) {
-    const ProductionResult& left = Get(x.left);
-    const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
-      // We can compute left first, leave the result where it is, then compute
-      // right without accidentally clobbering left, then store the result
-      // where left is.
-      return ProductionResult{
-          .code = StrCat(left.code, right.code, "  cmp ", right.result(), ", ",
-                         left.result(), "\n", "  setle ",
-                         ByteName(left.result()), "\n", "  movzx ",
-                         ByteName(left.result()), ", ", left.result(), "\n"),
-          .registers_used = left.registers_used};
-    } else {
-      // We need to use one extra slot to stow the value of left while we
-      // compute the value of right.
-      const int registers_used =
-          std::max(left.registers_used, right.registers_used) + 1;
-      EnsureEnoughRegisters(registers_used);
-      const Register result = kRegisterOrder[registers_used - 1];
-      return ProductionResult{
-          .code = StrCat(left.code, "  mov ", left.result(), ", ", result, "\n",
-                         right.code, "  cmp ", right.result(), ", ", result,
-                         "\n", "  setle ", ByteName(result), "\n", "  movzx ",
-                         ByteName(result), ", ", result, "\n"),
-          .registers_used = registers_used};
-    }
-  }
-
-  ProductionResult Produce(const ir::Equal& x) {
-    const ProductionResult& left = Get(x.left);
-    const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
-      // We can compute left first, leave the result where it is, then compute
-      // right without accidentally clobbering left, then store the result
-      // where left is.
-      return ProductionResult{
-          .code = StrCat(left.code, right.code, "  cmp ", right.result(), ", ",
-                         left.result(), "\n", "  sete ",
-                         ByteName(left.result()), "\n", "  movzx ",
-                         ByteName(left.result()), ", ", left.result(), "\n"),
-          .registers_used = left.registers_used};
-    } else {
-      // We need to use one extra slot to stow the value of left while we
-      // compute the value of right.
-      const int registers_used =
-          std::max(left.registers_used, right.registers_used) + 1;
-      EnsureEnoughRegisters(registers_used);
-      const Register result = kRegisterOrder[registers_used - 1];
-      return ProductionResult{
-          .code = StrCat(left.code, "  mov ", left.result(), ", ", result, "\n",
-                         right.code, "  cmp ", right.result(), ", ", result,
-                         "\n", "  sete ", ByteName(result), "\n", "  movzx ",
-                         ByteName(result), ", ", result, "\n"),
-          .registers_used = registers_used};
-    }
-  }
-
-  ProductionResult Produce(const ir::NotEqual& x) {
-    const ProductionResult& left = Get(x.left);
-    const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
-      // We can compute left first, leave the result where it is, then compute
-      // right without accidentally clobbering left, then store the result
-      // where left is.
-      return ProductionResult{
-          .code = StrCat(left.code, right.code, "  cmp ", right.result(), ", ",
-                         left.result(), "\n", "  setne ",
-                         ByteName(left.result()), "\n", "  movzx ",
-                         ByteName(left.result()), ", ", left.result(), "\n"),
-          .registers_used = left.registers_used};
-    } else {
-      // We need to use one extra slot to stow the value of left while we
-      // compute the value of right.
-      const int registers_used =
-          std::max(left.registers_used, right.registers_used) + 1;
-      EnsureEnoughRegisters(registers_used);
-      const Register result = kRegisterOrder[registers_used - 1];
-      return ProductionResult{
-          .code = StrCat(left.code, "  mov ", left.result(), ", ", result, "\n",
-                         right.code, "  cmp ", right.result(), ", ", result,
-                         "\n", "  setne ", ByteName(result), "\n", "  movzx ",
-                         ByteName(result), ", ", result, "\n"),
-          .registers_used = registers_used};
-    }
-  }
+  ProductionResult Produce(const ir::LessThan& x) { return ProduceSet(x); }
+  ProductionResult Produce(const ir::LessOrEqual& x) { return ProduceSet(x); }
+  ProductionResult Produce(const ir::Equal& x) { return ProduceSet(x); }
+  ProductionResult Produce(const ir::NotEqual& x) { return ProduceSet(x); }
 
   ProductionResult Produce(const ir::BitwiseAnd& x) {
     const ProductionResult& left = Get(x.left);
@@ -898,22 +965,16 @@ class CodeGenerator {
   }
 
   void operator()(const ir::JumpIf& x) {
-    ProductionResult condition = ExpressionGenerator().Get(x.condition);
+    Comparison compare = ExpressionGenerator().Compare(x.condition);
     *output_ << "  // " << x << "\n"
-             << condition.code << "  test " << condition.result() << ", "
-             << condition.result()
-             << "\n"
-                "  jnz "
+             << compare.result.code << "  " << Jump(compare.type) << " "
              << x.target.value << "\n";
   }
 
   void operator()(const ir::JumpUnless& x) {
-    ProductionResult condition = ExpressionGenerator().Get(x.condition);
+    Comparison compare = ExpressionGenerator().Compare(x.condition);
     *output_ << "  // " << x << "\n"
-             << condition.code << "  test " << condition.result() << ", "
-             << condition.result()
-             << "\n"
-                "  jz "
+             << compare.result.code << "  " << Jump(!compare.type) << " "
              << x.target.value << "\n";
   }
 
