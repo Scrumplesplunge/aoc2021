@@ -261,7 +261,27 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Add& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
+    std::optional<std::int64_t> left_value = GetConstant(x.left);
+    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    if (left_value && *left_value == 0) {
+      // No-op addition.
+      return right;
+    } else if (right_value && *right_value == 0) {
+      // No-op addition.
+      return left;
+    } else if (right_value) {
+      // Add an immediate value.
+      if (*right_value == 0) return left;
+      return ProductionResult{.code = StrCat(left.code, "  add $", *right_value,
+                                             ", ", left.result(), "\n"),
+                              .registers_used = left.registers_used};
+    } else if (left_value) {
+      // Add an immediate value.
+      if (*left_value == 0) return right;
+      return ProductionResult{.code = StrCat(right.code, "  add $", *left_value,
+                                             ", ", right.result(), "\n"),
+                              .registers_used = right.registers_used};
+    } else if (left.registers_used > right.registers_used) {
       // We can compute left first, leave the result where it is, then compute
       // right without accidentally clobbering left, then store the result
       // where left is.
@@ -293,7 +313,13 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Subtract& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
+    if (auto right_value = GetConstant(x.right)) {
+      // Subtract an immediate value.
+      if (*right_value == 0) return left;
+      return ProductionResult{.code = StrCat(left.code, "  sub $", *right_value,
+                                             ", ", left.result(), "\n"),
+                              .registers_used = left.registers_used};
+    } else if (left.registers_used > right.registers_used) {
       // We can compute left first, leave the result where it is, then compute
       // right without accidentally clobbering left, then store the result
       // where left is.
@@ -319,7 +345,27 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Multiply& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
+    std::optional<std::int64_t> left_value = GetConstant(x.left);
+    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    if (left_value && *left_value == 1) {
+      // No-op multiplication.
+      return right;
+    } else if (right_value && *right_value == 1) {
+      // No-op multiplication.
+      return left;
+    } else if (right_value) {
+      // Multiply by an immediate value.
+      return ProductionResult{
+          .code = StrCat(left.code, "  imul $", *right_value, ", ",
+                         left.result(), ", ", left.result(), "\n"),
+          .registers_used = left.registers_used};
+    } else if (left_value) {
+      // Multiply by an immediate value.
+      return ProductionResult{
+          .code = StrCat(right.code, "  imul $", *left_value, ", ",
+                         right.result(), ", ", right.result(), "\n"),
+          .registers_used = right.registers_used};
+    } else if (left.registers_used > right.registers_used) {
       // We can compute left first, leave the result where it is, then compute
       // right without accidentally clobbering left, then store the result
       // where left is.
