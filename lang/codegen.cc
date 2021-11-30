@@ -1,5 +1,6 @@
 #include "codegen.h"
 
+#include <bit>
 #include <cassert>
 #include <functional>
 #include <iomanip>
@@ -135,6 +136,12 @@ struct ProductionResult {
 
 using Production =
     std::function<std::optional<ProductionResult>(const ir::Expression&)>;
+
+std::optional<std::int64_t> GetConstant(const ir::Expression& x) {
+  std::optional<std::int64_t> value;
+  if (auto* i = std::get_if<ir::IntegerLiteral>(&x->value)) value = i->value;
+  return value;
+}
 
 class ExpressionGenerator {
  public:
@@ -316,7 +323,17 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Divide& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
+    if (auto right_value = GetConstant(x.right);
+        *right_value > 0 &&
+        std::has_single_bit(static_cast<std::uint64_t>(*right_value))) {
+      const int shift =
+          std::countr_zero(static_cast<std::uint64_t>(*right_value));
+      // The divisor is a positive constant power of two, so we can use an
+      // arithmetic shift instead of a division.
+      return ProductionResult{.code = StrCat(left.code, "  asr $", shift, ", ",
+                                             left.result(), "\n"),
+                              .registers_used = left.registers_used};
+    } else if (left.registers_used > right.registers_used) {
       // We can compute left first, leave the result where it is, then compute
       // right without accidentally clobbering left, then store the result
       // where left is.
@@ -349,12 +366,21 @@ class ExpressionGenerator {
                      "  mov %rax, ", result, "\n"),
           .registers_used = left.registers_used + 1};
     }
-  }
+    }
 
   ProductionResult Produce(const ir::Modulo& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    if (left.registers_used > right.registers_used) {
+    if (auto right_value = GetConstant(x.right);
+        *right_value > 0 &&
+        std::has_single_bit(static_cast<std::uint64_t>(*right_value))) {
+      // The divisor is a positive constant power of two, so we can use
+      // a logical and instead of a division.
+      return ProductionResult{
+          .code = StrCat(left.code, "  and $", (*right_value - 1), ", ",
+                         left.result(), "\n"),
+          .registers_used = left.registers_used};
+    } else if (left.registers_used > right.registers_used) {
       // We can compute left first, leave the result where it is, then compute
       // right without accidentally clobbering left, then store the result
       // where left is.
