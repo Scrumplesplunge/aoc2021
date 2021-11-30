@@ -27,11 +27,10 @@ for e2e_test_file in lang/test_data/*.aoc; do
     echo -e "${r}FAILED${reset} (assembly) $e2e_test"
     continue
   fi
-  if ! ld -T lang/link.ld "build/$e2e_test.o" -o "build/$e2e_test"; then
+  if ! ld "build/$e2e_test.o" -o "build/$e2e_test"; then
     echo -e "${r}FAILED${reset} (linking) $e2e_test"
     continue
   fi
-  llvm-strip --strip-all "build/$e2e_test"
   "build/$e2e_test" <"lang/test_data/$e2e_test.input"  \
                     >"build/$e2e_test.stdout"  \
                     2>"build/$e2e_test.stderr"
