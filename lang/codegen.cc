@@ -932,12 +932,17 @@ class CodeGenerator {
       ProductionResult value = ExpressionGenerator().Get(x.arguments[i]);
       *output_ << value.code << "  push " << value.result() << "\n";
     }
-    ProductionResult function_address =
-        ExpressionGenerator().Get(x.function_address);
-    *output_ << function_address.code << "  call *" << function_address.result()
-             << "\n"
-                "  add $"
-             << (8 * x.arguments.size()) << ", %rsp\n";
+    if (auto* label = std::get_if<ir::Label>(&x.function_address->value)) {
+      // Direct call.
+      *output_ << "  call " << label->value << "\n";
+    } else {
+      // Indirect call.
+      ProductionResult function_address =
+          ExpressionGenerator().Get(x.function_address);
+      *output_ << function_address.code << "  call *"
+               << function_address.result() << "\n";
+    }
+    *output_ << "  add $" << (8 * x.arguments.size()) << ", %rsp\n";
   }
 
   void operator()(const ir::BeginFrame& x) {
