@@ -1,9 +1,9 @@
 // Input: up to 2000 integers, one per line.
 // Part 1: Count the number of numbers that are larger than the one before them.
 // Part 2: Compute sliding window sums of size 3 and repeat part 1.
-// Approach: Part 1 is trivial. For part 2, I maintained a window sum variable
-// by adding the leading edge and removing the trailing edge, which generalises
-// nicely to windows with larger sizes.
+// Approach: Part 1 is trivial. For part 2, we can compare against the value
+// back at the far edge of the sliding window as only the numbers at the edges
+// of the window are different between two consecutive windows.
 
 import "std/std.aoc" as std;
 
@@ -40,14 +40,10 @@ function part1(): int64 {
 function part2(): int64 {
   var timesIncreased = 0;
   if numNumbers < 3 { std.die("not enough"); }
-  // windowSum is numbers[i - 3] + numbers[i - 2] + numbers[i - 1]
-  var windowSum = numbers[0] + numbers[1] + numbers[2];
   for var i = 3; i < numNumbers; i = i + 1 {
-    // newSum is numbers[i - 2] + numbers[i - 1] + numbers[i]
-    var newSum = windowSum - numbers[i - 3] + numbers[i];
-    if newSum > windowSum { timesIncreased = timesIncreased + 1; }
-    // Advance windowSum. The invariant is restored after i increments.
-    windowSum = newSum;
+    // The new 3-wide window sum is larger if the newly-added number is larger
+    // than the newly-removed number.
+    if numbers[i] > numbers[i - 3] { timesIncreased = timesIncreased + 1; }
   }
   return timesIncreased;
 }
