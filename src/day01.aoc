@@ -25,7 +25,7 @@ function readInput(): void {
     i = std.readInt(i, &numbers[numNumbers]);
     numNumbers = numNumbers + 1;
     if i[0] != '\n' { std.die("syntax"); }
-    i = i + 1;
+    while i[0] == '\n' { i = i + 1; }
   }
 }
 
