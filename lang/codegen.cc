@@ -929,6 +929,29 @@ class CodeGenerator {
   void operator()(const ir::Call& x) {
     *output_ << "  // " << x << "\n";
     for (int i = x.arguments.size() - 1; i >= 0; i--) {
+      const ir::Expression& argument = x.arguments[i];
+      if (auto* literal = std::get_if<ir::IntegerLiteral>(&argument->value)) {
+        // Push a literal value.
+        *output_ << "  push $" << literal->value << "\n";
+        continue;
+      }
+      if (auto* load = std::get_if<ir::Load64>(&argument->value)) {
+        if (auto* local = std::get_if<ir::Local>(&load->address->value)) {
+          // Push the value of a local.
+          *output_ << "  push " << (std::int64_t)local->offset << "(%rbp)\n";
+          continue;
+        } else if (auto* global =
+            std::get_if<ir::Global>(&load->address->value)) {
+          // Push the value of a global.
+          *output_ << "  push " << global->value << "\n";
+          continue;
+        }
+      } else if (auto* global = std::get_if<ir::Global>(&argument->value)) {
+        // Push the address of a global.
+        *output_ << "  push $" << global->value << "\n";
+        continue;
+      }
+      // Compute an expression into a register and push the result.
       ProductionResult value = ExpressionGenerator().Get(x.arguments[i]);
       *output_ << value.code << "  push " << value.result() << "\n";
     }
