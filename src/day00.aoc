@@ -1,5 +1,12 @@
 import "std/std.aoc" as std;
 
 function main(): int64 {
-  std.puts("hello, world\n");
+  alias n = 1024;
+  var buffer: [n]byte;
+  var length: int64 = 1;
+  while length {
+    length = read(std.stdin, &buffer as *void, n);
+    write(std.stdout, &buffer as *void, length);
+  }
+  return 0;
 }
