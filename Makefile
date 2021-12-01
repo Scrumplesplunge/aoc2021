@@ -22,10 +22,11 @@ build/%.s: src/%.aoc build/compiler
 	build/compiler $< >$@
 
 build/%.o: build/%.s
-	as $^ -o $@
+	as -Os $^ -o $@
 
 build/%: build/%.o | lang/link.ld
 	ld $^ -T lang/link.ld -o $@
+	llvm-strip --strip-sections $@
 
 build/day00.%.output: build/day00 puzzles/day00/%.input
 	build/day00 <puzzles/day00/$*.input >$@
