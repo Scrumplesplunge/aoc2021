@@ -137,10 +137,174 @@ struct ProductionResult {
 using Production =
     std::function<std::optional<ProductionResult>(const ir::Expression&)>;
 
-std::optional<std::int64_t> GetConstant(const ir::Expression& x) {
-  std::optional<std::int64_t> value;
-  if (auto* i = std::get_if<ir::IntegerLiteral>(&x->value)) value = i->value;
-  return value;
+// TODO: After splitting the checker into AST -> ASG -> IR, we can do this kind
+// of optimization on the ASG instead.
+std::optional<std::int64_t> Evaluate(const ir::Expression& expression);
+
+class Evaluator {
+ public:
+  std::optional<std::int64_t> operator()(const ir::Label& x) {
+    return std::nullopt;
+  }
+  std::optional<std::int64_t> operator()(const ir::Global& x) {
+    return std::nullopt;
+  }
+  std::optional<std::int64_t> operator()(const ir::Local& x) {
+    return std::nullopt;
+  }
+  std::optional<std::int64_t> operator()(const ir::Load8& x) {
+    return std::nullopt;
+  }
+  std::optional<std::int64_t> operator()(const ir::Load64& x) {
+    return std::nullopt;
+  }
+  std::optional<std::int64_t> operator()(const ir::IntegerLiteral& x) {
+    return x.value;
+  }
+  std::optional<std::int64_t> operator()(const ir::Negate& x) {
+    if (auto inner = Evaluate(x.inner)) {
+      return -*inner;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::LogicalNot& x) {
+    if (auto inner = Evaluate(x.inner)) {
+      return !*inner;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::BitwiseNot& x) {
+    if (auto inner = Evaluate(x.inner)) {
+      return ~*inner;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::Add& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left + *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::Subtract& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left - *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::Multiply& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left * *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::Divide& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left / *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::Modulo& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left % *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::LessThan& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left < *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::LessOrEqual& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left <= *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::Equal& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left == *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::NotEqual& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left != *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::BitwiseAnd& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left & *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::BitwiseOr& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left | *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::BitwiseXor& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left ^ *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::ShiftLeft& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      return *left << *right;
+    } else {
+      return std::nullopt;
+    }
+  }
+  std::optional<std::int64_t> operator()(const ir::ShiftRight& x) {
+    const auto left = Evaluate(x.left), right = Evaluate(x.right);
+    if (left && right) {
+      // >> isn't guaranteed to do arithmetic shifting in C++, so instead we
+      // convert it into a division that has the same effect as the desired
+      // arithmetic shift.
+      return *left / (1 << *right);
+    } else {
+      return std::nullopt;
+    }
+  }
+
+ private:
+  std::ostream* output_;
+};
+
+std::optional<std::int64_t> Evaluate(const ir::Expression& expression) {
+  Evaluator evaluator;
+  return std::visit(evaluator, expression->value);
 }
 
 struct Comparison {
@@ -231,8 +395,8 @@ class ExpressionGenerator {
   }
 
   Comparison DoCompare(const ir::LessThan& x) {
-    std::optional<std::int64_t> left_value = GetConstant(x.left);
-    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    std::optional<std::int64_t> left_value = Evaluate(x.left);
+    std::optional<std::int64_t> right_value = Evaluate(x.right);
     if (right_value || !left_value) {
       return Comparison{Comparison::Type::kLessThan,
                         ProduceCompare(x.left, x.right)};
@@ -245,8 +409,8 @@ class ExpressionGenerator {
   }
 
   Comparison DoCompare(const ir::LessOrEqual& x) {
-    std::optional<std::int64_t> left_value = GetConstant(x.left);
-    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    std::optional<std::int64_t> left_value = Evaluate(x.left);
+    std::optional<std::int64_t> right_value = Evaluate(x.right);
     if (right_value || !left_value) {
       return Comparison{Comparison::Type::kLessOrEqual,
                         ProduceCompare(x.left, x.right)};
@@ -259,8 +423,8 @@ class ExpressionGenerator {
   }
 
   Comparison DoCompare(const ir::Equal& x) {
-    std::optional<std::int64_t> left_value = GetConstant(x.left);
-    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    std::optional<std::int64_t> left_value = Evaluate(x.left);
+    std::optional<std::int64_t> right_value = Evaluate(x.right);
     if (right_value || !left_value) {
       return Comparison{Comparison::Type::kEqual,
                         ProduceCompare(x.left, x.right)};
@@ -273,8 +437,8 @@ class ExpressionGenerator {
   }
 
   Comparison DoCompare(const ir::NotEqual& x) {
-    std::optional<std::int64_t> left_value = GetConstant(x.left);
-    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    std::optional<std::int64_t> left_value = Evaluate(x.left);
+    std::optional<std::int64_t> right_value = Evaluate(x.right);
     if (right_value || !left_value) {
       return Comparison{Comparison::Type::kNotEqual,
                         ProduceCompare(x.left, x.right)};
@@ -297,7 +461,7 @@ class ExpressionGenerator {
                                   const ir::Expression& r) {
     const ProductionResult& left = Get(l);
     const ProductionResult& right = Get(r);
-    std::optional<std::int64_t> right_value = GetConstant(r);
+    std::optional<std::int64_t> right_value = Evaluate(r);
     if (right_value) {
       // Compare against an immediate value.
       return ProductionResult{.code = StrCat(left.code, "  cmp $", *right_value,
@@ -439,8 +603,8 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Add& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    std::optional<std::int64_t> left_value = GetConstant(x.left);
-    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    std::optional<std::int64_t> left_value = Evaluate(x.left);
+    std::optional<std::int64_t> right_value = Evaluate(x.right);
     if (left_value && *left_value == 0) {
       // No-op addition.
       return right;
@@ -491,7 +655,7 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Subtract& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    if (auto right_value = GetConstant(x.right)) {
+    if (auto right_value = Evaluate(x.right)) {
       // Subtract an immediate value.
       if (*right_value == 0) return left;
       return ProductionResult{.code = StrCat(left.code, "  sub $", *right_value,
@@ -523,8 +687,8 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Multiply& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    std::optional<std::int64_t> left_value = GetConstant(x.left);
-    std::optional<std::int64_t> right_value = GetConstant(x.right);
+    std::optional<std::int64_t> left_value = Evaluate(x.left);
+    std::optional<std::int64_t> right_value = Evaluate(x.right);
     if (left_value && *left_value == 1) {
       // No-op multiplication.
       return right;
@@ -575,7 +739,7 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Divide& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    if (auto right_value = GetConstant(x.right);
+    if (auto right_value = Evaluate(x.right);
         *right_value > 0 &&
         std::has_single_bit(static_cast<std::uint64_t>(*right_value))) {
       const int shift =
@@ -623,7 +787,7 @@ class ExpressionGenerator {
   ProductionResult Produce(const ir::Modulo& x) {
     const ProductionResult& left = Get(x.left);
     const ProductionResult& right = Get(x.right);
-    if (auto right_value = GetConstant(x.right);
+    if (auto right_value = Evaluate(x.right);
         *right_value > 0 &&
         std::has_single_bit(static_cast<std::uint64_t>(*right_value))) {
       // The divisor is a positive constant power of two, so we can use
