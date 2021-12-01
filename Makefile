@@ -6,6 +6,8 @@ PUZZLES = $(shell find puzzles -name '*.output')
 OUTPUT_BASENAMES = $(subst /,.,${PUZZLES:puzzles/%=%})
 OUTPUTS = ${OUTPUT_BASENAMES:%=build/%}
 .PRECIOUS: ${OUTPUTS}
+.PRECIOUS: ${SOURCES:src/%.aoc=build/%.s}
+.PRECIOUS: ${SOURCES:src/%.aoc=build/%.o}
 
 all: ${SOLVERS} build/tests
 	cat build/tests
@@ -16,8 +18,8 @@ build/compiler: | build
 build:
 	mkdir build
 
-build/%.s: src/%.aoc | build/compiler
-	build/compiler $^ >$@
+build/%.s: src/%.aoc build/compiler
+	build/compiler $< >$@
 
 build/%.o: build/%.s
 	as $^ -o $@
