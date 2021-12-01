@@ -1,3 +1,5 @@
+import "std/std.aoc" as std;
+
 function main(): int64 {
-  write(1, "Hello, World!\n" as *void, 14);
+  std.puts("hello, world\n");
 }
