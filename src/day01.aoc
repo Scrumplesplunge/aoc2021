@@ -1,0 +1,48 @@
+import "std/std.aoc" as std;
+
+alias maxNumbers = 2000;
+var numNumbers: int64;
+var numbers: [maxNumbers]int64;
+
+function readInput(): void {
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numNumbers == maxNumbers { std.die("too many"); }
+    i = std.readInt(i, &numbers[numNumbers]);
+    numNumbers = numNumbers + 1;
+    if i[0] != '\n' { std.die("syntax"); }
+    i = i + 1;
+  }
+}
+
+function part1(): int64 {
+  var timesIncreased = 0;
+  for var i = 1; i < numNumbers; i = i + 1 {
+    if numbers[i] > numbers[i - 1] { timesIncreased = timesIncreased + 1; }
+  }
+  return timesIncreased;
+}
+
+function part2(): int64 {
+  var timesIncreased = 0;
+  if numNumbers < 3 { std.die("not enough"); }
+  var windowSum = numbers[0] + numbers[1] + numbers[2];
+  for var i = 3; i < numNumbers; i = i + 1 {
+    var newSum = windowSum - numbers[i - 3] + numbers[i];
+    if newSum > windowSum { timesIncreased = timesIncreased + 1; }
+    windowSum = newSum;
+  }
+  return timesIncreased;
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+  return 0;
+}
