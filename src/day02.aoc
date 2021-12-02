@@ -1,3 +1,12 @@
+// Input: up to 1000 lines, each stating [forward|up|down] [amount] for the sub.
+// Part 1: Apply the directions to position and then compute x * y, where y is
+// the (positive) depth of the sub.
+// Part 2: up and down now adjust your "aim" instead of your depth, and moving
+// forwards will have a vertical effect proportional to your aim. Follow the
+// directions with the new rules and then compute x * y again.
+// Approach: Parse the input into an array of structs first, then implement the
+// naive iteration for each part.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 
@@ -13,9 +22,11 @@ var numCommands: int64;
 var commands: [maxCommands]Command;
 
 function readInput(): void {
+  // Read the input into a temporary buffer on the stack.
   alias bufferSize = 8192;
   var buffer: [bufferSize]byte;
   var length = read(std.stdin, &buffer as *void, bufferSize);
+  // Parse the input.
   if buffer[length - 1] != '\n' { std.die("newline"); }
   var i: []byte = &buffer;
   var end = i + length;
@@ -23,6 +34,8 @@ function readInput(): void {
     if numCommands == maxCommands { std.die("too many"); }
     var command = &commands[numCommands];
     numCommands = numCommands + 1;
+    // We only use the first character, but for robustness we check that we
+    // found exactly what we expected.
     command->direction = i[0];
     if i[0] == 'f' {
       if strings.strncmp("forward ", i, 8) != 0 { std.die("syntax"); }
@@ -36,6 +49,9 @@ function readInput(): void {
     } else {
       std.die("syntax");
     }
+    // Parse the amounts. In practice, every amount is a single digit and so we
+    // could get away with `i[0] - '0'`, but this supports bigger values and is
+    // more expressive anyway.
     i = std.readInt8(i, &command->amount);
     if i[0] != '\n' { std.die("syntax"); }
     i = i + 1;
@@ -43,8 +59,8 @@ function readInput(): void {
 }
 
 function part1(): int64 {
-  var x = 0;
-  var y = 0;
+  var x = 0;  // Horizontal position.
+  var y = 0;  // Depth (positive is deeper).
   for var i = 0; i < numCommands; i = i + 1 {
     var command = &commands[i];
     if command->direction == 'f' {
@@ -59,9 +75,9 @@ function part1(): int64 {
 }
 
 function part2(): int64 {
-  var aim = 0;
-  var x = 0;
-  var y = 0;
+  var aim = 0;  // Rotational aim (positive is downwards).
+  var x = 0;    // Horizontal position.
+  var y = 0;    // Depth (positive is deeper).
   for var i = 0; i < numCommands; i = i + 1 {
     var command = &commands[i];
     if command->direction == 'f' {
