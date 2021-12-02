@@ -1,0 +1,83 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+struct Command {
+  // 'f', 'd', or 'u'.
+  direction: byte;
+  // Numerical amount.
+  amount: byte;
+}
+
+alias maxCommands = 1000;
+var numCommands: int64;
+var commands: [maxCommands]Command;
+
+function readInput(): void {
+  alias bufferSize = 8192;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numCommands == maxCommands { std.die("too many"); }
+    var command = &commands[numCommands];
+    numCommands = numCommands + 1;
+    command->direction = i[0];
+    if i[0] == 'f' {
+      if strings.strncmp("forward ", i, 8) != 0 { std.die("syntax"); }
+      i = i + 8;
+    } else if i[0] == 'u' {
+      if strings.strncmp("up ", i, 3) != 0 { std.die("syntax"); }
+      i = i + 3;
+    } else if i[0] == 'd' {
+      if strings.strncmp("down ", i, 5) != 0 { std.die("syntax"); }
+      i = i + 5;
+    } else {
+      std.die("syntax");
+    }
+    i = std.readInt8(i, &command->amount);
+    if i[0] != '\n' { std.die("syntax"); }
+    i = i + 1;
+  }
+}
+
+function part1(): int64 {
+  var x = 0;
+  var y = 0;
+  for var i = 0; i < numCommands; i = i + 1 {
+    var command = &commands[i];
+    if command->direction == 'f' {
+      x = x + command->amount;
+    } else if command->direction == 'u' {
+      y = y - command->amount;
+    } else {
+      y = y + command->amount;
+    }
+  }
+  return x * y;
+}
+
+function part2(): int64 {
+  var aim = 0;
+  var x = 0;
+  var y = 0;
+  for var i = 0; i < numCommands; i = i + 1 {
+    var command = &commands[i];
+    if command->direction == 'f' {
+      x = x + command->amount;
+      y = y + aim * command->amount;
+    } else if command->direction == 'u' {
+      aim = aim - command->amount;
+    } else {
+      aim = aim + command->amount;
+    }
+  }
+  return x * y;
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
