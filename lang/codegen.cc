@@ -114,7 +114,7 @@ std::ostream& operator<<(std::ostream& output, Register r) {
 constexpr Register kRegisterOrder[] = {
   // kRax is required by div
   Register::kRbx,
-  // kRcx is required by asl/asr
+  // kRcx is required by sal/sar
   // kRdx is required by div
   // kRbp is required for stack frames
   // kRsp is required for the stack pointer
@@ -746,7 +746,7 @@ class ExpressionGenerator {
           std::countr_zero(static_cast<std::uint64_t>(*right_value));
       // The divisor is a positive constant power of two, so we can use an
       // arithmetic shift instead of a division.
-      return ProductionResult{.code = StrCat(left.code, "  asr $", shift, ", ",
+      return ProductionResult{.code = StrCat(left.code, "  sar $", shift, ", ",
                                              left.result(), "\n"),
                               .registers_used = left.registers_used};
     } else if (left.registers_used > right.registers_used) {
