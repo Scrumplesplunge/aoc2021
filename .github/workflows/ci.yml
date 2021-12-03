@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: install GCC 11
+      run: |
+        sudo apt install g++-11
+        sudo update-alternatives --install /usr/bin/g++-11 11
     - uses: actions/checkout@v2
     - name: make
       run: make
