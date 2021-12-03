@@ -1,4 +1,4 @@
-.PHONY: all clean
+.PHONY: all clean check
 
 SOURCES = $(wildcard src/day[0-2][0-9].aoc)
 SOLVERS = ${SOURCES:src/%.aoc=build/%}
@@ -9,8 +9,10 @@ OUTPUTS = ${OUTPUT_BASENAMES:%=build/%}
 .PRECIOUS: ${SOURCES:src/%.aoc=build/%.s}
 .PRECIOUS: ${SOURCES:src/%.aoc=build/%.o}
 
-all: ${SOLVERS} build/tests
-	cat build/tests
+all: ${SOLVERS}
+
+check: build/tests
+	@cat build/tests
 
 build/compiler: | build
 	(cd lang && cmake -B ../build && ${MAKE} -C ../build)
