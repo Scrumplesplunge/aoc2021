@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: install GCC 11
+    - name: install tools
       run: |
-        sudo apt install g++-11
+        sudo apt install g++-11 llvm colordiff
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 11
     - uses: actions/checkout@v2
     - name: make
