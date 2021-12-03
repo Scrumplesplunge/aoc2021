@@ -1,0 +1,105 @@
+// Input: Binary numbers, all of the same length, one per line.
+// Part 1: Calculate the gamma rate by taking the most common value for each
+// bit, calculate the epsilon rate by taking the least common value for each
+// bit, and return the product of these values.
+// Part 2: Calculate the oxygen generator rating by filtering the list of values
+// to only include those which match the majority value for that bit, then move
+// on to the next bit and repeat until there is only one value left. Calculate
+// the CO2 scrubber rating in the same way, but take the minority value at each
+// stage. Return the product of these values.
+// Approach: First parse the input into an array of ints. Then, by utilising
+// a helper function for computing the most common bit value for a given array
+// of values and a bit index, we can compute part 1 directly by iterating over
+// the bit values. For part 2, we can reuse the same logic for computing both
+// ratings by parameterising on the "preferred" value.
+
+import "std/std.aoc" as std;
+
+var wordLength: int64;
+
+alias maxWords = 1000;
+var numWords: int64;
+var words: [maxWords]int64;
+
+function readInput(): void {
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  // Measure the wordLength.
+  while buffer[wordLength] != '\n' { wordLength = wordLength + 1; }
+  if wordLength > 62 { std.die("too wide"); }
+  // Read all the words.
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numWords == maxWords { std.die("too many"); }
+    var value = 0;
+    for var j = 0; j < wordLength; j = j + 1 {
+      var x = i[j];
+      if x != '0' && x != '1' { std.die("syntax"); }
+      value = 2 * value + (x - '0');
+    }
+    words[numWords] = value;
+    numWords = numWords + 1;
+    if i[wordLength] != '\n' { std.die("syntax"); }
+    i = i + wordLength + 1;
+  }
+}
+
+// Find the most common value for bit b (indexed from the left) in the given
+// input array.
+function mostCommon(a: []int64, n: int64, b: int64): int64 {
+  var shift = wordLength - b - 1;
+  var mask = 1 << shift;
+  var count = 0;
+  for var i = 0; i < n; i = i + 1 {
+    if a[i] & mask { count = count + 1; }
+  }
+  return 2 * count >= n;
+}
+
+function part1(): int64 {
+  var gamma = 0;
+  var threshold = numWords / 2;
+  for var b = 0; b < wordLength; b = b + 1 {
+    var m = mostCommon(&words, numWords, b);
+    gamma = 2 * gamma + m;
+  }
+  var epsilon = (1 << wordLength) - 1 - gamma;
+  return gamma * epsilon;
+}
+
+function findRating(preferred: int64): int64 {
+  var n = numWords;
+  var values = words;
+  for var b = 0; b < wordLength; b = b + 1 {
+    // Filter down to only the values which have the desired bth bit.
+    var m = mostCommon(&values, n, b);
+    var shift = wordLength - b - 1;
+    var mask = 1 << shift;
+    var want = (preferred ? m : 1 - m) << shift;
+    var j = 0;
+    for var i = 0; i < n; i = i + 1 {
+      if (values[i] & mask) == want {
+        values[j] = values[i];
+        j = j + 1;
+      }
+    }
+    n = j;
+    // Exit if we have found the value.
+    if n == 0 { std.die("impossible"); }
+    if n == 1 { return values[0]; }
+  }
+}
+
+function part2(): int64 {
+  return findRating(0) * findRating(1);
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+  return 0;
+}
