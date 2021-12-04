@@ -1,0 +1,138 @@
+import "std/std.aoc" as std;
+
+alias maxNumbers = 128;
+var numNumbers: int64;
+var numbers: [maxNumbers]byte;
+
+struct Board {
+  cells: [5][5]byte;
+  found: int64;
+}
+
+alias maxBoards = 128;
+var numBoards: int64;
+var boards: [maxBoards]Board;
+
+function readInput(): void {
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if length == 0 { std.die("empty input"); }
+  if buffer[length - 1] != '\n' { std.die("no final newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  // Read the list of numbers.
+  while 1 {
+    if numNumbers == maxNumbers { std.die("too many numbers"); }
+    i = std.readInt8(i, &numbers[numNumbers]);
+    numNumbers = numNumbers + 1;
+    if i[0] != ',' { break; }
+    i = i + 1;
+  }
+  // Move to the start of the first grid.
+  if i[0] != '\n' || i[1] != '\n' {
+    std.die("expected newlines after numbers");
+  }
+  i = i + 2;
+  while 1 {
+    if numBoards == maxBoards { std.die("too many boards"); }
+    var board = &boards[numBoards];
+    board->found = 0;
+    numBoards = numBoards + 1;
+    for var y = 0; y < 5; y = y + 1 {
+      for var x = 0; x < 5; x = x + 1 {
+        while i[0] == ' ' { i = i + 1; }
+        i = std.readInt8(i, &board->cells[y][x]);
+      }
+      if i[0] != '\n' { std.die("expected newline after board row"); }
+      i = i + 1;
+    }
+    if i[0] != '\n' { break; }
+    i = i + 1;
+  }
+}
+
+// Mark a number as found in the given board if it is present.
+function markFound(board: *Board, value: byte): void {
+  for var y = 0; y < 5; y = y + 1 {
+    for var x = 0; x < 5; x = x + 1 {
+      if board->cells[y][x] == value {
+        board->found = board->found | (1 << (5 * y + x));
+        return;
+      }
+    }
+  }
+}
+
+// Returns 1 if the given board has a complete row or column, or 0 otherwise.
+function hasWon(board: *Board): int64 {
+  var rowMask = (1 << 5) - 1;
+  var columnMask = 1 | 1 << 5 | 1 << 10 | 1 << 15 | 1 << 20;
+  for var i = 0; i < 5; i = i + 1 {
+    if ((board->found >> (5 * i)) & rowMask) == rowMask {
+      return 1;
+    }
+    if ((board->found >> i) & columnMask) == columnMask {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+// Sum all the unmarked values.
+function sumUnmarked(board: *Board): int64 {
+  var sum = 0;
+  for var y = 0; y < 5; y = y + 1 {
+    for var x = 0; x < 5; x = x + 1 {
+      if ((board->found >> (5 * y + x)) & 1) == 0 {
+        sum = sum + board->cells[y][x];
+      }
+    }
+  }
+  return sum;
+}
+
+function part1(): int64 {
+  for var i = 0; i < numNumbers; i = i + 1 {
+    for var j = 0; j < numBoards; j = j + 1 {
+      markFound(&boards[j], numbers[i]);
+      if hasWon(&boards[j]) {
+        return numbers[i] * sumUnmarked(&boards[j]);
+      }
+    }
+  }
+}
+
+function part2(): int64 {
+  // Reset the found bit for each cell of each board.
+  for var i = 0; i < numBoards; i = i + 1 {
+    boards[i].found = 0;
+  }
+  for var i = 0; i < numNumbers; i = i + 1 {
+    // Mark the ith number as found and remove any boards that have won.
+    var k = 0;
+    for var j = 0; j < numBoards; j = j + 1 {
+      markFound(&boards[j], numbers[i]);
+      if !hasWon(&boards[j]) {
+        boards[k] = boards[j];
+        k = k + 1;
+      }
+    }
+    // We are looking for *the* last board to win. The implication is that there
+    // is only one board that meets this criteria, so we're explicitly looking
+    // for the case where we had one remaining board and we removed it. Any
+    // other case is ambiguous and should be treated as an error rather than
+    // being interpreted as a (potentially) wrong answer.
+    if numBoards == 1 && k == 0 {
+      return numbers[i] * sumUnmarked(&boards[0]);
+    }
+    numBoards = k;
+  }
+  std.die("impossible");
+}
+
+function main(): void {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
