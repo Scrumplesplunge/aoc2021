@@ -1,0 +1,225 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+struct HorizontalLine {
+  y: int16;
+  xMin: int16;
+  xMax: int16;
+  next: *void;
+}
+
+struct DiagonalLine {
+  xStart: int16;
+  xStep: int16;
+  yMin: int16;
+  yMax: int16;
+  next: *void;
+}
+
+var lines: [8192]byte;
+var nextLine: []byte;
+var horizontal: *HorizontalLine;
+var diagonal: *DiagonalLine;
+
+function addHorizontal(y: int16, xMin: int16, xMax: int16): void {
+  var temp = nextLine as *void as []HorizontalLine;
+  var line = &temp[0];
+  nextLine = &temp[1] as *void as []byte;
+  line->y = y;
+  line->xMin = xMin;
+  line->xMax = xMax;
+  line->next = horizontal as *void;
+  horizontal = line;
+}
+
+function addVertical(x: int16, yMin: int16, yMax: int16): void {
+  addDiagonal(x, 0 as int16, yMin, yMax);
+}
+
+function addDiagonal(
+    xStart: int16, xStep: int16, yMin: int16, yMax: int16): void {
+  var temp = nextLine as *void as []DiagonalLine;
+  var line = &temp[0];
+  nextLine = &temp[1] as *void as []byte;
+  line->xStart = xStart;
+  line->xStep = xStep;
+  line->yMin = yMin;
+  line->yMax = yMax;
+  line->next = diagonal as *void;
+  diagonal = line;
+}
+
+function sortHorizontal(): void {
+  for var b = 0; b < 16; b = b + 4 {
+    var lists: [16]*HorizontalLine;
+    for var i = 0; i < 16; i = i + 1 {
+      lists[i] = null as *HorizontalLine;
+    }
+    // Partition the list into buckets.
+    var i = horizontal;
+    while i {
+      var next = i->next as *HorizontalLine;
+      var index = (i->y >> b) % 16;
+      i->next = lists[index];
+      lists[index] = i;
+      i = next;
+    }
+    // Concatenate the lists.
+    horizontal = null as *HorizontalLine;
+    for var j = 15; j >= 0; j = j - 1 {
+      var k = lists[j];
+      while k {
+        var next = k->next as *HorizontalLine;
+        k->next = horizontal;
+        horizontal = k;
+        k = next;
+      }
+    }
+  }
+}
+
+function sortDiagonal(): void {
+  for var b = 0; b < 16; b = b + 4 {
+    var lists: [16]*DiagonalLine;
+    for var i = 0; i < 16; i = i + 1 {
+      lists[i] = null as *DiagonalLine;
+    }
+    // Partition the list into buckets.
+    var i = diagonal;
+    while i {
+      var next = i->next as *DiagonalLine;
+      var index = (i->yMin >> b) % 16;
+      i->next = lists[index];
+      lists[index] = i;
+      i = next;
+    }
+    // Concatenate the lists.
+    diagonal = null as *DiagonalLine;
+    for var j = 15; j >= 0; j = j - 1 {
+      var k = lists[j];
+      while k {
+        var next = k->next as *DiagonalLine;
+        k->next = diagonal;
+        diagonal = k;
+        k = next;
+      }
+    }
+  }
+}
+
+// Read an integer which must be smaller than valueLimit.
+alias valueLimit = 1024;
+function readValue(i: []byte, x: *int16): []byte {
+  i = std.readInt16(i, x);
+  if *x >= valueLimit { std.die("value too large"); }
+  return i;
+}
+
+function readInput(): void {
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  nextLine = &lines;
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    var ax: int16;
+    i = readValue(i, &ax);
+    if i[0] != ',' { std.die("expected ','"); }
+    var ay: int16;
+    i = readValue(i + 1, &ay);
+    if strings.strncmp(i, " -> ", 4) != 0 { std.die("expected ' -> '"); }
+    var bx: int16;
+    i = readValue(i + 4, &bx);
+    if i[0] != ',' { std.die("expected ','"); }
+    var by: int16;
+    i = readValue(i + 1, &by);
+    if i[0] != '\n' { std.die("expected newline"); }
+    i = i + 1;
+    if ax == bx {
+      addVertical(ax, ay < by ? ay : by, ay < by ? by : ay);
+    } else if ay == by {
+      addHorizontal(ay, ax < bx ? ax : bx, ax < bx ? bx : ax);
+    } else {
+      var dx = bx - ax;
+      var dy = by - ay;
+      if dx != dy && -dx != dy { std.die("invalid line"); }
+      if ay < by {
+        addDiagonal(ax, (ax < bx ? 1 : -1) as int16, ay, by);
+      } else {
+        addDiagonal(bx, (bx < ax ? 1 : -1) as int16, by, ay);
+      }
+    }
+  }
+  sortHorizontal();
+  sortDiagonal();
+}
+
+var zeroRow: [valueLimit]byte;
+
+function countOverlaps(includeDiagonals: int64): int64 {
+  var h = horizontal;
+  var d = diagonal;
+  alias maxActiveDiagonals = 512;
+  var activeDiagonals: [maxActiveDiagonals]*DiagonalLine;
+  var numActiveDiagonals = 0;
+  var count = 0;
+  for var y = 0; y < valueLimit; y = y + 1 {
+    if !h && !d { break; }
+    var row = zeroRow;
+    // Render horizontal lines for row y.
+    while h && h->y as int64 == y {
+      var xMax = h->xMax;
+      for var x: int64 = h->xMin; x <= h->xMax; x = x + 1 {
+        var cell = &row[x];
+        if *cell < 2 {
+          *cell = (*cell + 1) as byte;
+          if *cell as int64 == 2 { count = count + 1; }
+        }
+      }
+      h = h->next as *HorizontalLine;
+    }
+    // Remove vertical lines that ended before row y.
+    var j = 0;
+    for var i = 0; i < numActiveDiagonals; i = i + 1 {
+      if activeDiagonals[i]->yMax >= y {
+        activeDiagonals[j] = activeDiagonals[i];
+        j = j + 1;
+      }
+    }
+    numActiveDiagonals = j;
+    // Add vertical lines that started on row y.
+    while d && d->yMin as int64 == y {
+      if includeDiagonals || d->xStep as int64 == 0 {
+        if numActiveDiagonals == maxActiveDiagonals {
+          std.die("too many concurrent vertical/diagonal lines");
+        }
+        activeDiagonals[numActiveDiagonals] = d;
+        numActiveDiagonals = numActiveDiagonals + 1;
+      }
+      d = d->next as *DiagonalLine;
+    }
+    // Render vertical lines for row y.
+    for var i = 0; i < numActiveDiagonals; i = i + 1 {
+      var line = activeDiagonals[i];
+      var dy = y - line->yMin;
+      var cell = &row[line->xStart + line->xStep * dy];
+      if *cell < 2 {
+        *cell = (*cell + 1) as byte;
+        if *cell as int64 == 2 { count = count + 1; }
+      }
+    }
+  }
+  return count;
+}
+
+function part1(): int64 { return countOverlaps(0); }
+function part2(): int64 { return countOverlaps(1); }
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
