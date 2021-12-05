@@ -540,7 +540,7 @@ ir::Code DoStore(Location location, ir::Expression address, ir::Type type,
 bool DirectParameter(const ir::Type& type) {
   const std::int64_t size = ir::Size(type);
   // TODO: Allow objects of any size [0..8] to be passed directly.
-  return size == 0 || size == 1 || size == 8;
+  return size == 0 || size == 1 || size == 2 || size == 4 || size == 8;
 }
 
 ExpressionInfo PrepareParameter(Location location, FrameAllocator& frame,
