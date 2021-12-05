@@ -58,7 +58,7 @@ function readInput(): void {
         // Ensure that diagonal lines are exactly diagonal.
         var dx = line->b.x - line->a.x;
         var dy = line->b.y - line->a.y;
-        if dx != dy && -dx as int16 != dy { std.die("invalid line"); }
+        if dx != dy && -dx != dy { std.die("invalid line"); }
       }
       if line->b.y < line->a.y {
         var temp = line->a;
