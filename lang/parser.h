@@ -36,7 +36,6 @@ class Parser {
   ast::IntegerLiteral ParseIntegerLiteral();
   ast::StringLiteral ParseStringLiteral();
   ast::Expression ParseTerm();
-  ast::Expression ParseArrayType();
   ast::Expression ParseSuffix();
   ast::Expression ParsePrefix();
   ast::Expression ParseProduct();
