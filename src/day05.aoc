@@ -1,0 +1,138 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+alias valueLimit = 1024;
+struct Point {
+  x: int64;
+  y: int64;
+}
+
+struct Line {
+  a: Point;
+  b: Point;
+}
+
+alias maxLines = 500;
+var numLines: int64;
+var lines: [maxLines]Line;
+
+// Read an integer which is must be smaller than valueLimit.
+function readValue(i: []byte, x: *int64): []byte {
+  i = std.readInt(i, x);
+  if *x >= valueLimit { std.die("value too large"); }
+  return i;
+}
+
+function readInput(): void {
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numLines == maxLines { std.die("too many lines"); }
+    var line = &lines[numLines];
+    numLines = numLines + 1;
+    i = readValue(i, &line->a.x);
+    if i[0] != ',' { std.die("expected ','"); }
+    i = readValue(i + 1, &line->a.y);
+    if strings.strncmp(i, " -> ", 4) != 0 { std.die("expected ' -> '"); }
+    i = readValue(i + 4, &line->b.x);
+    if i[0] != ',' { std.die("expected ','"); }
+    i = readValue(i + 1, &line->b.y);
+    if i[0] != '\n' { std.die("expected newline"); }
+    i = i + 1;
+    // Clean up the input by ensuring that:
+    if line->a.y == line->b.y {
+      // Horizontal lines always go from left to right.
+      if line->b.x < line->a.x {
+        var temp = line->a.x;
+        line->a.x = line->b.x;
+        line->b.x = temp;
+      }
+    } else {
+      // Vertical or diagonal lines always go from top to bottom.
+      if line->a.x != line->b.x {
+        // Ensure that diagonal lines are exactly diagonal.
+        var dx = line->b.x - line->a.x;
+        var dy = line->b.y - line->a.y;
+        if dx != dy && -dx != dy { std.die("invalid line"); }
+      }
+      if line->b.y < line->a.y {
+        var temp = line->a;
+        line->a = line->b;
+        line->b = temp;
+      }
+    }
+  }
+}
+
+var grid: [valueLimit][valueLimit]byte;
+var numOverlaps: int64;
+
+function part1(): int64 {
+  // Paint the lines onto the grid.
+  for var i = 0; i < numLines; i = i + 1 {
+    var line = &lines[i];
+    if line->a.x == line->b.x {
+      // Line is horizontal.
+      var x = line->a.x;
+      var yMax = line->b.y;
+      for var y = line->a.y; y <= yMax; y = y + 1 {
+        var cell = &grid[y][x];
+        if *cell < 2 as byte {
+          *cell = (*cell + 1) as byte;
+          if *cell == 2 as byte { numOverlaps = numOverlaps + 1; }
+        }
+      }
+    } else if line->a.y == line->b.y {
+      // Line is vertical.
+      var y = line->a.y;
+      var xMax = line->b.x;
+      for var x = line->a.x; x <= xMax; x = x + 1 {
+        var cell = &grid[y][x];
+        if *cell < 2 as byte {
+          *cell = (*cell + 1) as byte;
+          if *cell == 2 as byte { numOverlaps = numOverlaps + 1; }
+        }
+      }
+    } else {
+      // Line is neither horizontal nor vertical.
+      continue;
+    }
+  }
+  return numOverlaps;
+}
+
+function part2(): int64 {
+  // This relies on the work part1 already did by only adding diagonal lines to
+  // the grid that already contains all horizontal and vertical ones.
+  for var i = 0; i < numLines; i = i + 1 {
+    var line = &lines[i];
+    if line->a.x != line->b.x && line->a.y != line->b.y {
+      var xStep = line->b.x < line->a.x ? -1 : 1;
+      var yMax = line->b.y;
+      var x = line->a.x;
+      for var y = line->a.y; y <= yMax; y = y + 1 {
+        var cell = &grid[y][x];
+        if *cell < 2 as byte {
+          *cell = (*cell + 1) as byte;
+          if *cell == 2 as byte { numOverlaps = numOverlaps + 1; }
+        }
+        x = x + xStep;
+      }
+    } else {
+      // Line is neither horizontal nor vertical.
+      continue;
+    }
+  }
+  return numOverlaps;
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
