@@ -43,6 +43,20 @@ export function readInt8(input: []byte, value: *byte): []byte {
   return input;
 }
 
+export function readInt16(input: []byte, value: *int16): []byte {
+  var temp: int64;
+  input = readInt(input, &temp);
+  *value = temp as int16;
+  return input;
+}
+
+export function readInt32(input: []byte, value: *int32): []byte {
+  var temp: int64;
+  input = readInt(input, &temp);
+  *value = temp as int32;
+  return input;
+}
+
 export function printInt(x: int64): void {
   var buffer: [24]byte;
   buffer[23] = '\n';

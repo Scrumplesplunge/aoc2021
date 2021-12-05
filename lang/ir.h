@@ -69,6 +69,22 @@ struct Load8 {
   Expression address;
 };
 
+// Loads a 16-bit value from the given address.
+struct Load16 {
+  bool operator==(const Load16&) const = default;
+  auto operator<=>(const Load16&) const = default;
+
+  Expression address;
+};
+
+// Loads an 32-bit value from the given address.
+struct Load32 {
+  bool operator==(const Load32&) const = default;
+  auto operator<=>(const Load32&) const = default;
+
+  Expression address;
+};
+
 // Loads a 64-bit value from the given address.
 struct Load64 {
   bool operator==(const Load64&) const = default;
@@ -209,10 +225,10 @@ struct ExpressionVariant {
   bool operator==(const ExpressionVariant&) const = default;
   auto operator<=>(const ExpressionVariant&) const = default;
 
-  std::variant<Label, Global, Local, Load8, Load64, IntegerLiteral, Negate,
-               LogicalNot, BitwiseNot, Add, Subtract, Multiply, Divide, Modulo,
-               LessThan, LessOrEqual, Equal, NotEqual, BitwiseAnd, BitwiseOr,
-               BitwiseXor, ShiftLeft, ShiftRight>
+  std::variant<Label, Global, Local, Load8, Load16, Load32, Load64,
+               IntegerLiteral, Negate, LogicalNot, BitwiseNot, Add, Subtract,
+               Multiply, Divide, Modulo, LessThan, LessOrEqual, Equal, NotEqual,
+               BitwiseAnd, BitwiseOr, BitwiseXor, ShiftLeft, ShiftRight>
       value;
 };
 
@@ -224,6 +240,8 @@ std::ostream& operator<<(std::ostream&, const Label&) noexcept;
 std::ostream& operator<<(std::ostream&, const Global&) noexcept;
 std::ostream& operator<<(std::ostream&, const Local&) noexcept;
 std::ostream& operator<<(std::ostream&, const Load8&) noexcept;
+std::ostream& operator<<(std::ostream&, const Load16&) noexcept;
+std::ostream& operator<<(std::ostream&, const Load32&) noexcept;
 std::ostream& operator<<(std::ostream&, const Load64&) noexcept;
 std::ostream& operator<<(std::ostream&, const IntegerLiteral&) noexcept;
 std::ostream& operator<<(std::ostream&, const Negate&) noexcept;
@@ -269,7 +287,7 @@ class Type {
 enum class Void { kVoid };
 
 // Scalars should be sorted in order of increasing size to allow comparisons.
-enum class Scalar { kByte, kInt64 };
+enum class Scalar { kByte, kInt16, kInt32, kInt64 };
 
 struct Pointer {
   bool operator==(const Pointer&) const = default;
@@ -398,6 +416,22 @@ struct Store8 {
   Expression address, value;
 };
 
+// Stores an 16-bit value to the given address.
+struct Store16 {
+  bool operator==(const Store16&) const = default;
+  auto operator<=>(const Store16&) const = default;
+
+  Expression address, value;
+};
+
+// Stores an 32-bit value to the given address.
+struct Store32 {
+  bool operator==(const Store32&) const = default;
+  auto operator<=>(const Store32&) const = default;
+
+  Expression address, value;
+};
+
 // Stores a 64-bit value to the given address.
 struct Store64 {
   bool operator==(const Store64&) const = default;
@@ -462,8 +496,8 @@ struct CodeVariant {
   bool operator==(const CodeVariant&) const = default;
   auto operator<=>(const CodeVariant&) const = default;
 
-  std::variant<Label, Store8, Store64, Call, BeginFrame, Return, Jump, JumpIf,
-               JumpUnless, Sequence>
+  std::variant<Label, Store8, Store16, Store32, Store64, Call, BeginFrame,
+               Return, Jump, JumpIf, JumpUnless, Sequence>
       value;
 };
 
@@ -472,6 +506,8 @@ Code::Code(T value) noexcept
     : value_(std::make_shared<CodeVariant>(std::move(value))) {}
 
 std::ostream& operator<<(std::ostream&, const Store8&) noexcept;
+std::ostream& operator<<(std::ostream&, const Store16&) noexcept;
+std::ostream& operator<<(std::ostream&, const Store32&) noexcept;
 std::ostream& operator<<(std::ostream&, const Store64&) noexcept;
 std::ostream& operator<<(std::ostream&, const Call&) noexcept;
 std::ostream& operator<<(std::ostream&, const BeginFrame&) noexcept;

@@ -107,6 +107,82 @@ const char* ByteName(Register r) {
   std::abort();
 }
 
+const char* WordName(Register r) {
+  switch (r) {
+    case Register::kRax:
+      return "%ax";
+    case Register::kRbx:
+      return "%bx";
+    case Register::kRcx:
+      return "%cx";
+    case Register::kRdx:
+      return "%dx";
+    case Register::kRbp:
+      return "%bp";
+    case Register::kRsp:
+      return "%sp";
+    case Register::kRsi:
+      return "%si";
+    case Register::kRdi:
+      return "%di";
+    case Register::kR8:
+      return "%r8w";
+    case Register::kR9:
+      return "%r9w";
+    case Register::kR10:
+      return "%r10w";
+    case Register::kR11:
+      return "%r11w";
+    case Register::kR12:
+      return "%r12w";
+    case Register::kR13:
+      return "%r13w";
+    case Register::kR14:
+      return "%r14w";
+    case Register::kR15:
+      return "%r15w";
+  }
+  std::abort();
+}
+
+const char* DoubleWordName(Register r) {
+  switch (r) {
+    case Register::kRax:
+      return "%eax";
+    case Register::kRbx:
+      return "%ebx";
+    case Register::kRcx:
+      return "%ecx";
+    case Register::kRdx:
+      return "%edx";
+    case Register::kRbp:
+      return "%ebp";
+    case Register::kRsp:
+      return "%esp";
+    case Register::kRsi:
+      return "%esi";
+    case Register::kRdi:
+      return "%edi";
+    case Register::kR8:
+      return "%r8d";
+    case Register::kR9:
+      return "%r9d";
+    case Register::kR10:
+      return "%r10d";
+    case Register::kR11:
+      return "%r11d";
+    case Register::kR12:
+      return "%r12d";
+    case Register::kR13:
+      return "%r13d";
+    case Register::kR14:
+      return "%r14d";
+    case Register::kR15:
+      return "%r15d";
+  }
+  std::abort();
+}
+
 std::ostream& operator<<(std::ostream& output, Register r) {
   return output << FullName(r);
 }
@@ -153,6 +229,12 @@ class Evaluator {
     return std::nullopt;
   }
   std::optional<std::int64_t> operator()(const ir::Load8& x) {
+    return std::nullopt;
+  }
+  std::optional<std::int64_t> operator()(const ir::Load16& x) {
+    return std::nullopt;
+  }
+  std::optional<std::int64_t> operator()(const ir::Load32& x) {
     return std::nullopt;
   }
   std::optional<std::int64_t> operator()(const ir::Load64& x) {
@@ -552,6 +634,50 @@ class ExpressionGenerator {
     const ProductionResult& address = Get(x.address);
     return ProductionResult{
         .code = StrCat(address.code, "  movzxb (", address.result(), "), ",
+                       address.result(), "\n"),
+        .registers_used = address.registers_used};
+  }
+
+  ProductionResult Produce(const ir::Load16& x) {
+    if (auto* local = std::get_if<ir::Local>(&x.address->value)) {
+      // Directly load a byte from a local.
+      return ProductionResult{
+          .code = StrCat("  movsxw ", (std::int64_t)local->offset, "(%rbp), ",
+                         kRegisterOrder[0], "\n"),
+          .registers_used = 1};
+    }
+    if (auto* global = std::get_if<ir::Global>(&x.address->value)) {
+      // Directly load a byte from a global.
+      return ProductionResult{.code = StrCat("  movsxw ", global->value, ", ",
+                                             kRegisterOrder[0], "\n"),
+                              .registers_used = 1};
+    }
+    // Compute an address first and then load a byte from that address.
+    const ProductionResult& address = Get(x.address);
+    return ProductionResult{
+        .code = StrCat(address.code, "  movsxw (", address.result(), "), ",
+                       address.result(), "\n"),
+        .registers_used = address.registers_used};
+  }
+
+  ProductionResult Produce(const ir::Load32& x) {
+    if (auto* local = std::get_if<ir::Local>(&x.address->value)) {
+      // Directly load a byte from a local.
+      return ProductionResult{
+          .code = StrCat("  movsxd ", (std::int64_t)local->offset, "(%rbp), ",
+                         kRegisterOrder[0], "\n"),
+          .registers_used = 1};
+    }
+    if (auto* global = std::get_if<ir::Global>(&x.address->value)) {
+      // Directly load a byte from a global.
+      return ProductionResult{.code = StrCat("  movsxd ", global->value, ", ",
+                                             kRegisterOrder[0], "\n"),
+                              .registers_used = 1};
+    }
+    // Compute an address first and then load a byte from that address.
+    const ProductionResult& address = Get(x.address);
+    return ProductionResult{
+        .code = StrCat(address.code, "  movsxd (", address.result(), "), ",
                        address.result(), "\n"),
         .registers_used = address.registers_used};
   }
@@ -1031,13 +1157,13 @@ class CodeGenerator {
     if (value.registers_used > address.registers_used) {
       // We can compute the value first, leave the result where it is, then
       // compute the address without accidentally clobbering the value.
-      *output_ << value.code << address.code << "  movb "
+      *output_ << value.code << address.code << "  mov "
                << ByteName(value.result()) << ", (" << address.result()
                << ")\n";
     } else if (address.registers_used > value.registers_used) {
       // We can compute the address first, leave the result where it is, then
       // compute the value without accidentally clobbering the address.
-      *output_ << address.code << value.code << "  movb "
+      *output_ << address.code << value.code << "  mov "
                << ByteName(value.result()) << ", (" << address.result()
                << ")\n";
     } else {
@@ -1046,7 +1172,87 @@ class CodeGenerator {
       const Register temp = kRegisterOrder[value.registers_used];
       *output_ << value.code << "  mov " << value.result() << ", " << temp
                << "\n"
-               << address.code << "  movb " << ByteName(temp) << ", ("
+               << address.code << "  mov " << ByteName(temp) << ", ("
+               << address.result() << ")\n";
+    }
+  }
+
+  void operator()(const ir::Store16& x) {
+    *output_ << "  // " << x << "\n";
+    ProductionResult value = ExpressionGenerator().Get(x.value);
+    if (auto* local = std::get_if<ir::Local>(&x.address->value)) {
+      // Directly store a byte to a local.
+      *output_ << value.code << "  mov " << WordName(value.result()) << ", "
+               << (std::int64_t)local->offset << "(%rbp)\n";
+      return;
+    }
+    if (auto* global = std::get_if<ir::Global>(&x.address->value)) {
+      // Directly store a byte to a global.
+      *output_ << value.code << "  mov " << WordName(value.result()) << ", "
+               << global->value << "\n";
+      return;
+    }
+    // Compute an address and then store a byte to that address.
+    ProductionResult address = ExpressionGenerator().Get(x.address);
+    if (value.registers_used > address.registers_used) {
+      // We can compute the value first, leave the result where it is, then
+      // compute the address without accidentally clobbering the value.
+      *output_ << value.code << address.code << "  mov "
+               << WordName(value.result()) << ", (" << address.result()
+               << ")\n";
+    } else if (address.registers_used > value.registers_used) {
+      // We can compute the address first, leave the result where it is, then
+      // compute the value without accidentally clobbering the address.
+      *output_ << address.code << value.code << "  mov "
+               << WordName(value.result()) << ", (" << address.result()
+               << ")\n";
+    } else {
+      // We need to use one extra slot to stow the value of left while we
+      // compute the value of right.
+      const Register temp = kRegisterOrder[value.registers_used];
+      *output_ << value.code << "  mov " << value.result() << ", " << temp
+               << "\n"
+               << address.code << "  mov " << WordName(temp) << ", ("
+               << address.result() << ")\n";
+    }
+  }
+
+  void operator()(const ir::Store32& x) {
+    *output_ << "  // " << x << "\n";
+    ProductionResult value = ExpressionGenerator().Get(x.value);
+    if (auto* local = std::get_if<ir::Local>(&x.address->value)) {
+      // Directly store a byte to a local.
+      *output_ << value.code << "  mov " << DoubleWordName(value.result())
+               << ", " << (std::int64_t)local->offset << "(%rbp)\n";
+      return;
+    }
+    if (auto* global = std::get_if<ir::Global>(&x.address->value)) {
+      // Directly store a byte to a global.
+      *output_ << value.code << "  mov " << DoubleWordName(value.result())
+               << ", " << global->value << "\n";
+      return;
+    }
+    // Compute an address and then store a byte to that address.
+    ProductionResult address = ExpressionGenerator().Get(x.address);
+    if (value.registers_used > address.registers_used) {
+      // We can compute the value first, leave the result where it is, then
+      // compute the address without accidentally clobbering the value.
+      *output_ << value.code << address.code << "  mov "
+               << DoubleWordName(value.result()) << ", (" << address.result()
+               << ")\n";
+    } else if (address.registers_used > value.registers_used) {
+      // We can compute the address first, leave the result where it is, then
+      // compute the value without accidentally clobbering the address.
+      *output_ << address.code << value.code << "  mov "
+               << DoubleWordName(value.result()) << ", (" << address.result()
+               << ")\n";
+    } else {
+      // We need to use one extra slot to stow the value of left while we
+      // compute the value of right.
+      const Register temp = kRegisterOrder[value.registers_used];
+      *output_ << value.code << "  mov " << value.result() << ", " << temp
+               << "\n"
+               << address.code << "  mov " << DoubleWordName(temp) << ", ("
                << address.result() << ")\n";
     }
   }

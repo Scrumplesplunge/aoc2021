@@ -59,6 +59,12 @@ class Evaluator {
   std::optional<std::int64_t> operator()(const ir::Load8& x) {
     return std::nullopt;
   }
+  std::optional<std::int64_t> operator()(const ir::Load16& x) {
+    return std::nullopt;
+  }
+  std::optional<std::int64_t> operator()(const ir::Load32& x) {
+    return std::nullopt;
+  }
   std::optional<std::int64_t> operator()(const ir::Load64& x) {
     return std::nullopt;
   }
@@ -224,6 +230,12 @@ void AddBuiltins(Environment& environment) {
   environment.Define("byte",
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Scalar::kByte});
+  environment.Define("int16",
+                     Environment::Definition{.location = BuiltinLocation(),
+                                             .value = ir::Scalar::kInt16});
+  environment.Define("int32",
+                     Environment::Definition{.location = BuiltinLocation(),
+                                             .value = ir::Scalar::kInt32});
   environment.Define("int64",
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Scalar::kInt64});
@@ -400,6 +412,18 @@ TypedExpression EnsureLoaded(Location location, TypedExpression input) {
                              .type = std::move(input.type),
                              .representation = Representation::kDirect,
                              .value = ir::Load8(std::move(input.value))};
+    case 2:
+      if (input.representation == Representation::kDirect) return input;
+      return TypedExpression{.category = Category::kRvalue,
+                             .type = std::move(input.type),
+                             .representation = Representation::kDirect,
+                             .value = ir::Load16(std::move(input.value))};
+    case 4:
+      if (input.representation == Representation::kDirect) return input;
+      return TypedExpression{.category = Category::kRvalue,
+                             .type = std::move(input.type),
+                             .representation = Representation::kDirect,
+                             .value = ir::Load32(std::move(input.value))};
     case 8:
       if (input.representation == Representation::kDirect) return input;
       return TypedExpression{.category = Category::kRvalue,
@@ -426,16 +450,6 @@ ExpressionInfo EnsureRvalue(Location location, FrameAllocator& frame,
                                .type = info.value.type,
                                .representation = Representation::kAddress,
                                .value = ir::Local(copy)}};
-}
-
-ExpressionInfo EnsureInt64(Location location, ExpressionInfo info) {
-  if (info.value.type != ir::Scalar::kInt64 &&
-      info.value.type != ir::Scalar::kByte) {
-    throw Error(location, "not an integer");
-  }
-  info.value = EnsureLoaded(location, info.value);
-  info.value.type = ir::Scalar::kInt64;
-  return info;
 }
 
 ExpressionInfo EnsureComparable(Location location, ExpressionInfo info) {
@@ -479,6 +493,14 @@ ExpressionInfo ConvertTo(Location location, const ir::Type& target,
   return info;
 }
 
+ExpressionInfo EnsureInt64(Location location, ExpressionInfo info) {
+  if (!std::get_if<ir::Scalar>(&info.value.type->value)) {
+    throw Error(location, "not an integer");
+  }
+  info.value = EnsureLoaded(location, std::move(info.value));
+  return ConvertTo(location, ir::Scalar::kInt64, std::move(info));
+}
+
 ir::Code DoStore(Location location, ir::Expression address, ir::Type type,
                  TypedExpression x) {
   x = ConvertTo(location, type, std::move(x));
@@ -488,6 +510,12 @@ ir::Code DoStore(Location location, ir::Expression address, ir::Type type,
     case 1:
       return ir::Store8(std::move(address),
                         EnsureLoaded(location, std::move(x)).value);
+    case 2:
+      return ir::Store16(std::move(address),
+                         EnsureLoaded(location, std::move(x)).value);
+    case 4:
+      return ir::Store32(std::move(address),
+                         EnsureLoaded(location, std::move(x)).value);
     case 8:
       return ir::Store64(std::move(address),
                          EnsureLoaded(location, std::move(x)).value);
@@ -1097,10 +1125,18 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
   ExpressionInfo value = CheckValue(x.value);
   ir::Type type = CheckType(x.type);
   if (value.value.type == type) return value;
-  // Conversion from int64 to byte
-  if (value.value.type == ir::Scalar::kInt64 && type == ir::Scalar::kByte) {
-    value.value.type = std::move(type);
-    return value;
+  // Conversion from one scalar type to another.
+  {
+    const auto* t = std::get_if<ir::Scalar>(&type->value);
+    const auto* s = std::get_if<ir::Scalar>(&value.value.type->value);
+    if (s && t) {
+      value.value = EnsureLoaded(x.value.location(), std::move(value.value));
+      // TODO: This no-op conversion works fine for promotions, but it can have
+      // observable side-effects for narrowing conversions: for example,
+      // (2147483648 as int32) / 4 should logically be 0 but actually won't be.
+      value.value.type = std::move(type);
+      return value;
+    }
   }
   // Conversion from *T or []T to *void.
   if (const auto* to = std::get_if<ir::Pointer>(&type->value);

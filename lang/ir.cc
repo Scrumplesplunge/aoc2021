@@ -86,6 +86,14 @@ std::ostream& operator<<(std::ostream& output, const Load8& x) noexcept {
   return output << "Load8(" << x.address << ")";
 }
 
+std::ostream& operator<<(std::ostream& output, const Load16& x) noexcept {
+  return output << "Load16(" << x.address << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Load32& x) noexcept {
+  return output << "Load32(" << x.address << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Load64& x) noexcept {
   return output << "Load64(" << x.address << ")";
 }
@@ -191,6 +199,8 @@ std::ostream& operator<<(std::ostream& output, Void) noexcept {
 std::ostream& operator<<(std::ostream& output, Scalar x) noexcept {
   switch (x) {
     case Scalar::kByte: return output << "Scalar::kByte";
+    case Scalar::kInt16: return output << "Scalar::kInt16";
+    case Scalar::kInt32: return output << "Scalar::kInt32";
     case Scalar::kInt64: return output << "Scalar::kInt64";
   }
   std::abort();
@@ -243,6 +253,8 @@ std::int64_t Size(Void) noexcept { return 0; }
 std::int64_t Size(Scalar x) noexcept {
   switch (x) {
     case Scalar::kByte: return 1;
+    case Scalar::kInt16: return 2;
+    case Scalar::kInt32: return 4;
     case Scalar::kInt64: return 8;
   }
   std::abort();
@@ -294,6 +306,14 @@ std::strong_ordering Code::operator<=>(const Code& other) const {
 
 std::ostream& operator<<(std::ostream& output, const Store8& x) noexcept {
   return output << "Store8(" << x.address << ", " << x.value << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Store16& x) noexcept {
+  return output << "Store16(" << x.address << ", " << x.value << ")";
+}
+
+std::ostream& operator<<(std::ostream& output, const Store32& x) noexcept {
+  return output << "Store32(" << x.address << ", " << x.value << ")";
 }
 
 std::ostream& operator<<(std::ostream& output, const Store64& x) noexcept {

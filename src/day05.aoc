@@ -3,8 +3,8 @@ import "std/strings.aoc" as strings;
 
 alias valueLimit = 1024;
 struct Point {
-  x: int64;
-  y: int64;
+  x: int16;
+  y: int16;
 }
 
 struct Line {
@@ -17,8 +17,8 @@ var numLines: int64;
 var lines: [maxLines]Line;
 
 // Read an integer which is must be smaller than valueLimit.
-function readValue(i: []byte, x: *int64): []byte {
-  i = std.readInt(i, x);
+function readValue(i: []byte, x: *int16): []byte {
+  i = std.readInt16(i, x);
   if *x >= valueLimit { std.die("value too large"); }
   return i;
 }
@@ -58,7 +58,7 @@ function readInput(): void {
         // Ensure that diagonal lines are exactly diagonal.
         var dx = line->b.x - line->a.x;
         var dy = line->b.y - line->a.y;
-        if dx != dy && -dx != dy { std.die("invalid line"); }
+        if dx != dy && -dx as int16 != dy { std.die("invalid line"); }
       }
       if line->b.y < line->a.y {
         var temp = line->a;
@@ -80,7 +80,7 @@ function part1(): int64 {
       // Line is horizontal.
       var x = line->a.x;
       var yMax = line->b.y;
-      for var y = line->a.y; y <= yMax; y = y + 1 {
+      for var y: int64 = line->a.y; y <= yMax; y = y + 1 {
         var cell = &grid[y][x];
         if *cell < 2 as byte {
           *cell = (*cell + 1) as byte;
@@ -91,7 +91,7 @@ function part1(): int64 {
       // Line is vertical.
       var y = line->a.y;
       var xMax = line->b.x;
-      for var x = line->a.x; x <= xMax; x = x + 1 {
+      for var x: int64 = line->a.x; x <= xMax; x = x + 1 {
         var cell = &grid[y][x];
         if *cell < 2 as byte {
           *cell = (*cell + 1) as byte;
@@ -114,8 +114,8 @@ function part2(): int64 {
     if line->a.x != line->b.x && line->a.y != line->b.y {
       var xStep = line->b.x < line->a.x ? -1 : 1;
       var yMax = line->b.y;
-      var x = line->a.x;
-      for var y = line->a.y; y <= yMax; y = y + 1 {
+      var x: int64 = line->a.x;
+      for var y: int64 = line->a.y; y <= yMax; y = y + 1 {
         var cell = &grid[y][x];
         if *cell < 2 as byte {
           *cell = (*cell + 1) as byte;
