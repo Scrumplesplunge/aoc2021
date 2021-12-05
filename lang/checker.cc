@@ -224,6 +224,14 @@ Location BuiltinLocation() {
 }
 
 void AddBuiltins(Environment& environment) {
+  environment.Define(
+      "null",
+      Environment::Definition{
+          .location = BuiltinLocation(),
+          .value = TypedExpression{.category = Category::kRvalue,
+                                   .type = ir::Pointer(ir::Void{}),
+                                   .representation = Representation::kDirect,
+                                   .value = ir::IntegerLiteral(0)}});
   environment.Define("void",
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Void{}});
