@@ -21,6 +21,8 @@ var nextLine: []byte;
 var horizontal: *HorizontalLine;
 var diagonal: *DiagonalLine;
 
+// Add a new HorizontalLine to the horizontal list, allocating space from the
+// lines buffer.
 function addHorizontal(y: int16, xMin: int16, xMax: int16): void {
   var temp = nextLine as *void as []HorizontalLine;
   var line = &temp[0];
@@ -32,10 +34,8 @@ function addHorizontal(y: int16, xMin: int16, xMax: int16): void {
   horizontal = line;
 }
 
-function addVertical(x: int16, yMin: int16, yMax: int16): void {
-  addDiagonal(x, 0 as int16, yMin, yMax);
-}
-
+// Add a new DiagonalLine to the diagonal list, allocating space from the lines
+// buffer.
 function addDiagonal(
     xStart: int16, xStep: int16, yMin: int16, yMax: int16): void {
   var temp = nextLine as *void as []DiagonalLine;
@@ -49,6 +49,7 @@ function addDiagonal(
   diagonal = line;
 }
 
+// Sort the horizontal list in order of increasing y value.
 function sortHorizontal(): void {
   for var b = 0; b < 16; b = b + 4 {
     var lists: [16]*HorizontalLine;
@@ -78,6 +79,7 @@ function sortHorizontal(): void {
   }
 }
 
+// Sort the diagonal list in order of increasing yMin value.
 function sortDiagonal(): void {
   for var b = 0; b < 16; b = b + 4 {
     var lists: [16]*DiagonalLine;
@@ -115,6 +117,7 @@ function readValue(i: []byte, x: *int16): []byte {
   return i;
 }
 
+// Read the input into the horizontal and diagonal lists.
 function readInput(): void {
   alias bufferSize = 16384;
   var buffer: [bufferSize]byte;
@@ -125,6 +128,7 @@ function readInput(): void {
   var i: []byte = &buffer;
   var end = i + length;
   while i != end {
+    // Parse a line of the form ax,ay -> bx,by
     var ax: int16;
     i = readValue(i, &ax);
     if i[0] != ',' { std.die("expected ','"); }
@@ -138,8 +142,10 @@ function readInput(): void {
     i = readValue(i + 1, &by);
     if i[0] != '\n' { std.die("expected newline"); }
     i = i + 1;
+    // Create a line of the appropriate type.
     if ax == bx {
-      addVertical(ax, ay < by ? ay : by, ay < by ? by : ay);
+      // Vertical lines are modelled as diagonal lines with xStep set to 0.
+      addDiagonal(ax, 0 as int16, ay < by ? ay : by, ay < by ? by : ay);
     } else if ay == by {
       addHorizontal(ay, ax < bx ? ax : bx, ax < bx ? bx : ax);
     } else {
@@ -153,6 +159,7 @@ function readInput(): void {
       }
     }
   }
+  // Sort the input lines by their y values.
   sortHorizontal();
   sortDiagonal();
 }
@@ -160,6 +167,8 @@ function readInput(): void {
 var zeroRow: [valueLimit]byte;
 
 function countOverlaps(includeDiagonals: int64): int64 {
+  // Calculate the overlaps by scanning from y=0 downwards. In each iteration,
+  // we consider the overlaps that can happen in row y.
   var h = horizontal;
   var d = diagonal;
   alias maxActiveDiagonals = 512;
@@ -167,6 +176,8 @@ function countOverlaps(includeDiagonals: int64): int64 {
   var numActiveDiagonals = 0;
   var count = 0;
   for var y = 0; y < valueLimit; y = y + 1 {
+    // If we have reached the end of the horizontal and diagonal lists, then
+    // there are no more lines that could overlap.
     if !h && !d { break; }
     var row = zeroRow;
     // Render horizontal lines for row y.
