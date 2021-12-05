@@ -476,6 +476,16 @@ ExpressionInfo EnsureComparable(Location location, ExpressionInfo info) {
 TypedExpression ConvertTo(Location location, const ir::Type& target,
                           TypedExpression x) {
   if (x.type == target) return x;
+  // *T -> *void
+  {
+    const auto* t = std::get_if<ir::Pointer>(&target->value);
+    const auto* s = std::get_if<ir::Pointer>(&x.type->value);
+    if (s && t && t->pointee == ir::Void{}) {
+      x = EnsureLoaded(location, std::move(x));
+      x.type = target;
+      return x;
+    }
+  }
   // *[n]T -> []T
   {
     const auto* s = std::get_if<ir::Span>(&target->value);
@@ -490,7 +500,11 @@ TypedExpression ConvertTo(Location location, const ir::Type& target,
   {
     const auto* t = std::get_if<ir::Scalar>(&target->value);
     const auto* s = std::get_if<ir::Scalar>(&x.type->value);
-    if (s && t && *s < *t) return EnsureLoaded(location, std::move(x));
+    if (s && t && *s < *t) {
+      x = EnsureLoaded(location, std::move(x));
+      x.type = target;
+      return x;
+    }
   }
   throw Error(location, "cannot implicitly convert ", x.type, " to ", target);
 }
@@ -1576,7 +1590,7 @@ ir::Code StatementChecker::operator()(const ast::While& x) {
   const ir::Label loop_condition = context_->Label(".Lwhile_condition");
   const ir::Label loop_end = context_->Label(".Lwhile_end");
   ExpressionInfo condition =
-      EnsureInt64(x.condition.location(), CheckValue(x.condition));
+      EnsureComparable(x.condition.location(), CheckValue(x.condition));
   Environment while_environment(*environment_, Environment::ShadowMode::kDeny);
   while_environment.SetBreak(loop_end);
   while_environment.SetContinue(loop_condition);
@@ -1607,8 +1621,8 @@ ir::Code StatementChecker::operator()(const ast::For& x) {
   FrameAllocator for_frame(*frame_);
   StatementChecker for_scope(*context_, for_environment, for_frame);
   ir::Code initializer = std::visit(for_scope, x.initializer->value);
-  ExpressionInfo condition =
-      EnsureInt64(x.condition.location(), for_scope.CheckValue(x.condition));
+  ExpressionInfo condition = EnsureComparable(
+      x.condition.location(), for_scope.CheckValue(x.condition));
   ir::Code step = std::visit(for_scope, x.step->value);
   ir::Code body = for_scope.CheckBlock(for_environment, x.body);
   return ir::Sequence(
