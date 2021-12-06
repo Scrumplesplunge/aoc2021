@@ -46,9 +46,6 @@ function simulate(numDays: int64): int64 {
   var c = 0;  // The index of children that have timer 0.
   var a = 0;  // The index of adults that have timer 0.
   for var day = 0; day < numDays; day = day + 1 {
-    var total = 0;
-    for var i = 0; i < 7; i = i + 1 { total = total + adults[i]; }
-    for var i = 0; i < 9; i = i + 1 { total = total + children[i]; }
     // Children with timer 0 mature to adults.
     adults[a] = adults[a] + children[c];
     // New children are born from each adult with timer 0.
