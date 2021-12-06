@@ -1,0 +1,53 @@
+import "std/std.aoc" as std;
+
+var input: [9]int64;
+
+function readInput(): void {
+  alias bufferSize = 1024;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if length == 0 { std.die("empty input"); }
+  if buffer[length - 1] != '\n' { std.die("no final newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  // Read the list of numbers.
+  while i != end {
+    var x: byte;
+    i = std.readInt8(i, &x);
+    if x > 8 { std.die("timer too large"); }
+    input[x] = input[x] + 1;
+    if i[0] != ',' { break; }
+    i = i + 1;
+  }
+  if i[0] != '\n' || i + 1 != end { std.die("trailing characters"); }
+}
+
+function simulate(numDays: int64): int64 {
+  var children = input;
+  var adults: [7]int64;
+  for var i = 0; i < 7; i = i + 1 { adults[i] = 0; }
+  var c = 0;  // The index of children that have timer 0.
+  var a = 0;  // The index of adults that have timer 0.
+  for var day = 0; day < numDays; day = day + 1 {
+    var total = 0;
+    for var i = 0; i < 7; i = i + 1 { total = total + adults[i]; }
+    for var i = 0; i < 9; i = i + 1 { total = total + children[i]; }
+    // Children with timer 0 mature to adults.
+    adults[a] = adults[a] + children[c];
+    // New children are born from each adult with timer 0.
+    children[c] = adults[a];
+    // Advance by one day.
+    c = c == 8 ? 0 : c + 1;
+    a = a == 6 ? 0 : a + 1;
+  }
+  var total = 0;
+  for var i = 0; i < 7; i = i + 1 { total = total + adults[i]; }
+  for var i = 0; i < 9; i = i + 1 { total = total + children[i]; }
+  return total;
+}
+
+function main(): void {
+  readInput();
+  std.printInt(simulate(80));
+  std.printInt(simulate(256));
+}
