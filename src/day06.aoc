@@ -1,5 +1,17 @@
+// Input: A comma-separated list of timers representing the reproductive cycle
+// of lanternfish. At each tick, all timers decrement. Timers that go below zero
+// reset to 6 and spawn a new fish with timer value 8.
+// Part 1: How many timers exist after 80 steps?
+// Part 2: How many timers exist after 256 steps?
+// Approach: All timers with the same value can be handled as a group, so we
+// only need to maintain a count of how many timers exist with the given value.
+// We can maintain this using two circular buffers: one buffer holds the adult
+// fish which never disappear, while the other buffer holds only the child fish
+// that can mature into adults.
+
 import "std/std.aoc" as std;
 
+// input[i] is the number of fish with timer value i in the input.
 var input: [9]int64;
 
 function readInput(): void {
@@ -23,7 +35,12 @@ function readInput(): void {
 }
 
 function simulate(numDays: int64): int64 {
+  // We can initially treat all the input fish as children, as their behaviour
+  // is indistinguishable from the behaviour of adults with the same timer
+  // values.
   var children = input;
+  // Since we are treating all the initial fish as children, the buffer of
+  // adults should be empty.
   var adults: [7]int64;
   for var i = 0; i < 7; i = i + 1 { adults[i] = 0; }
   var c = 0;  // The index of children that have timer 0.
