@@ -129,7 +129,7 @@ function part2(): int64 {
   //   + (x^2 + x) * len(below)
   //   - (1 + 2x) * sum(below)
   //   + sum(n^2 for n in below)) / 2
-  // = (sum(n^2 for n in above) - sum(n^2 for n in below)
+  // = (sum(n^2 for n in above) + sum(n^2 for n in below)
   //   + (1 - 2x) * sum(above) - (1 + 2x) * sum(below)
   //   + (x^2 - x) * len(above) + (x^2 + x) * len(below)) / 2
   var minFuel = 1 << 62;
