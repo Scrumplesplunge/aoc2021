@@ -3,6 +3,8 @@ import "std/std.aoc" as std;
 alias maxNumbers = 1000;
 var numNumbers: int64;
 var numbers: [maxNumbers]int16;
+var minValue: int16;
+var maxValue: int16;
 
 function readInput(): void {
   alias bufferSize = 4096;
@@ -13,59 +15,26 @@ function readInput(): void {
   var i: []byte = &buffer;
   var end = i + length;
   // Read the list of numbers.
+  minValue = 32767 as int16;
+  maxValue = 0 as int16;
   while i != end {
     if numNumbers == maxNumbers { std.die("too many numbers"); }
-    i = std.readInt16(i, &numbers[numNumbers]);
+    var x: int16;
+    i = std.readInt16(i, &x);
+    if x < minValue { minValue = x; }
+    if x > maxValue { maxValue = x; }
+    numbers[numNumbers] = x;
     numNumbers = numNumbers + 1;
     if i[0] != ',' { break; }
     i = i + 1;
   }
   if i[0] != '\n' || i + 1 != end { std.die("trailing characters"); }
-  // sortNumbers();
 }
 
-// function siftDown(i: int64): void {
-//   var x = numbers[i];
-//   while 1 {
-//     var l = 2 * i + 1;
-//     if l >= numNumbers { break; }  // No more children.
-//     var r = l + 1;
-//     var c = r < numNumbers && numbers[r] < numbers[l] ? r : l;
-//     if numbers[c] <= x { break; }  // Value is larger than both children.
-//     numbers[i] = numbers[c];
-//     i = c;
-//   }
-//   numbers[i] = x;
-// }
-// 
-// function pop(): int16 {
-//   var x = numbers[0];
-//   numNumbers = numNumbers - 1;
-//   numbers[0] = numbers[numNumbers];
-//   siftDown(0);
-//   return x;
-// }
-// 
-// function sortNumbers(): int64 {
-//   var n = numNumbers;
-//   for var i = numNumbers; i >= 0; i = i - 1 { siftDown(i); }
-//   while numNumbers {
-//     var x = pop();
-//     numbers[numNumbers] = x;
-//   }
-//   numNumbers = n;
-// }
-
 function part1(): int64 {
-  var xMin = 32767;
-  var xMax = 0;
-  for var i = 0; i < numNumbers; i = i + 1 {
-    var x = numbers[i];
-    if x < xMin { xMin = x; }
-    if x > xMax { xMax = x; }
-  }
-  var minFuel = (xMax - xMin) * numNumbers;
-  for var x: int64 = xMin; x <= xMax; x = x + 1 {
+  var minFuel = 1 << 62;
+  // Iterate over all candidates for x and compute the amount of fuel needed.
+  for var x: int64 = minValue; x <= maxValue; x = x + 1 {
     var totalFuel = 0;
     for var i = 0; i < numNumbers; i = i + 1 {
       var delta = numbers[i] - x;
@@ -80,20 +49,15 @@ function part1(): int64 {
 }
 
 function part2(): int64 {
-  var xMin = 32767;
-  var xMax = 0;
-  for var i = 0; i < numNumbers; i = i + 1 {
-    var x = numbers[i];
-    if x < xMin { xMin = x; }
-    if x > xMax { xMax = x; }
-  }
-  var minFuel = (xMax - xMin) * (xMax - xMin) * numNumbers;
-  for var x: int64 = xMin; x <= xMax; x = x + 1 {
+  var minFuel = 1 << 62;
+  // Iterate over all candidates for x and compute the amount of fuel needed.
+  for var x: int64 = minValue; x <= maxValue; x = x + 1 {
     var totalFuel = 0;
     for var i = 0; i < numNumbers; i = i + 1 {
       var delta = numbers[i] - x;
       var distance = delta < 0 ? -delta : delta;
-      totalFuel = totalFuel + distance * (distance + 1) / 2;
+      var fuel = distance * (distance + 1) / 2;  // Sum of 0..distance.
+      totalFuel = totalFuel + fuel;
     }
     if totalFuel < minFuel {
       minFuel = totalFuel;
