@@ -6,6 +6,11 @@ var numbers: [maxNumbers]int16;
 var minValue: int16;
 var maxValue: int16;
 
+// sums[i] is the sum of numbers[0..i).
+var sums: [maxNumbers + 1]int64;
+// sumSquares[i] is the sum of squares of numbers[0..i).
+var sumSquares: [maxNumbers + 1]int64;
+
 function readInput(): void {
   alias bufferSize = 4096;
   var buffer: [bufferSize]byte;
@@ -29,18 +34,67 @@ function readInput(): void {
     i = i + 1;
   }
   if i[0] != '\n' || i + 1 != end { std.die("trailing characters"); }
+  sortNumbers();
+  // Precompute prefix sums and prefix sum of squares.
+  for var j = 0; j < numNumbers; j = j + 1 {
+    sums[j + 1] = sums[j] + numbers[j];
+    sumSquares[j + 1] = sumSquares[j] + numbers[j] * numbers[j];
+  }
+}
+
+function siftDown(i: int64, n: int64): void {
+  var x = numbers[i];
+  while 1 {
+    var l = 2 * i + 1;
+    if l >= n { break; }  // No more children.
+    var r = l + 1;
+    var c = r < n && numbers[r] > numbers[l] ? r : l;
+    if numbers[c] <= x { break; }  // Value is larger than both children.
+    numbers[i] = numbers[c];
+    i = c;
+  }
+  numbers[i] = x;
+}
+
+function pop(n: int64): int16 {
+  n = n - 1;
+  var x = numbers[0];
+  numbers[0] = numbers[n];
+  numbers[n] = x;
+  siftDown(0, n);
+  return x;
+}
+
+function sortNumbers(): int64 {
+  for var i = numNumbers - 1; i >= 0; i = i - 1 { siftDown(i, numNumbers); }
+  for var n = numNumbers; n >= 0; n = n - 1 { pop(n); }
 }
 
 function part1(): int64 {
+  //   sum(abs(n - x) for n in numbers)
+  // = sum(n - x for n in above) + sum(x - n for x in below)
+  //   where above = [n in numbers if n >= x]
+  //         below = [n in numbers if n < x]
+  // These terms can then be simplified:
+  //   sum(n - x for n in above)
+  // = sum(above) - len(above) * x
+  //   sum(x - n for n in below)
+  // = len(below) * x - sum(below)
+  // Which the combines as:
+  //   sum(above) - sum(below) + (len(below) - len(above)) * x
+  // We can precompute sums for all combinations of above/below by sorting the
+  // input in O(n log n) and then summing prefixes in O(n).
   var minFuel = 1 << 62;
+
   // Iterate over all candidates for x and compute the amount of fuel needed.
+  var i = 0;
   for var x: int64 = minValue; x <= maxValue; x = x + 1 {
-    var totalFuel = 0;
-    for var i = 0; i < numNumbers; i = i + 1 {
-      var delta = numbers[i] - x;
-      var fuel = delta < 0 ? -delta : delta;
-      totalFuel = totalFuel + fuel;
-    }
+    while numbers[i] < x { i = i + 1; }
+    var sumBelow = sums[i];
+    var sumAbove = sums[numNumbers] - sumBelow;
+    var lenBelow = i;
+    var lenAbove = numNumbers - i;
+    var totalFuel = sumAbove - sumBelow + (lenBelow - lenAbove) * x;
     if totalFuel < minFuel {
       minFuel = totalFuel;
     }
@@ -49,16 +103,51 @@ function part1(): int64 {
 }
 
 function part2(): int64 {
+  // With f(k) = k * (k + 1) / 2
+  //   sum(f(n - x) for n in numbers)
+  // = sum(f(n - x) for n in above) + sum(f(x - n) for n in below)
+  //   where above = [n in numbers if n >= x]
+  //         below = [n in numbers if n < x]
+  // These terms can then be simplified:
+  //   sum(f(n - x) for n in above)
+  // = sum((n - x) * (n - x + 1) / 2 for n in above)
+  // = sum((n^2 + (1 - 2x)n + x^2 - x) / 2 for n in above)
+  // = (sum(n^2 for n in above)
+  //   + (1 - 2x) * sum(above)
+  //   + (x^2 - x) * len(above)) / 2
+  //
+  //   sum(f(x - n) for n in below)
+  // = sum((x - n) * (x - n + 1) / 2 for n in below)
+  // = sum((x^2 + x - (1 + 2x)n + n^2) / 2 for n in below)
+  // = ((x^2 + x) * len(below)
+  //   - (1 + 2x) * sum(below)
+  //   + sum(n^2 for n in below)) / 2
+  // Which combines as:
+  //   (sum(n^2 for n in above)
+  //   - (1 - 2x) * sum(above)
+  //   + (x^2 - x) * len(above)
+  //   + (x^2 + x) * len(below)
+  //   - (1 + 2x) * sum(below)
+  //   + sum(n^2 for n in below)) / 2
+  // = (sum(n^2 for n in above) - sum(n^2 for n in below)
+  //   + (1 - 2x) * sum(above) - (1 + 2x) * sum(below)
+  //   + (x^2 - x) * len(above) + (x^2 + x) * len(below)) / 2
   var minFuel = 1 << 62;
+
   // Iterate over all candidates for x and compute the amount of fuel needed.
+  var i = 0;
   for var x: int64 = minValue; x <= maxValue; x = x + 1 {
-    var totalFuel = 0;
-    for var i = 0; i < numNumbers; i = i + 1 {
-      var delta = numbers[i] - x;
-      var distance = delta < 0 ? -delta : delta;
-      var fuel = distance * (distance + 1) / 2;  // Sum of 0..distance.
-      totalFuel = totalFuel + fuel;
-    }
+    while numbers[i] < x { i = i + 1; }
+    var sumSquaresBelow = sumSquares[i];
+    var sumSquaresAbove = sumSquares[numNumbers] - sumSquaresBelow;
+    var sumBelow = sums[i];
+    var sumAbove = sums[numNumbers] - sumBelow;
+    var lenBelow = i;
+    var lenAbove = numNumbers - i;
+    var totalFuel = (sumSquaresAbove + sumSquaresBelow +
+                     (1 - 2 * x) * sumAbove - (1 + 2 * x) * sumBelow +
+                     (x * x - x) * lenAbove +
+                     (x * x + x) * lenBelow) / 2;
     if totalFuel < minFuel {
       minFuel = totalFuel;
     }
