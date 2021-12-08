@@ -1,0 +1,182 @@
+import "std/std.aoc" as std;
+
+// A bitmask of wires that are on.
+// (w >> 0) & 1 represents wire a
+// (w >> 6) & 1 represents wire g
+alias Wires = byte;  
+
+struct Entry {
+  patterns: [10]Wires;
+  numbers: [4]Wires;
+}
+
+alias maxEntries = 200;
+var entries: [maxEntries]Entry;
+var numEntries: int64;
+
+// Reads a single pattern and populates the bitmask of wires that are on.
+// Precondition: i != end.
+function readWires(i: []byte, pattern: *Wires): []byte {
+  var value: Wires = 0 as Wires;
+  while 'a' <= i[0] && i[0] <= 'g' {
+    var index = i[0] - 'a';
+    value = (value | 1 << index) as byte;
+    i = i + 1;
+  }
+  *pattern = value;
+  return i;
+}
+
+function readInput(): void {
+  alias bufferSize = 32768;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if length == 0 { std.die("empty input"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numEntries == maxEntries { std.die("too many"); }
+    var entry = &entries[numEntries];
+    numEntries = numEntries + 1;
+    for var p = 0; p < 10; p = p + 1 {
+      i = readWires(i, &entry->patterns[p]);
+      if i[0] != ' ' { std.die("pattern"); }
+      i = i + 1;
+    }
+    if i[0] != '|' { std.die("divider"); }
+    i = i + 1;
+    for var n = 0; n < 4; n = n + 1 {
+      if i[0] != ' ' { std.die("output"); }
+      i = readWires(i + 1, &entry->numbers[n]);
+    }
+    if i[0] != '\n' { std.die("line end"); }
+    i = i + 1;
+  }
+}
+
+// Count the number of bits set in a wire mask.
+function segmentCount(w: Wires): int64 {
+  var x: int64 = w;
+  x = (x & 85) + (x >> 1 & 85);  // 0b01010101 -> 85
+  x = (x & 51) + (x >> 2 & 51);  // 0b00110011 -> 51
+  return (x & 15) + (x >> 4);    // 0b00001111 -> 15
+}
+
+function part1(): int64 {
+  var totals: [8]int64;
+  for var i = 0; i < 8; i = i + 1 { totals[i] = 0; }
+  for var e = 0; e < numEntries; e = e + 1 {
+    var numbers: []Wires = &entries[e].numbers;
+    for var n = 0; n < 4; n = n + 1 {
+      var cell = &totals[segmentCount(numbers[n])];
+      *cell = *cell + 1;
+    }
+  }
+  // 2 segments -> 1
+  // 3 segments -> 7
+  // 4 segments -> 4
+  // 7 segments -> 8
+  return totals[2] + totals[3] + totals[4] + totals[7];
+}
+
+function deducePatterns(patterns: []Wires): [10]Wires {
+  // 2 segments -> 1
+  // 3 segments -> 7
+  // 4 segments -> 4
+  // 5 segments -> 2, 3, 5
+  // 6 segments -> 0, 6, 9
+  // 7 segments -> 8
+  // optionsFor[i] is the set of options for values with i segments.
+  var optionsFor: [8][10]Wires;
+  // numOptionsFor[i] is the number of options for i segments.
+  var numOptionsFor: [8]int64;
+  for var i = 0; i < 8; i = i + 1 { numOptionsFor[i] = 0; }
+  // Populate optionsFor with the patterns that match each segment count.
+  for var i = 0; i < 10; i = i + 1 {
+    var p = patterns[i];
+    var count = segmentCount(p);
+    var num = &numOptionsFor[count];
+    optionsFor[count][*num] = p;
+    *num = *num + 1;
+  }
+  // patternFor[i] is the pattern that we've identified for number i.
+  var patternFor: [10]Wires;
+  if numOptionsFor[2] != 1 { std.die("invalid (1)"); }
+  patternFor[1] = optionsFor[2][0];
+  if numOptionsFor[3] != 1 { std.die("invalid (7)"); }
+  patternFor[7] = optionsFor[3][0];
+  if numOptionsFor[4] != 1 { std.die("invalid (4)"); }
+  patternFor[4] = optionsFor[4][0];
+  if numOptionsFor[7] != 1 { std.die("invalid (8)"); }
+  patternFor[8] = optionsFor[7][0];
+  // Deduce 3: It's the only 5-segment entry that has 2 wires in common with 1.
+  if numOptionsFor[5] != 3 { std.die("invalid (2, 3, 5)"); }
+  var indexFor3 = -1;
+  for var i = 0; i < 3; i = i + 1 {
+    if segmentCount((optionsFor[5][i] & patternFor[1]) as Wires) == 2 {
+      indexFor3 = i;
+      break;
+    }
+  }
+  if indexFor3 == -1 { std.die("invalid (3)"); }
+  patternFor[3] = optionsFor[5][indexFor3];
+  optionsFor[5][indexFor3] = optionsFor[5][2];
+  // Deduce 6: It's the only 6-segment entry that has 1 wire in common with 1.
+  if numOptionsFor[6] != 3 { std.die("invalid (0, 6, 9)"); }
+  var indexFor6 = -1;
+  for var i = 0; i < 3; i = i + 1 {
+    if segmentCount((optionsFor[6][i] & patternFor[1]) as Wires) == 1 {
+      indexFor6 = i;
+      break;
+    }
+  }
+  if indexFor6 == -1 { std.die("invalid (6)"); }
+  patternFor[6] = optionsFor[6][indexFor6];
+  optionsFor[6][indexFor6] = optionsFor[6][2];
+  // Deduce 5: It's the 5-segment entry that has 5 wires in common with 6.
+  var indexFor5 =
+      segmentCount((optionsFor[5][1] & patternFor[6]) as Wires) == 5;
+  patternFor[5] = optionsFor[5][indexFor5];
+  // Deduce 2: It's the remaining 5-segment entry.
+  patternFor[2] = optionsFor[5][1 - indexFor5];
+  // Deduce 9: It's the only 6-segment entry that has 5 wires in common with 3.
+  var indexFor9 =
+      segmentCount((optionsFor[6][1] & patternFor[3]) as Wires) == 5;
+  patternFor[9] = optionsFor[6][indexFor9];
+  // Deduce 0: It's the remaining 6-segment entry.
+  patternFor[0] = optionsFor[6][1 - indexFor9];
+  return patternFor;
+}
+
+function computeOutput(entry: *Entry): int64 {
+  var patternsFor = deducePatterns(&entry->patterns);
+  var result = 0;
+  for var i = 0; i < 4; i = i + 1 {
+    var pattern = entry->numbers[i];
+    var digit = -1;
+    for var j = 0; j < 10; j = j + 1 {
+      if pattern == patternsFor[j] {
+        digit = j;
+        break;
+      }
+    }
+    if digit == -1 { std.die("impossible"); }
+    result = 10 * result + digit;
+  }
+  return result;
+}
+
+function part2(): int64 {
+  var sum = 0;
+  for var i = 0; i < numEntries; i = i + 1 {
+    sum = sum + computeOutput(&entries[i]);
+  }
+  return sum;
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
