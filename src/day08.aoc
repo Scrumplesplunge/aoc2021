@@ -80,6 +80,42 @@ function part1(): int64 {
   return totals[2] + totals[3] + totals[4] + totals[7];
 }
 
+struct SegmentMap {
+  // patterns[i] is a list of patterns that have i segments.
+  patterns: [8][10]Wires;
+  // numPatterns[i] is the number of entries in patterns[i].
+  numPatterns: [8]int64;
+}
+
+function buildSegmentMap(patterns: []Wires): SegmentMap {
+  var segmentMap: SegmentMap;
+  for var i = 0; i < 8; i = i + 1 { segmentMap.numPatterns[i] = 0; }
+  // Populate segmentMap.patterns with the patterns that match each segment count.
+  for var i = 0; i < 10; i = i + 1 {
+    var p = patterns[i];
+    var count = segmentCount(p);
+    var num = &segmentMap.numPatterns[count];
+    segmentMap.patterns[count][*num] = p;
+    *num = *num + 1;
+  }
+  return segmentMap;
+}
+
+// Given a list of patterns, a mask, and an overlap count, finds the one element
+// that has the given number of overlapping bits with the mask, removes it
+// from the list, and returns it.
+function extract(patterns: []Wires, numPatterns: int64,
+                 mask: Wires, count: int64): Wires {
+  for var i = 0; i < numPatterns; i = i + 1 {
+    if segmentCount((patterns[i] & mask) as Wires) == count {
+      var value = patterns[i];
+      patterns[i] = patterns[numPatterns - 1];
+      return value;
+    }
+  }
+  std.die("impossible");
+}
+
 function deducePatterns(patterns: []Wires): [10]Wires {
   // 2 segments -> 1
   // 3 segments -> 7
@@ -87,65 +123,32 @@ function deducePatterns(patterns: []Wires): [10]Wires {
   // 5 segments -> 2, 3, 5
   // 6 segments -> 0, 6, 9
   // 7 segments -> 8
-  // optionsFor[i] is the set of options for values with i segments.
-  var optionsFor: [8][10]Wires;
-  // numOptionsFor[i] is the number of options for i segments.
-  var numOptionsFor: [8]int64;
-  for var i = 0; i < 8; i = i + 1 { numOptionsFor[i] = 0; }
-  // Populate optionsFor with the patterns that match each segment count.
-  for var i = 0; i < 10; i = i + 1 {
-    var p = patterns[i];
-    var count = segmentCount(p);
-    var num = &numOptionsFor[count];
-    optionsFor[count][*num] = p;
-    *num = *num + 1;
-  }
+  var segmentMap = buildSegmentMap(patterns);
   // patternFor[i] is the pattern that we've identified for number i.
   var patternFor: [10]Wires;
-  if numOptionsFor[2] != 1 { std.die("invalid (1)"); }
-  patternFor[1] = optionsFor[2][0];
-  if numOptionsFor[3] != 1 { std.die("invalid (7)"); }
-  patternFor[7] = optionsFor[3][0];
-  if numOptionsFor[4] != 1 { std.die("invalid (4)"); }
-  patternFor[4] = optionsFor[4][0];
-  if numOptionsFor[7] != 1 { std.die("invalid (8)"); }
-  patternFor[8] = optionsFor[7][0];
+  // The values for 1, 4, 7, and 8 are all unambiguous.
+  if segmentMap.numPatterns[2] != 1 { std.die("invalid (1)"); }
+  patternFor[1] = segmentMap.patterns[2][0];
+  if segmentMap.numPatterns[3] != 1 { std.die("invalid (7)"); }
+  patternFor[7] = segmentMap.patterns[3][0];
+  if segmentMap.numPatterns[4] != 1 { std.die("invalid (4)"); }
+  patternFor[4] = segmentMap.patterns[4][0];
+  if segmentMap.numPatterns[7] != 1 { std.die("invalid (8)"); }
+  patternFor[8] = segmentMap.patterns[7][0];
   // Deduce 3: It's the only 5-segment entry that has 2 wires in common with 1.
-  if numOptionsFor[5] != 3 { std.die("invalid (2, 3, 5)"); }
-  var indexFor3 = -1;
-  for var i = 0; i < 3; i = i + 1 {
-    if segmentCount((optionsFor[5][i] & patternFor[1]) as Wires) == 2 {
-      indexFor3 = i;
-      break;
-    }
-  }
-  if indexFor3 == -1 { std.die("invalid (3)"); }
-  patternFor[3] = optionsFor[5][indexFor3];
-  optionsFor[5][indexFor3] = optionsFor[5][2];
+  if segmentMap.numPatterns[5] != 3 { std.die("invalid (2, 3, 5)"); }
+  patternFor[3] = extract(&segmentMap.patterns[5], 3, patternFor[1], 2); 
   // Deduce 6: It's the only 6-segment entry that has 1 wire in common with 1.
-  if numOptionsFor[6] != 3 { std.die("invalid (0, 6, 9)"); }
-  var indexFor6 = -1;
-  for var i = 0; i < 3; i = i + 1 {
-    if segmentCount((optionsFor[6][i] & patternFor[1]) as Wires) == 1 {
-      indexFor6 = i;
-      break;
-    }
-  }
-  if indexFor6 == -1 { std.die("invalid (6)"); }
-  patternFor[6] = optionsFor[6][indexFor6];
-  optionsFor[6][indexFor6] = optionsFor[6][2];
+  if segmentMap.numPatterns[6] != 3 { std.die("invalid (0, 6, 9)"); }
+  patternFor[6] = extract(&segmentMap.patterns[6], 3, patternFor[1], 1);
   // Deduce 5: It's the 5-segment entry that has 5 wires in common with 6.
-  var indexFor5 =
-      segmentCount((optionsFor[5][1] & patternFor[6]) as Wires) == 5;
-  patternFor[5] = optionsFor[5][indexFor5];
+  patternFor[5] = extract(&segmentMap.patterns[5], 2, patternFor[6], 5);
   // Deduce 2: It's the remaining 5-segment entry.
-  patternFor[2] = optionsFor[5][1 - indexFor5];
+  patternFor[2] = segmentMap.patterns[5][0];
   // Deduce 9: It's the only 6-segment entry that has 5 wires in common with 3.
-  var indexFor9 =
-      segmentCount((optionsFor[6][1] & patternFor[3]) as Wires) == 5;
-  patternFor[9] = optionsFor[6][indexFor9];
+  patternFor[9] = extract(&segmentMap.patterns[6], 2, patternFor[3], 5);
   // Deduce 0: It's the remaining 6-segment entry.
-  patternFor[0] = optionsFor[6][1 - indexFor9];
+  patternFor[0] = segmentMap.patterns[6][0];
   return patternFor;
 }
 
