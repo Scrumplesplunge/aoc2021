@@ -1,0 +1,136 @@
+import "std/std.aoc" as std;
+
+alias maxSideLength = 100;
+var grid: [maxSideLength][maxSideLength]byte;
+var gridWidth: int64;
+var gridHeight: int64;
+
+function readInput(): void {
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i[gridWidth] != '\n' { gridWidth = gridWidth + 1; }
+  if gridWidth > maxSideLength { std.die("too wide"); }
+  while i != end {
+    if gridHeight == maxSideLength { std.die("too tall"); }
+    var row = &grid[gridHeight];
+    gridHeight = gridHeight + 1;
+    for var x = 0; x < gridWidth; x = x + 1 {
+      var value = i[x];
+      if value < '0' || '9' < value { std.die("invalid cell"); }
+      (*row)[x] = (value - '0') as byte;
+    }
+    if i[gridWidth] != '\n' { std.die("expected line end"); }
+    i = i + (gridWidth + 1);
+  }
+}
+
+function part1(): int64 {
+  var sum = 0;
+  for var y = 0; y < gridHeight; y = y + 1 {
+    for var x = 0; x < gridWidth; x = x + 1 {
+      var height = grid[y][x];
+      var allHigher = 1;
+      if y > 0 && grid[y - 1][x] <= height { allHigher = 0; }
+      if y + 1 < gridHeight && grid[y + 1][x] <= height { allHigher = 0; }
+      if x > 0 && grid[y][x - 1] <= height { allHigher = 0; }
+      if x + 1 < gridWidth && grid[y][x + 1] <= height { allHigher = 0; }
+      if allHigher { sum = sum + height + 1; }
+    }
+  }
+  return sum;
+}
+
+// Disjoint set node. Root nodes are their own parent.
+struct Node {
+  size: int64;
+  parent: *void;
+}
+
+// Storage for disjoint set nodes.
+var nodes: [maxSideLength][maxSideLength]Node;
+
+// Find the representative of the set for a node.
+function find(n: *Node): *Node {
+  while n->parent as *Node != n {
+    var next = n->parent as *Node;
+    n->parent = next->parent;
+    n = next;
+  }
+  return n;
+}
+
+// Merge the sets for two nodes.
+function merge(a: *Node, b: *Node): void {
+  a = find(a);
+  b = find(b);
+  if a == b { return; }
+  if a->size < b->size {
+    b->size = b->size + a->size;
+    a->parent = b as *void;
+  } else {
+    a->size = a->size + b->size;
+    b->parent = a as *void;
+  }
+}
+
+function part2(): int64 {
+  var sum = 0;
+  // Create a node for each cell.
+  for var y = 0; y < gridHeight; y = y + 1 {
+    for var x = 0; x < gridWidth; x = x + 1 {
+      var node = &nodes[y][x];
+      node->size = 1;
+      node->parent = node as *void;
+    }
+  }
+  // Merge all cells that are in the same basin.
+  for var y = 0; y < gridHeight; y = y + 1 {
+    for var x = 0; x < gridWidth; x = x + 1 {
+      if grid[y][x] == 9 as byte { continue; }
+      var node = &nodes[y][x];
+      if y > 0 && grid[y - 1][x] != 9 as byte {
+        merge(node, &nodes[y - 1][x]);
+      }
+      if y + 1 < gridHeight && grid[y + 1][x] != 9 as byte {
+        merge(node, &nodes[y + 1][x]);
+      }
+      if x > 0 && grid[y][x - 1] != 9 as byte {
+        merge(node, &nodes[y][x - 1]);
+      }
+      if x + 1 < gridWidth && grid[y][x + 1] != 9 as byte {
+        merge(node, &nodes[y][x + 1]);
+      }
+    }
+  }
+  // Enumerate the top 3 basin sizes. An array with four slots is used so that
+  // we can do insertion sort into the list but allow anything that flows past
+  // the third slot to saturate the last cell instead.
+  var basins: [4]int64;
+  for var i = 0; i < 4; i = i + 1 { basins[i] = 0; }
+  for var y = 0; y < gridHeight; y = y + 1 {
+    for var x = 0; x < gridWidth; x = x + 1 {
+      var root = find(&nodes[y][x]);
+      if root->size == 0 { continue; }  // Already processed.
+      var size = root->size;
+      root->size = 0;
+      // Insert the size into the basin list.
+      var i = 3;
+      while i > 0 && basins[i - 1] < size {
+        basins[i] = basins[i - 1];
+        i = i - 1;
+      }
+      basins[i] = size;
+    }
+  }
+  return basins[0] * basins[1] * basins[2];
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
