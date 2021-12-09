@@ -1,7 +1,14 @@
 import "std/std.aoc" as std;
 
 alias maxSideLength = 100;
-var grid: [maxSideLength][maxSideLength]byte;
+
+// Storage for the grid, with space for a border of 9 around all sides. The
+// border simplifies the processing for each cell as we can always assume the
+// presence of neighbours, and a neighbour with height 9 is equivalent to having
+// no neighbour.
+var grid: [maxSideLength + 2][maxSideLength + 2]byte;
+
+// The width and height of the grid, excluding the border.
 var gridWidth: int64;
 var gridHeight: int64;
 
@@ -16,28 +23,38 @@ function readInput(): void {
   if gridWidth > maxSideLength { std.die("too wide"); }
   while i != end {
     if gridHeight == maxSideLength { std.die("too tall"); }
-    var row = &grid[gridHeight];
     gridHeight = gridHeight + 1;
-    for var x = 0; x < gridWidth; x = x + 1 {
-      var value = i[x];
+    var row = &grid[gridHeight];
+    // Populate the border on either side of the row.
+    (*row)[0] = 9 as byte;
+    (*row)[gridWidth + 1] = 9 as byte;
+    for var x = 1; x <= gridWidth; x = x + 1 {
+      var value = i[x - 1];
       if value < '0' || '9' < value { std.die("invalid cell"); }
       (*row)[x] = (value - '0') as byte;
     }
     if i[gridWidth] != '\n' { std.die("expected line end"); }
     i = i + (gridWidth + 1);
   }
+  // Populate the border above and below the grid.
+  var top = &grid[0];
+  var bottom = &grid[gridHeight + 1];
+  for var x = 1; x <= gridWidth; x = x + 1 {
+    (*top)[x] = 9 as byte;
+    (*bottom)[x] = 9 as byte;
+  }
 }
 
 function part1(): int64 {
   var sum = 0;
-  for var y = 0; y < gridHeight; y = y + 1 {
-    for var x = 0; x < gridWidth; x = x + 1 {
+  for var y = 1; y <= gridHeight; y = y + 1 {
+    for var x = 1; x <= gridWidth; x = x + 1 {
       var height = grid[y][x];
       var allHigher = 1;
-      if y > 0 && grid[y - 1][x] <= height { allHigher = 0; }
-      if y + 1 < gridHeight && grid[y + 1][x] <= height { allHigher = 0; }
-      if x > 0 && grid[y][x - 1] <= height { allHigher = 0; }
-      if x + 1 < gridWidth && grid[y][x + 1] <= height { allHigher = 0; }
+      if grid[y - 1][x] <= height { allHigher = 0; }
+      if grid[y + 1][x] <= height { allHigher = 0; }
+      if grid[y][x - 1] <= height { allHigher = 0; }
+      if grid[y][x + 1] <= height { allHigher = 0; }
       if allHigher { sum = sum + height + 1; }
     }
   }
@@ -50,8 +67,10 @@ struct Node {
   parent: *void;
 }
 
-// Storage for disjoint set nodes.
-var nodes: [maxSideLength][maxSideLength]Node;
+// Storage for disjoint set nodes. As with the grid, there is a border around
+// the outside. The border nodes are not actually used at all, but their
+// presence makes the indexing consistent with the grid.
+var nodes: [maxSideLength + 2][maxSideLength + 2]Node;
 
 // Find the representative of the set for a node.
 function find(n: *Node): *Node {
@@ -70,6 +89,7 @@ function merge(a: *Node, b: *Node): *Node {
   // if a != find(a) { std.die("precondition"); }
   b = find(b);
   if a == b { return a; }
+  // Merge the two nodes together, making the larger node the new root.
   if a->size < b->size {
     b->size = b->size + a->size;
     a->parent = b as *void;
@@ -84,24 +104,24 @@ function merge(a: *Node, b: *Node): *Node {
 function part2(): int64 {
   var sum = 0;
   // Create a node for each cell.
-  for var y = 0; y < gridHeight; y = y + 1 {
-    for var x = 0; x < gridWidth; x = x + 1 {
+  for var y = 1; y <= gridHeight; y = y + 1 {
+    for var x = 1; x <= gridWidth; x = x + 1 {
       var node = &nodes[y][x];
       node->size = 1;
       node->parent = node as *void;
     }
   }
   // Merge all cells that are in the same basin.
-  for var y = 0; y < gridHeight; y = y + 1 {
-    for var x = 0; x < gridWidth; x = x + 1 {
+  for var y = 1; y <= gridHeight; y = y + 1 {
+    for var x = 1; x <= gridWidth; x = x + 1 {
       if grid[y][x] == 9 as byte { continue; }
       var node = find(&nodes[y][x]);
       // We only need to check up and left: down and right will be covered by
       // checking up or left from other cells.
-      if y > 0 && grid[y - 1][x] != 9 as byte {
+      if grid[y - 1][x] != 9 as byte {
         node = merge(node, &nodes[y - 1][x]);
       }
-      if x > 0 && grid[y][x - 1] != 9 as byte {
+      if grid[y][x - 1] != 9 as byte {
         node = merge(node, &nodes[y][x - 1]);
       }
     }
@@ -111,8 +131,8 @@ function part2(): int64 {
   // the third slot to saturate the last cell instead.
   var basins: [4]int64;
   for var i = 0; i < 4; i = i + 1 { basins[i] = 0; }
-  for var y = 0; y < gridHeight; y = y + 1 {
-    for var x = 0; x < gridWidth; x = x + 1 {
+  for var y = 1; y <= gridHeight; y = y + 1 {
+    for var x = 1; x <= gridWidth; x = x + 1 {
       var root = find(&nodes[y][x]);
       if root->size == 0 { continue; }  // Already processed.
       var size = root->size;
