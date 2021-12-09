@@ -64,16 +64,20 @@ function find(n: *Node): *Node {
 }
 
 // Merge the sets for two nodes.
-function merge(a: *Node, b: *Node): void {
-  a = find(a);
+// Precondition: a == find(a)
+// Postcondition: result == find(result) == find(a) == find(b)
+function merge(a: *Node, b: *Node): *Node {
+  // if a != find(a) { std.die("precondition"); }
   b = find(b);
-  if a == b { return; }
+  if a == b { return a; }
   if a->size < b->size {
     b->size = b->size + a->size;
     a->parent = b as *void;
+    return b;
   } else {
     a->size = a->size + b->size;
     b->parent = a as *void;
+    return a;
   }
 }
 
@@ -91,18 +95,14 @@ function part2(): int64 {
   for var y = 0; y < gridHeight; y = y + 1 {
     for var x = 0; x < gridWidth; x = x + 1 {
       if grid[y][x] == 9 as byte { continue; }
-      var node = &nodes[y][x];
+      var node = find(&nodes[y][x]);
+      // We only need to check up and left: down and right will be covered by
+      // checking up or left from other cells.
       if y > 0 && grid[y - 1][x] != 9 as byte {
-        merge(node, &nodes[y - 1][x]);
-      }
-      if y + 1 < gridHeight && grid[y + 1][x] != 9 as byte {
-        merge(node, &nodes[y + 1][x]);
+        node = merge(node, &nodes[y - 1][x]);
       }
       if x > 0 && grid[y][x - 1] != 9 as byte {
-        merge(node, &nodes[y][x - 1]);
-      }
-      if x + 1 < gridWidth && grid[y][x + 1] != 9 as byte {
-        merge(node, &nodes[y][x + 1]);
+        node = merge(node, &nodes[y][x - 1]);
       }
     }
   }
