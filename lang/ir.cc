@@ -70,6 +70,14 @@ std::strong_ordering Expression::operator<=>(const Expression& other) const {
   return *value_ <=> *other.value_;
 }
 
+std::ostream& operator<<(std::ostream& output, Unit x) noexcept {
+  switch (x) {
+    case Unit::kVoid: return output << "Unit::kVoid";
+    case Unit::kNullPointer: return output << "Unit::kNullPointer";
+  }
+  std::abort();
+}
+
 std::ostream& operator<<(std::ostream& output, const Label& x) noexcept {
   return output << "Label(" << Escaped(x.value) << ")";
 }
@@ -190,13 +198,6 @@ std::strong_ordering Type::operator<=>(const Type& other) const {
   if (!value_ || !other.value_) return value_ <=> other.value_;
   // Otherwise, order by contents.
   return *value_ <=> *other.value_;
-}
-
-std::ostream& operator<<(std::ostream& output, Unit x) noexcept {
-  switch (x) {
-    case Unit::kVoid: return output << "Unit::kVoid";
-  }
-  std::abort();
 }
 
 std::ostream& operator<<(std::ostream& output, Scalar x) noexcept {

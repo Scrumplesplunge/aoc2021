@@ -54,7 +54,7 @@ function sortHorizontal(): void {
   for var b = 0; b < 16; b = b + 4 {
     var lists: [16]*HorizontalLine;
     for var i = 0; i < 16; i = i + 1 {
-      lists[i] = null as *HorizontalLine;
+      lists[i] = null;
     }
     // Partition the list into buckets.
     var i = horizontal;
@@ -66,7 +66,7 @@ function sortHorizontal(): void {
       i = next;
     }
     // Concatenate the lists.
-    horizontal = null as *HorizontalLine;
+    horizontal = null;
     for var j = 15; j >= 0; j = j - 1 {
       var k = lists[j];
       while k {
@@ -84,7 +84,7 @@ function sortDiagonal(): void {
   for var b = 0; b < 16; b = b + 4 {
     var lists: [16]*DiagonalLine;
     for var i = 0; i < 16; i = i + 1 {
-      lists[i] = null as *DiagonalLine;
+      lists[i] = null;
     }
     // Partition the list into buckets.
     var i = diagonal;
@@ -96,7 +96,7 @@ function sortDiagonal(): void {
       i = next;
     }
     // Concatenate the lists.
-    diagonal = null as *DiagonalLine;
+    diagonal = null;
     for var j = 15; j >= 0; j = j - 1 {
       var k = lists[j];
       while k {

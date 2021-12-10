@@ -33,7 +33,7 @@ class Expression {
 };
 
 // Types with only one value represent themselves in expressions.
-enum class Unit { kVoid };
+enum class Unit { kVoid, kNullPointer };
 
 // Represents an instruction address, such as a function address or jump target.
 struct Label {

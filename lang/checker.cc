@@ -227,17 +227,16 @@ Location BuiltinLocation() {
 }
 
 void AddBuiltins(Environment& environment) {
+  environment.Define("null", Environment::Definition{
+                                 .location = BuiltinLocation(),
+                                 .value = TypedExpression{
+                                     .category = Category::kRvalue,
+                                     .type = ir::Unit::kNullPointer,
+                                     .representation = Representation::kDirect,
+                                     .value = ir::Unit::kNullPointer}});
   environment.Define(
-      "null",
-      Environment::Definition{
-          .location = BuiltinLocation(),
-          .value = TypedExpression{.category = Category::kRvalue,
-                                   .type = ir::Pointer(ir::Unit::kVoid),
-                                   .representation = Representation::kDirect,
-                                   .value = ir::IntegerLiteral(0)}});
-  environment.Define("void",
-                     Environment::Definition{.location = BuiltinLocation(),
-                                             .value = ir::Unit::kVoid});
+      "void", Environment::Definition{.location = BuiltinLocation(),
+                                      .value = ir::Type(ir::Unit::kVoid)});
   environment.Define("byte",
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Scalar::kByte});
@@ -480,6 +479,16 @@ ExpressionInfo EnsureComparable(Location location, ExpressionInfo info) {
 TypedExpression ConvertTo(Location location, const ir::Type& target,
                           TypedExpression x) {
   if (x.type == target) return x;
+  // null -> *T
+  {
+    const auto* t = std::get_if<ir::Pointer>(&target->value);
+    if (t && x.type == ir::Unit::kNullPointer) {
+      return TypedExpression{.category = Category::kRvalue,
+                             .type = target,
+                             .representation = Representation::kDirect,
+                             .value = ir::IntegerLiteral(0)};
+    }
+  }
   // *T -> *void
   {
     const auto* t = std::get_if<ir::Pointer>(&target->value);
@@ -1151,6 +1160,17 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
   ExpressionInfo value = CheckValue(x.value);
   ir::Type type = CheckType(x.type);
   if (value.value.type == type) return value;
+  // null -> *T
+  {
+    const auto* t = std::get_if<ir::Pointer>(&type->value);
+    if (t && value.value.type == ir::Unit::kNullPointer) {
+      value.value = TypedExpression{.category = Category::kRvalue,
+                                    .type = type,
+                                    .representation = Representation::kDirect,
+                                    .value = ir::IntegerLiteral(0)};
+      return value;
+    }
+  }
   // Conversion from one scalar type to another.
   {
     const auto* t = std::get_if<ir::Scalar>(&type->value);
