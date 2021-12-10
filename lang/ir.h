@@ -32,6 +32,9 @@ class Expression {
   std::shared_ptr<const ExpressionVariant> value_;
 };
 
+// Types with only one value represent themselves in expressions.
+enum class Unit { kVoid };
+
 // Represents an instruction address, such as a function address or jump target.
 struct Label {
   bool operator==(const Label&) const = default;
@@ -225,7 +228,7 @@ struct ExpressionVariant {
   bool operator==(const ExpressionVariant&) const = default;
   auto operator<=>(const ExpressionVariant&) const = default;
 
-  std::variant<Label, Global, Local, Load8, Load16, Load32, Load64,
+  std::variant<Unit, Label, Global, Local, Load8, Load16, Load32, Load64,
                IntegerLiteral, Negate, LogicalNot, BitwiseNot, Add, Subtract,
                Multiply, Divide, Modulo, LessThan, LessOrEqual, Equal, NotEqual,
                BitwiseAnd, BitwiseOr, BitwiseXor, ShiftLeft, ShiftRight>
@@ -236,6 +239,7 @@ template <HoldableBy<ExpressionVariant> T>
 Expression::Expression(T value) noexcept
     : value_(std::make_shared<ExpressionVariant>(std::move(value))) {}
 
+std::ostream& operator<<(std::ostream&, Unit) noexcept;
 std::ostream& operator<<(std::ostream&, const Label&) noexcept;
 std::ostream& operator<<(std::ostream&, const Global&) noexcept;
 std::ostream& operator<<(std::ostream&, const Local&) noexcept;
@@ -283,8 +287,6 @@ class Type {
  private:
   std::shared_ptr<const TypeVariant> value_;
 };
-
-enum class Void { kVoid };
 
 // Scalars should be sorted in order of increasing size to allow comparisons.
 enum class Scalar { kByte, kInt16, kInt32, kInt64 };
@@ -352,7 +354,7 @@ struct TypeVariant {
   bool operator==(const TypeVariant&) const = default;
   auto operator<=>(const TypeVariant&) const = default;
 
-  std::variant<Void, Scalar, Pointer, FunctionPointer, Array, Span, Struct,
+  std::variant<Unit, Scalar, Pointer, FunctionPointer, Array, Span, Struct,
                Module>
       value;
 };
@@ -361,7 +363,6 @@ template <HoldableBy<TypeVariant> T>
 Type::Type(T value) noexcept
     : value_(std::make_shared<TypeVariant>(std::move(value))) {}
 
-std::ostream& operator<<(std::ostream&, Void) noexcept;
 std::ostream& operator<<(std::ostream&, Scalar) noexcept;
 std::ostream& operator<<(std::ostream&, const Pointer&) noexcept;
 std::ostream& operator<<(std::ostream&, const FunctionPointer&) noexcept;
@@ -371,7 +372,7 @@ std::ostream& operator<<(std::ostream&, const Struct&) noexcept;
 std::ostream& operator<<(std::ostream&, const Module&) noexcept;
 std::ostream& operator<<(std::ostream&, const Type&) noexcept;
 
-std::int64_t Size(Void) noexcept;
+std::int64_t Size(Unit) noexcept;
 std::int64_t Size(Scalar) noexcept;
 std::int64_t Size(const Pointer&) noexcept;
 std::int64_t Size(const Array&) noexcept;
@@ -380,7 +381,7 @@ std::int64_t Size(const Struct&) noexcept;
 std::int64_t Size(const Module&) noexcept;
 std::int64_t Size(const Type&) noexcept;
 
-std::int64_t Alignment(Void) noexcept;
+std::int64_t Alignment(Unit) noexcept;
 std::int64_t Alignment(Scalar) noexcept;
 std::int64_t Alignment(const Pointer&) noexcept;
 std::int64_t Alignment(const Array&) noexcept;

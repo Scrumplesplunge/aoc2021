@@ -219,6 +219,9 @@ std::optional<std::int64_t> Evaluate(const ir::Expression& expression);
 
 class Evaluator {
  public:
+  std::optional<std::int64_t> operator()(const ir::Unit& x) {
+    return std::nullopt;
+  }
   std::optional<std::int64_t> operator()(const ir::Label& x) {
     return std::nullopt;
   }

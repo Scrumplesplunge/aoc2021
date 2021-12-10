@@ -192,8 +192,11 @@ std::strong_ordering Type::operator<=>(const Type& other) const {
   return *value_ <=> *other.value_;
 }
 
-std::ostream& operator<<(std::ostream& output, Void) noexcept {
-  return output << "Void{}";
+std::ostream& operator<<(std::ostream& output, Unit x) noexcept {
+  switch (x) {
+    case Unit::kVoid: return output << "Unit::kVoid";
+  }
+  std::abort();
 }
 
 std::ostream& operator<<(std::ostream& output, Scalar x) noexcept {
@@ -248,7 +251,7 @@ std::ostream& operator<<(std::ostream& output, const Type& x) noexcept {
                     x->value);
 }
 
-std::int64_t Size(Void) noexcept { return 0; }
+std::int64_t Size(Unit) noexcept { return 0; }
 
 std::int64_t Size(Scalar x) noexcept {
   switch (x) {
@@ -275,7 +278,7 @@ std::int64_t Size(const Type& x) noexcept {
   return std::visit([](const auto& x) { return Size(x); }, x->value);
 }
 
-std::int64_t Alignment(Void) noexcept { return 1; }
+std::int64_t Alignment(Unit) noexcept { return 1; }
 std::int64_t Alignment(Scalar x) noexcept { return Size(x); }
 std::int64_t Alignment(const Pointer& x) noexcept { return 8; }
 std::int64_t Alignment(const FunctionPointer& x) noexcept { return 8; }

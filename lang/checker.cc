@@ -47,6 +47,9 @@ std::optional<std::int64_t> Evaluate(const ir::Expression& expression);
 
 class Evaluator {
  public:
+  std::optional<std::int64_t> operator()(const ir::Unit& x) {
+    return std::nullopt;
+  }
   std::optional<std::int64_t> operator()(const ir::Label& x) {
     return std::nullopt;
   }
@@ -229,12 +232,12 @@ void AddBuiltins(Environment& environment) {
       Environment::Definition{
           .location = BuiltinLocation(),
           .value = TypedExpression{.category = Category::kRvalue,
-                                   .type = ir::Pointer(ir::Void{}),
+                                   .type = ir::Pointer(ir::Unit::kVoid),
                                    .representation = Representation::kDirect,
                                    .value = ir::IntegerLiteral(0)}});
   environment.Define("void",
                      Environment::Definition{.location = BuiltinLocation(),
-                                             .value = ir::Void{}});
+                                             .value = ir::Unit::kVoid});
   environment.Define("byte",
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Scalar::kByte});
@@ -248,42 +251,43 @@ void AddBuiltins(Environment& environment) {
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Scalar::kInt64});
   environment.Define(
-      "read",
-      Environment::Definition{
-          .location = BuiltinLocation(),
-          .value = TypedExpression(
-              Category::kRvalue,
-              ir::FunctionPointer(ir::Scalar::kInt64,
-                                  {ir::Scalar::kInt64, ir::Pointer(ir::Void{}),
-                                   ir::Scalar::kInt64}),
-              Representation::kDirect, ir::Label("read"))});
+      "read", Environment::Definition{
+                  .location = BuiltinLocation(),
+                  .value = TypedExpression(
+                      Category::kRvalue,
+                      ir::FunctionPointer(
+                          ir::Scalar::kInt64,
+                          {ir::Scalar::kInt64, ir::Pointer(ir::Unit::kVoid),
+                           ir::Scalar::kInt64}),
+                      Representation::kDirect, ir::Label("read"))});
   environment.Define(
-      "write",
-      Environment::Definition{
-          .location = BuiltinLocation(),
-          .value = TypedExpression(
-              Category::kRvalue,
-              ir::FunctionPointer(ir::Scalar::kInt64,
-                                  {ir::Scalar::kInt64, ir::Pointer(ir::Void{}),
-                                   ir::Scalar::kInt64}),
-              Representation::kDirect, ir::Label("write"))});
+      "write", Environment::Definition{
+                   .location = BuiltinLocation(),
+                   .value = TypedExpression(
+                       Category::kRvalue,
+                       ir::FunctionPointer(
+                           ir::Scalar::kInt64,
+                           {ir::Scalar::kInt64, ir::Pointer(ir::Unit::kVoid),
+                            ir::Scalar::kInt64}),
+                       Representation::kDirect, ir::Label("write"))});
   environment.Define(
       "copy",
       Environment::Definition{
           .location = BuiltinLocation(),
           .value = TypedExpression(
               Category::kRvalue,
-              ir::FunctionPointer(ir::Void{}, {ir::Span(ir::Scalar::kByte),
-                                               ir::Span(ir::Scalar::kByte),
-                                               ir::Scalar::kInt64}),
+              ir::FunctionPointer(ir::Unit::kVoid, {ir::Span(ir::Scalar::kByte),
+                                                    ir::Span(ir::Scalar::kByte),
+                                                    ir::Scalar::kInt64}),
               Representation::kDirect, ir::Label("copy"))});
   environment.Define(
-      "exit", Environment::Definition{
-                  .location = BuiltinLocation(),
-                  .value = TypedExpression(
-                      Category::kRvalue,
-                      ir::FunctionPointer(ir::Void{}, {ir::Scalar::kInt64}),
-                      Representation::kDirect, ir::Label("exit"))});
+      "exit",
+      Environment::Definition{
+          .location = BuiltinLocation(),
+          .value = TypedExpression(
+              Category::kRvalue,
+              ir::FunctionPointer(ir::Unit::kVoid, {ir::Scalar::kInt64}),
+              Representation::kDirect, ir::Label("exit"))});
 }
 
 Environment CreateBuiltinEnvironment() {
@@ -480,7 +484,7 @@ TypedExpression ConvertTo(Location location, const ir::Type& target,
   {
     const auto* t = std::get_if<ir::Pointer>(&target->value);
     const auto* s = std::get_if<ir::Pointer>(&x.type->value);
-    if (s && t && t->pointee == ir::Void{}) {
+    if (s && t && t->pointee == ir::Unit::kVoid) {
       x = EnsureLoaded(location, std::move(x));
       x.type = target;
       return x;
@@ -1162,7 +1166,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
   }
   // Conversion from *T or []T to *void.
   if (const auto* to = std::get_if<ir::Pointer>(&type->value);
-      to && to->pointee == ir::Void{}) {
+      to && to->pointee == ir::Unit::kVoid) {
     if (std::get_if<ir::Pointer>(&value.value.type->value) ||
         std::get_if<ir::Span>(&value.value.type->value)) {
       value.value.type = std::move(type);
@@ -1171,7 +1175,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
   }
   // Conversion from *void to *T or []T.
   if (const auto* from = std::get_if<ir::Pointer>(&value.value.type->value);
-      from && from->pointee == ir::Void{}) {
+      from && from->pointee == ir::Unit::kVoid) {
     if (std::get_if<ir::Pointer>(&type->value) ||
         std::get_if<ir::Span>(&type->value)) {
       value.value.type = std::move(type);
@@ -1642,7 +1646,7 @@ ir::Code StatementChecker::operator()(const ast::Return& x) {
                  std::move(value.value)),
          ir::Return()});
   } else {
-    if (environment_->FunctionType()->return_type != ir::Void{}) {
+    if (environment_->FunctionType()->return_type != ir::Unit::kVoid) {
       throw Error(x.location,
                   "cannot return void from a function with return type ",
                   environment_->FunctionType()->return_type);
