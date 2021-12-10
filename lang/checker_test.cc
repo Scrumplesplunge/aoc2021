@@ -16,7 +16,7 @@ struct CheckerTest : Test {
     sources[std::filesystem::absolute(name)] = Source(name, source);
   }
 
-  ir::Unit Check(std::string_view value) {
+  ir::Program Check(std::string_view value) {
     WithSource("test_input.aoc", value);
     Checker checker([&](auto& path) {
       return sources.at(std::filesystem::absolute(path));
@@ -32,19 +32,19 @@ struct CheckerTest : Test {
 };
 
 TEST_F(CheckerTest, Empty) {
-  const ir::Unit unit = Check("");
-  EXPECT_FALSE(unit.main.has_value());
-  EXPECT_EQ(unit.code, ir::Sequence({}));
+  const ir::Program program = Check("");
+  EXPECT_FALSE(program.main.has_value());
+  EXPECT_EQ(program.code, ir::Sequence({}));
 }
 
 TEST_F(CheckerTest, Variables) {
-  const ir::Unit unit = Check(R"(
+  const ir::Program program = Check(R"(
     var x: int64;
     var y: [10]int64;
     var main: int64;
   )");
-  EXPECT_FALSE(unit.main.has_value());
-  EXPECT_EQ(unit.code, ir::Sequence({}));
+  EXPECT_FALSE(program.main.has_value());
+  EXPECT_EQ(program.code, ir::Sequence({}));
 }
 
 TEST_F(CheckerTest, Redeclaration) {

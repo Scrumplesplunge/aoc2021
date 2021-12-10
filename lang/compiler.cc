@@ -59,17 +59,17 @@ int main(int argc, char* argv[]) {
     }
     aoc2021::Checker checker;
     checker.Check(argv[1]);
-    const aoc2021::ir::Unit unit = checker.Finish();
+    const aoc2021::ir::Program program = checker.Finish();
     if (options.output_type == OutputType::kIr) {
-      std::cout << unit.code << '\n';
+      std::cout << program.code << '\n';
       return EXIT_SUCCESS;
     }
-    if (!unit.main) {
+    if (!program.main) {
       std::cerr << "Program does not contain a main function.\n";
       return EXIT_FAILURE;
     }
     assert(options.output_type == OutputType::kAssembly);
-    std::cout << aoc2021::Generate(unit) << '\n';
+    std::cout << aoc2021::Generate(program) << '\n';
   } catch (const aoc2021::CheckError& error) {
     std::cerr << error.what() << '\n';
     return 1;

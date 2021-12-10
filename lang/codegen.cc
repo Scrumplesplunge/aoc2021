@@ -1385,18 +1385,18 @@ class CodeGenerator {
 
 }  // namespace
 
-std::string Generate(const ir::Unit& unit) {
-  assert(unit.main.has_value());
+std::string Generate(const ir::Program& program) {
+  assert(program.main.has_value());
   std::ostringstream result;
   result << ".section .bss\n"
             "  .align 8\n";
-  for (const auto& [global, size] : unit.data) {
+  for (const auto& [global, size] : program.data) {
     result << global.value << ":\n  .space " << size << '\n';
   }
 
   result << ".section .rodata\n"
             "  .align 8\n";
-  for (const auto& [global, value] : unit.string_literals) {
+  for (const auto& [global, value] : program.string_literals) {
     result << global.value << ":\n  .byte ";
     for (char c : value) result << (int)c << ", ";
     result << "0\n";
@@ -1449,14 +1449,14 @@ std::string Generate(const ir::Unit& unit) {
             "  sub $8, %rsp\n"
             "  push %rsp\n"
             "  call "
-         << unit.main->value
+         << program.main->value
          << "\n"
             "  add $8, %rsp\n"
             "  // exit\n"
             "  pop %rdi\n"
             "  mov $60, %rax\n"
             "  syscall\n";
-  std::visit(CodeGenerator(result), unit.code->value);
+  std::visit(CodeGenerator(result), program.code->value);
   return result.str();
 }
 

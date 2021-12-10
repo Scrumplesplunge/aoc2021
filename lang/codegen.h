@@ -8,7 +8,7 @@
 
 namespace aoc2021 {
 
-std::string Generate(const ir::Unit& unit);
+std::string Generate(const ir::Program& program);
 
 }  // namespace aoc2021
 

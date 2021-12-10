@@ -90,7 +90,7 @@ class Checker {
     std::filesystem::path path;
     std::optional<Source> source;
     std::optional<std::vector<ast::Statement>> ast;
-    std::optional<ir::Unit> ir;
+    std::optional<ir::Program> ir;
     Environment exports;
   };
 
@@ -101,9 +101,9 @@ class Checker {
       : Checker([](auto& path) { return Source(path.native()); }) {}
 
   const Environment& EnvironmentFor(const std::filesystem::path& path);
-  const ir::Unit& Check(const std::filesystem::path& path);
+  const ir::Program& Check(const std::filesystem::path& path);
 
-  ir::Unit Finish();
+  ir::Program Finish();
 
   ir::Struct::Id NextStruct() {
     return ir::Struct::Id{next_index_++};

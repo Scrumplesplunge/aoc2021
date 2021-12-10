@@ -1920,7 +1920,7 @@ const Environment& Checker::EnvironmentFor(const std::filesystem::path& path) {
   return EntryFor(path).exports;
 }
 
-const ir::Unit& Checker::Check(const std::filesystem::path& path) {
+const ir::Program& Checker::Check(const std::filesystem::path& path) {
   return *EntryFor(path).ir;
 }
 
@@ -1957,14 +1957,14 @@ const Checker::Entry& Checker::EntryFor(const std::filesystem::path& path) {
     code.push_back(std::visit(checker, statement->value));
   }
   entry.ir.emplace(
-      ir::Unit{.main = context.Main(),
-               .data = context.Globals(),
-               .string_literals = context.StringLiterals(),
-               .code = ir::Flatten(ir::Sequence(std::move(code)))});
+      ir::Program{.main = context.Main(),
+                  .data = context.Globals(),
+                  .string_literals = context.StringLiterals(),
+                  .code = ir::Flatten(ir::Sequence(std::move(code)))});
   return entry;
 }
 
-ir::Unit Checker::Finish() {
+ir::Program Checker::Finish() {
   struct Main {
     std::filesystem::path path;
     ir::Label label;
@@ -1975,11 +1975,11 @@ ir::Unit Checker::Finish() {
   std::vector<ir::Code> code;
 
   for (auto& [path, entry] : entries_) {
-    ir::Unit& unit = entry.ir.value();
-    if (unit.main) mains.push_back(Main(path, *unit.main));
-    data.merge(unit.data);
-    string_literals.merge(unit.string_literals);
-    code.push_back(std::move(unit.code));
+    ir::Program& program = entry.ir.value();
+    if (program.main) mains.push_back(Main(path, *program.main));
+    data.merge(program.data);
+    string_literals.merge(program.string_literals);
+    code.push_back(std::move(program.code));
   }
   entries_.clear();
 
@@ -1992,10 +1992,10 @@ ir::Unit Checker::Finish() {
     throw std::runtime_error(output.str());
   }
 
-  return ir::Unit{.main = std::move(mains.front().label),
-                  .data = std::move(data),
-                  .string_literals = std::move(string_literals),
-                  .code = ir::Sequence(std::move(code))};
+  return ir::Program{.main = std::move(mains.front().label),
+                     .data = std::move(data),
+                     .string_literals = std::move(string_literals),
+                     .code = ir::Sequence(std::move(code))};
 }
 
 }  // namespace aoc2021

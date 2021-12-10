@@ -520,7 +520,7 @@ std::ostream& operator<<(std::ostream&, const Code&) noexcept;
 
 Sequence Flatten(const Code& code);
 
-struct Unit {
+struct Program {
   std::optional<ir::Label> main;
   std::map<ir::Global, std::int64_t> data;
   std::map<ir::Global, std::string> string_literals;
