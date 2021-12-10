@@ -237,6 +237,9 @@ void AddBuiltins(Environment& environment) {
   environment.Define(
       "void", Environment::Definition{.location = BuiltinLocation(),
                                       .value = ir::Type(ir::Unit::kVoid)});
+  environment.Define(
+      "any", Environment::Definition{.location = BuiltinLocation(),
+                                      .value = ir::Type(ir::Unit::kAny)});
   environment.Define("byte",
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Scalar::kByte});
@@ -256,7 +259,7 @@ void AddBuiltins(Environment& environment) {
                       Category::kRvalue,
                       ir::FunctionPointer(
                           ir::Scalar::kInt64,
-                          {ir::Scalar::kInt64, ir::Pointer(ir::Unit::kVoid),
+                          {ir::Scalar::kInt64, ir::Pointer(ir::Unit::kAny),
                            ir::Scalar::kInt64}),
                       Representation::kDirect, ir::Label("read"))});
   environment.Define(
@@ -266,7 +269,7 @@ void AddBuiltins(Environment& environment) {
                        Category::kRvalue,
                        ir::FunctionPointer(
                            ir::Scalar::kInt64,
-                           {ir::Scalar::kInt64, ir::Pointer(ir::Unit::kVoid),
+                           {ir::Scalar::kInt64, ir::Pointer(ir::Unit::kAny),
                             ir::Scalar::kInt64}),
                        Representation::kDirect, ir::Label("write"))});
   environment.Define(
@@ -489,11 +492,21 @@ TypedExpression ConvertTo(Location location, const ir::Type& target,
                              .value = ir::IntegerLiteral(0)};
     }
   }
-  // *T -> *void
+  // *T -> *any
   {
     const auto* t = std::get_if<ir::Pointer>(&target->value);
     const auto* s = std::get_if<ir::Pointer>(&x.type->value);
-    if (s && t && t->pointee == ir::Unit::kVoid) {
+    if (s && t && t->pointee == ir::Unit::kAny) {
+      x = EnsureLoaded(location, std::move(x));
+      x.type = target;
+      return x;
+    }
+  }
+  // []T -> *any
+  {
+    const auto* t = std::get_if<ir::Pointer>(&target->value);
+    const auto* s = std::get_if<ir::Span>(&x.type->value);
+    if (s && t && t->pointee == ir::Unit::kAny) {
       x = EnsureLoaded(location, std::move(x));
       x.type = target;
       return x;
@@ -1171,6 +1184,35 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
       return value;
     }
   }
+  // []A or *A -> *B
+  {
+    const auto* p = std::get_if<ir::Pointer>(&value.value.type->value);
+    const auto* s = std::get_if<ir::Span>(&value.value.type->value);
+    const auto* t = std::get_if<ir::Pointer>(&type->value);
+    if ((p || s) && t) {
+      value.value.type = std::move(type);
+      return value;
+    }
+  }
+  // []A or *A -> []B
+  {
+    const auto* p = std::get_if<ir::Pointer>(&value.value.type->value);
+    const auto* s = std::get_if<ir::Span>(&value.value.type->value);
+    const auto* t = std::get_if<ir::Span>(&type->value);
+    if ((p || s) && t) {
+      value.value.type = std::move(type);
+      return value;
+    }
+  }
+  // *any -> []T
+  {
+    const auto* t = std::get_if<ir::Span>(&type->value);
+    const auto* s = std::get_if<ir::Pointer>(&value.value.type->value);
+    if (s && t && s->pointee == ir::Unit::kAny) {
+      value.value.type = std::move(type);
+      return value;
+    }
+  }
   // Conversion from one scalar type to another.
   {
     const auto* t = std::get_if<ir::Scalar>(&type->value);
@@ -1180,24 +1222,6 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
       // TODO: This no-op conversion works fine for promotions, but it can have
       // observable side-effects for narrowing conversions: for example,
       // (2147483648 as int32) / 4 should logically be 0 but actually won't be.
-      value.value.type = std::move(type);
-      return value;
-    }
-  }
-  // Conversion from *T or []T to *void.
-  if (const auto* to = std::get_if<ir::Pointer>(&type->value);
-      to && to->pointee == ir::Unit::kVoid) {
-    if (std::get_if<ir::Pointer>(&value.value.type->value) ||
-        std::get_if<ir::Span>(&value.value.type->value)) {
-      value.value.type = std::move(type);
-      return value;
-    }
-  }
-  // Conversion from *void to *T or []T.
-  if (const auto* from = std::get_if<ir::Pointer>(&value.value.type->value);
-      from && from->pointee == ir::Unit::kVoid) {
-    if (std::get_if<ir::Pointer>(&type->value) ||
-        std::get_if<ir::Span>(&type->value)) {
       value.value.type = std::move(type);
       return value;
     }

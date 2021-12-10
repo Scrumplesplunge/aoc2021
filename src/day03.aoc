@@ -24,7 +24,7 @@ var words: [maxWords]int64;
 function readInput(): void {
   alias bufferSize = 16384;
   var buffer: [bufferSize]byte;
-  var length = std.read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer, bufferSize);
   if buffer[length - 1] != '\n' { std.die("newline"); }
   // Measure the wordLength.
   while buffer[wordLength] != '\n' { wordLength = wordLength + 1; }

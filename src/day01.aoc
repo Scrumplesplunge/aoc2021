@@ -15,7 +15,7 @@ function readInput(): void {
   // Read the input into a temporary buffer on the stack.
   alias bufferSize = 16384;
   var buffer: [bufferSize]byte;
-  var length = std.read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer, bufferSize);
   // Parse the input into the numbers array.
   if buffer[length - 1] != '\n' { std.die("newline"); }
   var i: []byte = &buffer;

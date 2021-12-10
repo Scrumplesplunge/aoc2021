@@ -46,7 +46,7 @@ var inputHands: [2]Hand;
 function readInput(): void {
   alias bufferSize = 1024;
   var buffer: [bufferSize]byte;
-  var length = std.read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer, bufferSize);
   if length <= 0 { std.die("read"); }
   if buffer[length - 1] != '\n' { std.die("newline"); }
   var i: []byte = &buffer;

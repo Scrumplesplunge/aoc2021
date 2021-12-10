@@ -26,7 +26,7 @@ function readValue(i: []byte, x: *int16): []byte {
 function readInput(): void {
   alias bufferSize = 16384;
   var buffer: [bufferSize]byte;
-  var length = std.read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer, bufferSize);
   if length == 0 { std.die("empty"); }
   if buffer[length - 1] != '\n' { std.die("newline"); }
   var i: []byte = &buffer;

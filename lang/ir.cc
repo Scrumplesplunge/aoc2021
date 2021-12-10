@@ -73,6 +73,7 @@ std::strong_ordering Expression::operator<=>(const Expression& other) const {
 std::ostream& operator<<(std::ostream& output, Unit x) noexcept {
   switch (x) {
     case Unit::kVoid: return output << "Unit::kVoid";
+    case Unit::kAny: return output << "Unit::kAny";
     case Unit::kNullPointer: return output << "Unit::kNullPointer";
   }
   std::abort();

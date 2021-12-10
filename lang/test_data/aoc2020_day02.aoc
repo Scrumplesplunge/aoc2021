@@ -44,7 +44,7 @@ function part2(): int64 {
 }
 
 function main() : int64 {
-  var length = std.read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer, bufferSize);
   if length < 0 { std.die("read"); }
   var i: []byte = &buffer;
   var end = i + length;

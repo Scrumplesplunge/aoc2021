@@ -15,7 +15,7 @@ var gridHeight: int64;
 function readInput(): void {
   alias bufferSize = 16384;
   var buffer: [bufferSize]byte;
-  var length = std.read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer, bufferSize);
   if buffer[length - 1] != '\n' { std.die("newline"); }
   var i: []byte = &buffer;
   var end = i + length;
@@ -62,7 +62,7 @@ function part1(): int64 {
 // Disjoint set node. Root nodes are their own parent.
 struct Node {
   size: int64;
-  parent: *void;
+  parent: *any;
 }
 
 // Storage for disjoint set nodes. As with the grid, there is a border around
@@ -90,11 +90,11 @@ function merge(a: *Node, b: *Node): *Node {
   // Merge the two nodes together, making the larger node the new root.
   if a->size < b->size {
     b->size = b->size + a->size;
-    a->parent = b as *void;
+    a->parent = b;
     return b;
   } else {
     a->size = a->size + b->size;
-    b->parent = a as *void;
+    b->parent = a;
     return a;
   }
 }
@@ -106,7 +106,7 @@ function part2(): int64 {
     for var x = 1; x <= gridWidth; x = x + 1 {
       var node = &nodes[y][x];
       node->size = 1;
-      node->parent = node as *void;
+      node->parent = node;
     }
   }
   // Merge all cells that are in the same basin.

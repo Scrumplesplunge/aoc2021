@@ -15,13 +15,13 @@ export function strlen(message: []byte): int64 {
 }
 
 export function puts(message: []byte): void {
-  write(stdout, message as *void, strlen(message));
-  write(stdout, "\n" as *void, 1);
+  write(stdout, message, strlen(message));
+  write(stdout, "\n", 1);
 }
 
 export function die(message: []byte): void {
-  write(stderr, message as *void, strlen(message));
-  write(stderr, "\n" as *void, 1);
+  write(stderr, message, strlen(message));
+  write(stderr, "\n", 1);
   exit(1);
 }
 
@@ -71,5 +71,5 @@ export function printInt(x: int64): void {
     x = x / 10;
     if x == 0 { break; }
   }
-  write(stdout, (&buffer + i) as *void, 24 - i);
+  write(stdout, &buffer + i, 24 - i);
 }

@@ -5,7 +5,7 @@ struct HorizontalLine {
   y: int16;
   xMin: int16;
   xMax: int16;
-  next: *void;
+  next: *any;
 }
 
 struct DiagonalLine {
@@ -13,7 +13,7 @@ struct DiagonalLine {
   xStep: int16;
   yMin: int16;
   yMax: int16;
-  next: *void;
+  next: *any;
 }
 
 var lines: [8192]byte;
@@ -24,13 +24,13 @@ var diagonal: *DiagonalLine;
 // Add a new HorizontalLine to the horizontal list, allocating space from the
 // lines buffer.
 function addHorizontal(y: int16, xMin: int16, xMax: int16): void {
-  var temp = nextLine as *void as []HorizontalLine;
+  var temp = nextLine as []HorizontalLine;
   var line = &temp[0];
-  nextLine = &temp[1] as *void as []byte;
+  nextLine = &temp[1] as []byte;
   line->y = y;
   line->xMin = xMin;
   line->xMax = xMax;
-  line->next = horizontal as *void;
+  line->next = horizontal;
   horizontal = line;
 }
 
@@ -38,14 +38,14 @@ function addHorizontal(y: int16, xMin: int16, xMax: int16): void {
 // buffer.
 function addDiagonal(
     xStart: int16, xStep: int16, yMin: int16, yMax: int16): void {
-  var temp = nextLine as *void as []DiagonalLine;
+  var temp = nextLine as []DiagonalLine;
   var line = &temp[0];
-  nextLine = &temp[1] as *void as []byte;
+  nextLine = &temp[1] as []byte;
   line->xStart = xStart;
   line->xStep = xStep;
   line->yMin = yMin;
   line->yMax = yMax;
-  line->next = diagonal as *void;
+  line->next = diagonal;
   diagonal = line;
 }
 
@@ -121,7 +121,7 @@ function readValue(i: []byte, x: *int16): []byte {
 function readInput(): void {
   alias bufferSize = 16384;
   var buffer: [bufferSize]byte;
-  var length = std.read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer, bufferSize);
   if length == 0 { std.die("empty"); }
   if buffer[length - 1] != '\n' { std.die("newline"); }
   nextLine = &lines;

@@ -4,6 +4,6 @@
 // $ ./example
 
 function main(): int64 {
-  write(1, "Hello, World!\n" as *void, 14);
+  write(1, "Hello, World!\n", 14);
   return 0;
 }
