@@ -39,11 +39,17 @@ struct ParserTest : Test {
 TEST_F(ParserTest, Name) {
   WithSource("x");
   EXPECT_EQ(ParseExpression(), ast::Name(At(1, 1), "x"));
+  WithSource("a123");
+  EXPECT_EQ(ParseExpression(), ast::Name(At(1, 1), "a123"));
+  WithSource("_x");
+  EXPECT_EQ(ParseExpression(), ast::Name(At(1, 1), "_x"));
 }
 
 TEST_F(ParserTest, IntegerLiteral) {
   WithSource("123");
   EXPECT_EQ(ParseExpression(), ast::IntegerLiteral(At(1, 1), 123));
+  WithSource("2a");
+  EXPECT_ERROR(ParseExpression(), "invalid integer literal");
 }
 
 TEST_F(ParserTest, ArrayType) {

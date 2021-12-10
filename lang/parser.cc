@@ -47,6 +47,8 @@ constexpr bool IsLower(char c) { return 'a' <= c && c <= 'z'; }
 constexpr bool IsUpper(char c) { return 'A' <= c && c <= 'Z'; }
 constexpr bool IsAlpha(char c) { return IsLower(c) || IsUpper(c); }
 constexpr bool IsAlphaNumeric(char c) { return IsDigit(c) || IsAlpha(c); }
+constexpr bool IsIdentifierFirst(char c) { return c == '_' || IsAlpha(c); }
+constexpr bool IsIdentifier(char c) { return c == '_' || IsAlphaNumeric(c); }
 
 }  // namespace
 
@@ -100,7 +102,9 @@ void Parser::ExpectEnd() {
 
 Name Parser::ParseName() {
   const std::string_view word = PeekWord();
-  if (word.empty() || !IsAlpha(word.front())) throw Error("expected a name");
+  if (word.empty() || !IsIdentifierFirst(word.front())) {
+    throw Error("expected a name");
+  }
   const Location location = reader_.location();
   reader_.Advance(word.size());
   return Name(location, std::string(word));
@@ -222,7 +226,7 @@ Expression Parser::ParseTerm() {
     return term;
   }
   if (IsDigit(lookahead)) return ParseIntegerLiteral();
-  if (IsAlpha(lookahead)) return ParseName();
+  if (IsIdentifierFirst(lookahead)) return ParseName();
   throw Error("expected term");
 }
 
@@ -792,7 +796,7 @@ std::string_view Parser::PeekWord() const noexcept {
   const char* const first = tail.data();
   const char* const end = first + tail.size();
   const char* i = first;
-  while (i != end && IsAlphaNumeric(*i)) i++;
+  while (i != end && IsIdentifier(*i)) i++;
   return std::string_view(first, i - first);
 }
 
