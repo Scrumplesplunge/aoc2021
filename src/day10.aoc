@@ -1,0 +1,154 @@
+import "std/std.aoc" as std;
+
+alias maxLength = 128;
+struct Line {
+  // Every element is 1-8, where 1-4 are opening brackets and 5-8 are closing
+  // brackets, such that opening + 4 == closing.
+  bytes: [maxLength]byte;
+  size: int64;
+}
+alias maxLines = 128;
+var lines: [maxLines]Line;
+var numLines: int64;
+
+function readInput(): void {
+  // Every input byte maps to 0-8:
+  //   * Opening brackets map to 1-4
+  //   * Closing brackets map to 5-8, in the same order as the opening ones.
+  //   * Everything else maps to 0.
+  var inputMap: [256]byte;
+  for var i = 0; i < 256; i = i + 1 { inputMap[i] = 0 as byte; }
+  inputMap['('] = 1 as byte;
+  inputMap['['] = 2 as byte;
+  inputMap['{'] = 3 as byte;
+  inputMap['<'] = 4 as byte;
+  inputMap[')'] = 5 as byte;
+  inputMap[']'] = 6 as byte;
+  inputMap['}'] = 7 as byte;
+  inputMap['>'] = 8 as byte;
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = read(std.stdin, &buffer as *void, bufferSize);
+  if length == 0 { std.die("empty input"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numLines == maxLines { std.die("too many lines"); }
+    var line = &lines[numLines];
+    numLines = numLines + 1;
+    var j = 0;
+    while i[j] != '\n' {
+      if j == maxLength { std.die("line too long"); }
+      var c = inputMap[i[j]];
+      if !c { std.die("bad character"); }
+      line->bytes[j] = c;
+      j = j + 1;
+    }
+    line->size = j;
+    if i[j] != '\n' { std.die("bug"); }
+    i = i + j + 1;
+  }
+}
+
+alias ok = 0;          // The input was well-formed and complete.
+alias incomplete = 1;  // The input was well-formed but not complete.
+alias corrupted = 2;   // The input had a closing bracket that didn't match.
+
+struct CheckResult {
+  status: int64;  // ok, incomplete, or corrupted.
+  // ok -> unused
+  // incomplete -> stores the line length.
+  // corrupted -> stores the index of the first invalid closing bracket.
+  offset: int64;
+  // Opening brackets that are still opened but not closed at the offset point.
+  blocks: [maxLength]byte;
+  numBlocks: int64;
+}
+
+// Checks the syntax of a line, returning a check status to classify the line as
+// ok, incomplete, or corrupted, and an offset to identify the first invalid
+// bracket where relevant.
+function checkLine(line: *Line, result: *CheckResult): void {
+  result->numBlocks = 0;
+  var n = line->size;
+  for var i = 0; i < n; i = i + 1 {
+    var c = line->bytes[i];
+    if c < 5 {
+      result->blocks[result->numBlocks] = c;
+      result->numBlocks = result->numBlocks + 1;
+    } else {
+      if result->numBlocks == 0 { std.die("assumed impossible"); }
+      // c - 4 maps the closing bracket to the opening bracket.
+      if result->blocks[result->numBlocks - 1] != (c - 4) as byte {
+        result->status = corrupted;
+        result->offset = i;
+        return;
+      }
+      result->numBlocks = result->numBlocks - 1;
+    }
+  }
+  result->status = result->numBlocks == 0 ? ok : incomplete;
+  result->offset = n;
+}
+
+function part1(): int64 {
+  var scoreMap: [4]int64;
+  scoreMap[0] = 3;
+  scoreMap[1] = 57;
+  scoreMap[2] = 1197;
+  scoreMap[3] = 25137;
+  var total = 0;
+  for var i = 0; i < numLines; i = i + 1 {
+    var check: CheckResult;
+    checkLine(&lines[i], &check);
+    if check.status != corrupted { continue; }
+    var c = lines[i].bytes[check.offset];
+    // Map 5-8 -> 0-3 to look up the corresponding score for each bracket.
+    total = total + scoreMap[c - 5];
+  }
+  return total;
+}
+
+// Repairs an incomplete line and returns the total score of the repair.
+// Lines that are ok or corrupted yield a score of 0.
+function repairScore(line: *Line): int64 {
+  var check: CheckResult;
+  checkLine(line, &check);
+  if check.status != incomplete { return 0; }
+  var score = 0;
+  for var i = check.numBlocks - 1; i >= 0; i = i - 1 {
+    // The score of a closing bracket x is value of the corresponding opening
+    // bracket.
+    score = 5 * score + check.blocks[i];
+  }
+  return score;
+}
+
+function part2(): int64 {
+  var scores: [maxLines]int64;
+  var numScores = 0;
+  for var i = 0; i < numLines; i = i + 1 {
+    var score = repairScore(&lines[i]);
+    if score == 0 { continue; }
+    // Insert the score.
+    var j = numScores;
+    while j > 0 && scores[j - 1] > score {
+      scores[j] = scores[j - 1];
+      j = j - 1;
+    }
+    scores[j] = score;
+    numScores = numScores + 1;
+  }
+  if numScores % 2 != 1 {
+    std.printInt(numScores);
+    std.die("number of scores is not odd");
+  }
+  return scores[numScores / 2];
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
