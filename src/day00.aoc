@@ -5,8 +5,8 @@ function main(): int64 {
   var buffer: [n]byte;
   var length: int64 = 1;
   while length {
-    length = read(std.stdin, &buffer as *void, n);
-    write(std.stdout, &buffer as *void, length);
+    length = std.read(std.stdin, &buffer as *void, n);
+    std.write(std.stdout, &buffer as *void, length);
   }
   return 0;
 }

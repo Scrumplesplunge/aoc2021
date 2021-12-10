@@ -17,7 +17,7 @@ var input: [9]int64;
 function readInput(): void {
   alias bufferSize = 1024;
   var buffer: [bufferSize]byte;
-  var length = read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer as *void, bufferSize);
   if length == 0 { std.die("empty input"); }
   if buffer[length - 1] != '\n' { std.die("no final newline"); }
   var i: []byte = &buffer;

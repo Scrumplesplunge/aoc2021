@@ -1,6 +1,10 @@
 export alias stdin = 0;
 export alias stdout = 1;
 export alias stderr = 2;
+export alias read = _builtin_read;
+export alias write = _builtin_write;
+export alias exit = _builtin_exit;
+export alias copy = _builtin_copy;
 
 export function strlen(message: []byte): int64 {
   var i = 0;

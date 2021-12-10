@@ -250,7 +250,7 @@ void AddBuiltins(Environment& environment) {
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Scalar::kInt64});
   environment.Define(
-      "read", Environment::Definition{
+      "_builtin_read", Environment::Definition{
                   .location = BuiltinLocation(),
                   .value = TypedExpression(
                       Category::kRvalue,
@@ -260,7 +260,7 @@ void AddBuiltins(Environment& environment) {
                            ir::Scalar::kInt64}),
                       Representation::kDirect, ir::Label("read"))});
   environment.Define(
-      "write", Environment::Definition{
+      "_builtin_write", Environment::Definition{
                    .location = BuiltinLocation(),
                    .value = TypedExpression(
                        Category::kRvalue,
@@ -270,7 +270,7 @@ void AddBuiltins(Environment& environment) {
                             ir::Scalar::kInt64}),
                        Representation::kDirect, ir::Label("write"))});
   environment.Define(
-      "copy",
+      "_builtin_copy",
       Environment::Definition{
           .location = BuiltinLocation(),
           .value = TypedExpression(
@@ -280,7 +280,7 @@ void AddBuiltins(Environment& environment) {
                                                     ir::Scalar::kInt64}),
               Representation::kDirect, ir::Label("copy"))});
   environment.Define(
-      "exit",
+      "_builtin_exit",
       Environment::Definition{
           .location = BuiltinLocation(),
           .value = TypedExpression(

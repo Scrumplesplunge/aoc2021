@@ -15,7 +15,7 @@ var gridHeight: int64;
 function readInput(): void {
   alias bufferSize = 16384;
   var buffer: [bufferSize]byte;
-  var length = read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer as *void, bufferSize);
   if buffer[length - 1] != '\n' { std.die("newline"); }
   var i: []byte = &buffer;
   var end = i + length;

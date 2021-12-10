@@ -7,6 +7,6 @@ function main(): int64 {
   var b: [30]byte;
   a = *"See you on the other side...\n";
   b = f(a);
-  write(1, &b as *void, 29);
+  _builtin_write(1, &b as *void, 29);
   return 0;
 }

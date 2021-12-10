@@ -46,7 +46,7 @@ var inputHands: [2]Hand;
 function readInput(): void {
   alias bufferSize = 1024;
   var buffer: [bufferSize]byte;
-  var length = read(std.stdin, &buffer as *void, bufferSize);
+  var length = std.read(std.stdin, &buffer as *void, bufferSize);
   if length <= 0 { std.die("read"); }
   if buffer[length - 1] != '\n' { std.die("newline"); }
   var i: []byte = &buffer;
@@ -103,7 +103,7 @@ function initHands(hands: *[2]CircularBuffer): void {
   for var i = 0; i < 2; i = i + 1 {
     var input = &inputHands[i];
     var hand = &(*hands)[i];
-    copy(&hand->cards, &input->cards, input->numCards);
+    std.copy(&hand->cards, &input->cards, input->numCards);
     hand->begin = 0;
     hand->size = input->numCards;
   }
