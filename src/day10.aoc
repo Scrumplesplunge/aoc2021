@@ -41,7 +41,7 @@ function readInput(): void {
     while i[j] != '\n' {
       if j == maxLength { std.die("line too long"); }
       var c = inputMap[i[j]];
-      if !c { std.die("bad character"); }
+      if c == 0 { std.die("bad character"); }
       line->bytes[j] = c;
       j = j + 1;
     }

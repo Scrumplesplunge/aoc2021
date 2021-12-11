@@ -111,7 +111,7 @@ function initHands(hands: *[2]CircularBuffer): void {
 
 function score(winner: *CircularBuffer): int64 {
   var points = 0;
-  for var i = 1; winner->size; i = i + 1 {
+  for var i = 1; winner->size > 0; i = i + 1 {
     points = points + i * popBack(winner);
   }
   return points;
@@ -120,7 +120,7 @@ function score(winner: *CircularBuffer): int64 {
 function part1(): int64 {
   var hands: [2]CircularBuffer;
   initHands(&hands);
-  while hands[0].size && hands[1].size {
+  while hands[0].size > 0 && hands[1].size > 0 {
     var a = popFront(&hands[0]);
     var b = popFront(&hands[1]);
     if a < b {
@@ -133,15 +133,15 @@ function part1(): int64 {
       std.die("draw");
     }
   }
-  return score(hands[0].size ? &hands[0] : &hands[1]);
+  return score(hands[0].size > 0 ? &hands[0] : &hands[1]);
 }
 
 // Runs a single round of recursive combat. Returns true if the game finishes as
 // a result of this round.
-function recursiveCombatRound(hands: *[2]CircularBuffer): int64 {
+function recursiveCombatRound(hands: *[2]CircularBuffer): bool {
   var a = popFront(&(*hands)[0]);
   var b = popFront(&(*hands)[1]);
-  var aWins: int64;
+  var aWins: bool;
   if a <= (*hands)[0].size && b <= (*hands)[1].size {
     // Recursive game.
     var newHands = *hands;
@@ -164,25 +164,25 @@ function recursiveCombatRound(hands: *[2]CircularBuffer): int64 {
 }
 
 // Returns true if two circular buffers have the same contents.
-function buffersEqual(l: *CircularBuffer, r: *CircularBuffer): int64 {
-  if l->size != r->size { return 0; }
+function buffersEqual(l: *CircularBuffer, r: *CircularBuffer): bool {
+  if l->size != r->size { return false; }
   var i = l->begin;
   var j = r->begin;
   var end = i + l->size;
   if end >= maxCards { end = end - maxCards; }
   while i != end {
-    if l->cards[i] != r->cards[j] { return 0; }
+    if l->cards[i] != r->cards[j] { return false; }
     i = i + 1;
     j = j + 1;
     if i == maxCards { i = 0; }
     if j == maxCards { j = 0; }
   }
-  return 1;
+  return true;
 }
 
 function recursiveCombat(hareHands: *[2]CircularBuffer): *CircularBuffer {
   var hands = *hareHands;
-  while 1 {
+  while true {
     if recursiveCombatRound(hareHands) || recursiveCombatRound(hareHands) {
       // The hare has finished the game.
       break;
@@ -194,7 +194,7 @@ function recursiveCombat(hareHands: *[2]CircularBuffer): *CircularBuffer {
       return &(*hareHands)[0];
     }
   }
-  return (*hareHands)[0].size ? &(*hareHands)[0] : &(*hareHands)[1];
+  return (*hareHands)[0].size > 0 ? &(*hareHands)[0] : &(*hareHands)[1];
 }
 
 function part2(): int64 {

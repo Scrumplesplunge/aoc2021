@@ -111,6 +111,10 @@ std::ostream& operator<<(std::ostream& output, const IntegerLiteral& x) noexcept
   return output << "IntegerLiteral(" << x.value << ")";
 }
 
+std::ostream& operator<<(std::ostream& output, const Narrow& x) noexcept {
+  return output << "Narrow(" << x.type << ", " << x.inner << ")";
+}
+
 std::ostream& operator<<(std::ostream& output, const Negate& x) noexcept {
   return output << "Negate(" << x.inner << ")";
 }
@@ -203,6 +207,7 @@ std::strong_ordering Type::operator<=>(const Type& other) const {
 
 std::ostream& operator<<(std::ostream& output, Scalar x) noexcept {
   switch (x) {
+    case Scalar::kBool: return output << "Scalar::kBool";
     case Scalar::kByte: return output << "Scalar::kByte";
     case Scalar::kInt16: return output << "Scalar::kInt16";
     case Scalar::kInt32: return output << "Scalar::kInt32";
@@ -257,6 +262,7 @@ std::int64_t Size(Unit) noexcept { return 0; }
 
 std::int64_t Size(Scalar x) noexcept {
   switch (x) {
+    case Scalar::kBool: return 1;
     case Scalar::kByte: return 1;
     case Scalar::kInt16: return 2;
     case Scalar::kInt32: return 4;

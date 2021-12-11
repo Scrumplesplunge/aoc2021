@@ -58,7 +58,7 @@ function sortHorizontal(): void {
     }
     // Partition the list into buckets.
     var i = horizontal;
-    while i {
+    while i != null {
       var next = i->next as *HorizontalLine;
       var index = (i->y >> b) % 16;
       i->next = lists[index];
@@ -69,7 +69,7 @@ function sortHorizontal(): void {
     horizontal = null;
     for var j = 15; j >= 0; j = j - 1 {
       var k = lists[j];
-      while k {
+      while k != null {
         var next = k->next as *HorizontalLine;
         k->next = horizontal;
         horizontal = k;
@@ -88,7 +88,7 @@ function sortDiagonal(): void {
     }
     // Partition the list into buckets.
     var i = diagonal;
-    while i {
+    while i != null {
       var next = i->next as *DiagonalLine;
       var index = (i->yMin >> b) % 16;
       i->next = lists[index];
@@ -99,7 +99,7 @@ function sortDiagonal(): void {
     diagonal = null;
     for var j = 15; j >= 0; j = j - 1 {
       var k = lists[j];
-      while k {
+      while k != null {
         var next = k->next as *DiagonalLine;
         k->next = diagonal;
         diagonal = k;
@@ -166,7 +166,7 @@ function readInput(): void {
 
 var zeroRow: [valueLimit]byte;
 
-function countOverlaps(includeDiagonals: int64): int64 {
+function countOverlaps(includeDiagonals: bool): int64 {
   // Calculate the overlaps by scanning from y=0 downwards. In each iteration,
   // we consider the overlaps that can happen in row y.
   var h = horizontal;
@@ -178,10 +178,10 @@ function countOverlaps(includeDiagonals: int64): int64 {
   for var y = 0; y < valueLimit; y = y + 1 {
     // If we have reached the end of the horizontal and diagonal lists, then
     // there are no more lines that could overlap.
-    if !h && !d { break; }
+    if h == null && d == null { break; }
     var row = zeroRow;
     // Render horizontal lines for row y.
-    while h && h->y as int64 == y {
+    while h != null && h->y as int64 == y {
       var xMax = h->xMax;
       for var x: int64 = h->xMin; x <= h->xMax; x = x + 1 {
         var cell = &row[x];
@@ -202,7 +202,7 @@ function countOverlaps(includeDiagonals: int64): int64 {
     }
     numActiveDiagonals = j;
     // Add vertical lines that started on row y.
-    while d && d->yMin as int64 == y {
+    while d != null && d->yMin as int64 == y {
       if includeDiagonals || d->xStep as int64 == 0 {
         if numActiveDiagonals == maxActiveDiagonals {
           std.die("too many concurrent vertical/diagonal lines");
@@ -226,8 +226,8 @@ function countOverlaps(includeDiagonals: int64): int64 {
   return count;
 }
 
-function part1(): int64 { return countOverlaps(0); }
-function part2(): int64 { return countOverlaps(1); }
+function part1(): int64 { return countOverlaps(false); }
+function part2(): int64 { return countOverlaps(true); }
 
 function main(): int64 {
   readInput();

@@ -8,7 +8,7 @@ export alias copy = _builtin_copy;
 
 export function strlen(message: []byte): int64 {
   var i = 0;
-  while message[i] {
+  while message[i] != '\0' {
     i = i + 1;
   }
   return i;
@@ -25,7 +25,7 @@ export function die(message: []byte): void {
   exit(1);
 }
 
-export function isDigit(x: byte): int64 {
+export function isDigit(x: byte): bool {
   return '0' <= x && x <= '9';
 }
 
@@ -65,7 +65,7 @@ export function printInt(x: int64): void {
   var buffer: [24]byte;
   buffer[23] = '\n';
   var i = 23;
-  while 1 {
+  while true {
     i = i - 1;
     buffer[i] = ('0' + (x % 10)) as byte;
     x = x / 10;

@@ -246,6 +246,25 @@ class Evaluator {
   std::optional<std::int64_t> operator()(const ir::IntegerLiteral& x) {
     return x.value;
   }
+  std::optional<std::int64_t> operator()(const ir::Narrow& x) {
+    if (auto inner = Evaluate(x.inner)) {
+      switch (x.type) {
+        case ir::Scalar::kBool:
+          return *inner != 0;
+        case ir::Scalar::kByte:
+          return static_cast<std::uint8_t>(*inner);
+        case ir::Scalar::kInt16:
+          return static_cast<std::int16_t>(static_cast<std::uint16_t>(*inner));
+        case ir::Scalar::kInt32:
+          return static_cast<std::int32_t>(static_cast<std::uint32_t>(*inner));
+        case ir::Scalar::kInt64:
+          return *inner;
+      }
+      std::abort();
+    } else {
+      return std::nullopt;
+    }
+  }
   std::optional<std::int64_t> operator()(const ir::Negate& x) {
     if (auto inner = Evaluate(x.inner)) {
       return -*inner;
@@ -536,8 +555,12 @@ class ExpressionGenerator {
   }
 
   Comparison DoCompare(const auto& x) {
-    return Comparison{Comparison::Type::kNotEqual,
-                      ProduceCompare(x, ir::IntegerLiteral(0))};
+    const ProductionResult& inner = Get(x);
+    return Comparison{
+        Comparison::Type::kNotEqual,
+        ProductionResult{.code = StrCat(inner.code, "  test ", inner.result(),
+                                        ", ", inner.result(), "\n"),
+                         .registers_used = inner.registers_used}};
   }
 
   // Produce a comparison between two expressions, optimizing the case where the
@@ -599,7 +622,13 @@ class ExpressionGenerator {
           "has not been implemented yet.");
     }
   }
-  ProductionResult Produce(const auto& x) { std::abort(); }
+
+  ProductionResult Produce(const ir::Unit& x) {
+    const Register result = kRegisterOrder[0];
+    return ProductionResult{
+        .code = StrCat("  xor ", result, ", ", result, "\n"),
+        .registers_used = 1};
+  }
 
   ProductionResult Produce(const ir::Label& x) {
     return ProductionResult{
@@ -713,6 +742,32 @@ class ExpressionGenerator {
         .registers_used = 1};
   }
 
+  ProductionResult Produce(const ir::Narrow& x) {
+    const ProductionResult& inner = Get(x.inner);
+    switch (x.type) {
+      case ir::Scalar::kBool:
+        return ProduceSet(x.inner);
+      case ir::Scalar::kByte:
+        return ProductionResult{
+            .code = StrCat(inner.code, "  movzx ", ByteName(inner.result()),
+                           ", ", inner.result(), "\n"),
+            .registers_used = inner.registers_used};
+      case ir::Scalar::kInt16:
+        return ProductionResult{
+            .code = StrCat(inner.code, "  movsx ", WordName(inner.result()),
+                           ", ", inner.result(), "\n"),
+            .registers_used = inner.registers_used};
+      case ir::Scalar::kInt32:
+        return ProductionResult{.code = StrCat(inner.code, "  movsx ",
+                                               DoubleWordName(inner.result()),
+                                               ", ", inner.result(), "\n"),
+                                .registers_used = inner.registers_used};
+      case ir::Scalar::kInt64:
+        return inner;
+    }
+    std::abort();
+  }
+
   ProductionResult Produce(const ir::Negate& x) {
     const ProductionResult& inner = Get(x.inner);
     return ProductionResult{
@@ -720,7 +775,12 @@ class ExpressionGenerator {
         .registers_used = inner.registers_used};
   }
 
-  ProductionResult Produce(const ir::LogicalNot& x) { return ProduceSet(x); }
+  ProductionResult Produce(const ir::LogicalNot& x) {
+    const ProductionResult& inner = Get(x.inner);
+    return ProductionResult{.code = StrCat(inner.code, "  xor $1, ",
+                                           ByteName(inner.result()), "\n"),
+                            .registers_used = inner.registers_used};
+  }
 
   ProductionResult Produce(const ir::BitwiseNot& x) {
     const ProductionResult& inner = Get(x.inner);

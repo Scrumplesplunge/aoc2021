@@ -1,11 +1,11 @@
 function main(): int64 {
-  var a = 1;
+  var a = true;
   var b = 0;
   while a {
     b = 1;
     break;
     b = 2;
-    a = 0;
+    a = false;
   }
   return b;
 }

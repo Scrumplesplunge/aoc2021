@@ -3,8 +3,8 @@ import "std/std.aoc" as std;
 function main(): int64 {
   alias n = 1024;
   var buffer: [n]byte;
-  var length: int64 = 1;
-  while length {
+  var length = 1;
+  while length != 0 {
     length = std.read(std.stdin, &buffer, n);
     std.write(std.stdout, &buffer, length);
   }

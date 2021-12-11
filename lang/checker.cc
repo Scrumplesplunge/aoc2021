@@ -74,6 +74,25 @@ class Evaluator {
   std::optional<std::int64_t> operator()(const ir::IntegerLiteral& x) {
     return x.value;
   }
+  std::optional<std::int64_t> operator()(const ir::Narrow& x) {
+    if (auto inner = Evaluate(x.inner)) {
+      switch (x.type) {
+        case ir::Scalar::kBool:
+          return *inner != 0;
+        case ir::Scalar::kByte:
+          return static_cast<std::uint8_t>(*inner);
+        case ir::Scalar::kInt16:
+          return static_cast<std::int16_t>(static_cast<std::uint16_t>(*inner));
+        case ir::Scalar::kInt32:
+          return static_cast<std::int32_t>(static_cast<std::uint32_t>(*inner));
+        case ir::Scalar::kInt64:
+          return *inner;
+      }
+      std::abort();
+    } else {
+      return std::nullopt;
+    }
+  }
   std::optional<std::int64_t> operator()(const ir::Negate& x) {
     if (auto inner = Evaluate(x.inner)) {
       return -*inner;
@@ -240,6 +259,23 @@ void AddBuiltins(Environment& environment) {
   environment.Define(
       "any", Environment::Definition{.location = BuiltinLocation(),
                                       .value = ir::Type(ir::Unit::kAny)});
+  environment.Define("bool",
+                     Environment::Definition{.location = BuiltinLocation(),
+                                             .value = ir::Scalar::kBool});
+  environment.Define("true", Environment::Definition{
+                                 .location = BuiltinLocation(),
+                                 .value = TypedExpression{
+                                     .category = Category::kRvalue,
+                                     .type = ir::Scalar::kBool,
+                                     .representation = Representation::kDirect,
+                                     .value = ir::IntegerLiteral(1)}});
+  environment.Define("false", Environment::Definition{
+                                  .location = BuiltinLocation(),
+                                  .value = TypedExpression{
+                                      .category = Category::kRvalue,
+                                      .type = ir::Scalar::kBool,
+                                      .representation = Representation::kDirect,
+                                      .value = ir::IntegerLiteral(0)}});
   environment.Define("byte",
                      Environment::Definition{.location = BuiltinLocation(),
                                              .value = ir::Scalar::kByte});
@@ -477,6 +513,48 @@ ExpressionInfo EnsureComparable(Location location, ExpressionInfo info) {
         .code = std::move(info.code),
         .value = EnsureLoaded(location, std::move(info.value))};
   }
+}
+
+ir::Type CommonTypeFor(Location location, const ir::Scalar& l,
+                       const ir::Scalar& r) {
+  return std::max(l, r);
+}
+
+ir::Type CommonTypeFor(Location location, const ir::Pointer& l,
+                       const ir::Unit& r) {
+  if (r == ir::Unit::kNullPointer) return l;
+  throw Error(location, "incompatible types ", l, " and ", r);
+}
+
+ir::Type CommonTypeFor(Location location, const ir::Unit& l,
+                       const ir::Pointer& r) {
+  if (l == ir::Unit::kNullPointer) return r;
+  throw Error(location, "incompatible types ", l, " and ", r);
+}
+
+ir::Type CommonTypeFor(Location location, const ir::Span& l,
+                       const ir::Unit& r) {
+  if (r == ir::Unit::kNullPointer) return l;
+  throw Error(location, "incompatible types ", l, " and ", r);
+}
+
+ir::Type CommonTypeFor(Location location, const ir::Unit& l,
+                       const ir::Span& r) {
+  if (l == ir::Unit::kNullPointer) return r;
+  throw Error(location, "incompatible types ", l, " and ", r);
+}
+
+ir::Type CommonTypeFor(Location location, const auto& l, const auto& r) {
+  throw Error(location, "incompatible types ", l, " and ", r);
+}
+
+ir::Type CommonType(Location location, const ir::Type& l, const ir::Type& r) {
+  if (l == r) return l;
+  return std::visit(
+      [&](const auto& l, const auto& r) {
+        return CommonTypeFor(location, l, r);
+      },
+      l->value, r->value);
 }
 
 TypedExpression ConvertTo(Location location, const ir::Type& target,
@@ -1000,9 +1078,12 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Negate& x) {
 ExpressionInfo ExpressionChecker::operator()(const ast::LogicalNot& x) {
   ExpressionInfo inner =
       EnsureComparable(x.inner.location(), CheckValue(x.inner));
+  if (inner.value.type != ir::Scalar::kBool) {
+    throw Error(x.inner.location(), "not a bool");
+  }
   return ExpressionInfo{
       .code = std::move(inner.code),
-      .value = TypedExpression(Category::kRvalue, ir::Scalar::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kDirect,
                                ir::LogicalNot(std::move(inner.value.value)))};
 }
@@ -1218,11 +1299,16 @@ ExpressionInfo ExpressionChecker::operator()(const ast::As& x) {
     const auto* t = std::get_if<ir::Scalar>(&type->value);
     const auto* s = std::get_if<ir::Scalar>(&value.value.type->value);
     if (s && t) {
+      // Store the values to avoid relying on lifetimes of the types, which may
+      // end as we modify the expression.
+      const ir::Scalar from = *s, to = *t;
       value.value = EnsureLoaded(x.value.location(), std::move(value.value));
-      // TODO: This no-op conversion works fine for promotions, but it can have
-      // observable side-effects for narrowing conversions: for example,
-      // (2147483648 as int32) / 4 should logically be 0 but actually won't be.
       value.value.type = std::move(type);
+      if (from <= to) {
+        // Promotion requires no change to the value (as long as it is loaded).
+        return value;
+      }
+      value.value.value = ir::Narrow(to, std::move(value.value.value));
       return value;
     }
   }
@@ -1235,7 +1321,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LessThan& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kDirect,
                                ir::LessThan(std::move(left.value.value),
                                             std::move(right.value.value)))};
@@ -1246,7 +1332,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LessOrEqual& x) {
   ExpressionInfo right = EnsureInt64(x.right.location(), CheckValue(x.right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kDirect,
                                ir::LessOrEqual(std::move(left.value.value),
                                                std::move(right.value.value)))};
@@ -1258,7 +1344,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::GreaterThan& x) {
   // GreaterThan(left, right) is translated into LessThan(right, left).
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kDirect,
                                ir::LessThan(std::move(right.value.value),
                                             std::move(left.value.value)))};
@@ -1270,7 +1356,7 @@ ExpressionInfo ExpressionChecker::operator()(const ast::GreaterOrEqual& x) {
   // GreaterOrEqual(left, right) is translated into LessOrEqual(right, left).
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(Category::kRvalue, std::move(left.value.type),
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kDirect,
                                ir::LessOrEqual(std::move(right.value.value),
                                                std::move(left.value.value)))};
@@ -1280,14 +1366,12 @@ ExpressionInfo ExpressionChecker::operator()(const ast::Equal& x) {
   ExpressionInfo left = EnsureComparable(x.left.location(), CheckValue(x.left));
   ExpressionInfo right =
       EnsureComparable(x.right.location(), CheckValue(x.right));
-  if (left.value.type != right.value.type) {
-    throw Error(x.location,
-                "incompatible types for equality comparison: ", left.value.type,
-                " and ", right.value.type);
-  }
+  ir::Type type = CommonType(x.location, left.value.type, right.value.type);
+  left = ConvertTo(x.left.location(), type, std::move(left));
+  right = ConvertTo(x.right.location(), type, std::move(right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(Category::kRvalue, ir::Scalar::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kDirect,
                                ir::Equal(std::move(left.value.value),
                                          std::move(right.value.value)))};
@@ -1297,14 +1381,12 @@ ExpressionInfo ExpressionChecker::operator()(const ast::NotEqual& x) {
   ExpressionInfo left = EnsureComparable(x.left.location(), CheckValue(x.left));
   ExpressionInfo right =
       EnsureComparable(x.right.location(), CheckValue(x.right));
-  if (left.value.type != right.value.type) {
-    throw Error(x.location,
-                "incompatible types for equality comparison: ", left.value.type,
-                " and ", right.value.type);
-  }
+  ir::Type type = CommonType(x.location, left.value.type, right.value.type);
+  left = ConvertTo(x.left.location(), type, std::move(left));
+  right = ConvertTo(x.right.location(), type, std::move(right));
   return ExpressionInfo{
       .code = ir::Sequence({std::move(left.code), std::move(right.code)}),
-      .value = TypedExpression(Category::kRvalue, ir::Scalar::kInt64,
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kDirect,
                                ir::NotEqual(std::move(left.value.value),
                                             std::move(right.value.value)))};
@@ -1314,8 +1396,14 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalAnd& x) {
   ExpressionInfo left = EnsureComparable(x.left.location(), CheckValue(x.left));
   ExpressionInfo right =
       EnsureComparable(x.right.location(), CheckValue(x.right));
+  if (left.value.type != ir::Scalar::kBool) {
+    throw Error(x.left.location(), "not a bool");
+  }
+  if (right.value.type != ir::Scalar::kBool) {
+    throw Error(x.right.location(), "not a bool");
+  }
   // Allocate space for the function result.
-  const ir::Local::Offset offset = frame_->Allocate(ir::Scalar::kInt64);
+  const ir::Local::Offset offset = frame_->Allocate(ir::Scalar::kBool);
   const ir::Label end = context_->Label(".Llogical_end");
   // a && b compiles into:
   //   temp = a
@@ -1326,11 +1414,11 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalAnd& x) {
   return ExpressionInfo{
       .code = ir::Sequence(
           {std::move(left.code),
-           ir::Store64(ir::Local(offset), std::move(left.value.value)),
-           ir::JumpUnless(ir::Load64(ir::Local(offset)), end),
+           ir::Store8(ir::Local(offset), std::move(left.value.value)),
+           ir::JumpUnless(ir::Load8(ir::Local(offset)), end),
            std::move(right.code),
-           ir::Store64(ir::Local(offset), std::move(right.value.value)), end}),
-      .value = TypedExpression(Category::kRvalue, ir::Scalar::kInt64,
+           ir::Store8(ir::Local(offset), std::move(right.value.value)), end}),
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kAddress, ir::Local(offset))};
 }
 
@@ -1338,8 +1426,14 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalOr& x) {
   ExpressionInfo left = EnsureComparable(x.left.location(), CheckValue(x.left));
   ExpressionInfo right =
       EnsureComparable(x.right.location(), CheckValue(x.right));
+  if (left.value.type != ir::Scalar::kBool) {
+    throw Error(x.left.location(), "not a bool");
+  }
+  if (right.value.type != ir::Scalar::kBool) {
+    throw Error(x.right.location(), "not a bool");
+  }
   // Allocate space for the function result.
-  const ir::Local::Offset offset = frame_->Allocate(ir::Scalar::kInt64);
+  const ir::Local::Offset offset = frame_->Allocate(ir::Scalar::kBool);
   const ir::Label end = context_->Label(".Llogical_or_end");
   // a || b compiles into:
   //   temp = a
@@ -1350,11 +1444,11 @@ ExpressionInfo ExpressionChecker::operator()(const ast::LogicalOr& x) {
   return ExpressionInfo{
       .code = ir::Sequence(
           {std::move(left.code),
-           ir::Store64(ir::Local(offset), std::move(left.value.value)),
-           ir::JumpIf(ir::Load64(ir::Local(offset)), end),
+           ir::Store8(ir::Local(offset), std::move(left.value.value)),
+           ir::JumpIf(ir::Load8(ir::Local(offset)), end),
            std::move(right.code),
-           ir::Store64(ir::Local(offset), std::move(right.value.value)), end}),
-      .value = TypedExpression(Category::kRvalue, ir::Scalar::kInt64,
+           ir::Store8(ir::Local(offset), std::move(right.value.value)), end}),
+      .value = TypedExpression(Category::kRvalue, ir::Scalar::kBool,
                                Representation::kAddress, ir::Local(offset))};
 }
 
@@ -1424,6 +1518,9 @@ ExpressionInfo ExpressionChecker::operator()(const ast::SpanType& x) {
 ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
   ExpressionInfo condition =
       EnsureComparable(x.condition.location(), CheckValue(x.condition));
+  if (condition.value.type != ir::Scalar::kBool) {
+    throw Error(x.condition.location(), "not a bool");
+  }
   // TODO: Improve temporary allocation to allow using the same space for the
   // then branch and the else branch. Alternatively, propagate an "output slot"
   // inwards so that both branches can arrange to produce their values in the
@@ -1432,12 +1529,12 @@ ExpressionInfo ExpressionChecker::operator()(const ast::TernaryExpression& x) {
                                             CheckValue(x.then_branch));
   ExpressionInfo else_branch = EnsureRvalue(x.else_branch.location(), *frame_,
                                             CheckValue(x.else_branch));
-  if (then_branch.value.type != else_branch.value.type) {
-    throw Error(x.location,
-                "ternary expression branches yield different types: ",
-                then_branch.value.type, " and ", else_branch.value.type);
-  }
-  const ir::Type type = then_branch.value.type;
+  ir::Type type =
+      CommonType(x.location, then_branch.value.type, else_branch.value.type);
+  then_branch =
+      ConvertTo(x.then_branch.location(), type, std::move(then_branch));
+  else_branch =
+      ConvertTo(x.else_branch.location(), type, std::move(else_branch));
   // Allocate space for the function result.
   const ir::Local::Offset offset = frame_->Allocate(type);
   const ir::Label if_false = context_->Label(".Lternary_else");
@@ -1622,6 +1719,9 @@ ir::Code StatementChecker::operator()(const ast::DeclareAndAssign& x) {
 ir::Code StatementChecker::operator()(const ast::If& x) {
   ExpressionInfo condition =
       EnsureComparable(x.condition.location(), CheckValue(x.condition));
+  if (condition.value.type != ir::Scalar::kBool) {
+    throw Error(x.condition.location(), "not a bool");
+  }
   ir::Code then_branch = CheckBlock(x.then_branch);
   ir::Code else_branch = CheckBlock(x.else_branch);
   const ir::Label if_false = context_->Label(".Lif_false");
@@ -1639,6 +1739,9 @@ ir::Code StatementChecker::operator()(const ast::While& x) {
   const ir::Label loop_end = context_->Label(".Lwhile_end");
   ExpressionInfo condition =
       EnsureComparable(x.condition.location(), CheckValue(x.condition));
+  if (condition.value.type != ir::Scalar::kBool) {
+    throw Error(x.condition.location(), "not a bool");
+  }
   Environment while_environment(*environment_, Environment::ShadowMode::kDeny);
   while_environment.SetBreak(loop_end);
   while_environment.SetContinue(loop_condition);
@@ -1671,6 +1774,9 @@ ir::Code StatementChecker::operator()(const ast::For& x) {
   ir::Code initializer = std::visit(for_scope, x.initializer->value);
   ExpressionInfo condition = EnsureComparable(
       x.condition.location(), for_scope.CheckValue(x.condition));
+  if (condition.value.type != ir::Scalar::kBool) {
+    throw Error(x.condition.location(), "not a bool");
+  }
   ir::Code step = std::visit(for_scope, x.step->value);
   ir::Code body = for_scope.CheckBlock(for_environment, x.body);
   return ir::Sequence(

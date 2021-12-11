@@ -158,12 +158,9 @@ TEST_F(CheckerTest, CannotDereference) {
 
 TEST_F(CheckerTest, IncompatibleTypes) {
   EXPECT_ERROR(Check("function f(x: int64, y: *int64): void { x == y; }"),
-               "incompatible types for equality comparison");
-}
-
-TEST_F(CheckerTest, TernaryDifferentTypes) {
-  EXPECT_ERROR(Check("function f(x: int64, y: *int64): void { x ? x : y; }"),
-               "ternary expression branches yield different types");
+               "incompatible types");
+  EXPECT_ERROR(Check("function f(x: int64, y: *int64): void { true ? x : y; }"),
+               "incompatible types");
 }
 
 TEST_F(CheckerTest, AssignmentTypeMismatch) {

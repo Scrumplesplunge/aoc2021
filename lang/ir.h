@@ -35,6 +35,10 @@ class Expression {
 // Types with only one value represent themselves in expressions.
 enum class Unit { kVoid, kAny, kNullPointer };
 
+// Scalar types should be sorted in order of increasing size to allow
+// comparisons.
+enum class Scalar { kBool, kByte, kInt16, kInt32, kInt64 };
+
 // Represents an instruction address, such as a function address or jump target.
 struct Label {
   bool operator==(const Label&) const = default;
@@ -102,6 +106,15 @@ struct IntegerLiteral {
   auto operator<=>(const IntegerLiteral&) const = default;
 
   std::int64_t value;
+};
+
+// Narrows a scalar value to the given type.
+struct Narrow {
+  bool operator==(const Narrow&) const = default;
+  auto operator<=>(const Narrow&) const = default;
+
+  Scalar type;
+  Expression inner;
 };
 
 // Pure calculation.
@@ -229,9 +242,10 @@ struct ExpressionVariant {
   auto operator<=>(const ExpressionVariant&) const = default;
 
   std::variant<Unit, Label, Global, Local, Load8, Load16, Load32, Load64,
-               IntegerLiteral, Negate, LogicalNot, BitwiseNot, Add, Subtract,
-               Multiply, Divide, Modulo, LessThan, LessOrEqual, Equal, NotEqual,
-               BitwiseAnd, BitwiseOr, BitwiseXor, ShiftLeft, ShiftRight>
+               IntegerLiteral, Narrow, Negate, LogicalNot, BitwiseNot, Add,
+               Subtract, Multiply, Divide, Modulo, LessThan, LessOrEqual, Equal,
+               NotEqual, BitwiseAnd, BitwiseOr, BitwiseXor, ShiftLeft,
+               ShiftRight>
       value;
 };
 
@@ -248,6 +262,7 @@ std::ostream& operator<<(std::ostream&, const Load16&) noexcept;
 std::ostream& operator<<(std::ostream&, const Load32&) noexcept;
 std::ostream& operator<<(std::ostream&, const Load64&) noexcept;
 std::ostream& operator<<(std::ostream&, const IntegerLiteral&) noexcept;
+std::ostream& operator<<(std::ostream&, const Narrow&) noexcept;
 std::ostream& operator<<(std::ostream&, const Negate&) noexcept;
 std::ostream& operator<<(std::ostream&, const LogicalNot&) noexcept;
 std::ostream& operator<<(std::ostream&, const BitwiseNot&) noexcept;
@@ -287,9 +302,6 @@ class Type {
  private:
   std::shared_ptr<const TypeVariant> value_;
 };
-
-// Scalars should be sorted in order of increasing size to allow comparisons.
-enum class Scalar { kByte, kInt16, kInt32, kInt64 };
 
 struct Pointer {
   bool operator==(const Pointer&) const = default;

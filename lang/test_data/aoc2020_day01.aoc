@@ -5,7 +5,7 @@ var buffer: [bufferSize]byte;
 alias maxNumbers = 200;
 var numbers: [maxNumbers]int64;
 var numNumbers: int64;
-var set: [2021]byte;
+var set: [2021]bool;
 
 function readInput(): void {
   var length = std.read(std.stdin, &buffer, bufferSize);
@@ -17,7 +17,7 @@ function readInput(): void {
     if numNumbers == maxNumbers { std.die("too many"); }
     i = std.readInt(i, &numbers[numNumbers]);
     if numbers[numNumbers] > 2020 { std.die("too large"); }
-    set[numbers[numNumbers]] = 1 as byte;
+    set[numbers[numNumbers]] = true;
     numNumbers = numNumbers + 1;
     if i[0] != '\n' { std.die("bad"); }
     i = i + 1;

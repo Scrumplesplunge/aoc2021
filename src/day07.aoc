@@ -44,7 +44,7 @@ function readInput(): void {
 
 function siftDown(i: int64, n: int64): void {
   var x = numbers[i];
-  while 1 {
+  while true {
     var l = 2 * i + 1;
     if l >= n { break; }  // No more children.
     var r = l + 1;

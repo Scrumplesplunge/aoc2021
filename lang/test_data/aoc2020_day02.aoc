@@ -18,7 +18,7 @@ function part1(): int64 {
   var total = 0;
   for var i = 0; i < numEntries; i = i + 1 {
     var count = 0;
-    for var j = entries[i].password; j[0]; j = j + 1 {
+    for var j = entries[i].password; j[0] != '\0'; j = j + 1 {
       if j[0] == entries[i].c {
         count = count + 1;
       }
