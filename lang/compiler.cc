@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
     }
     assert(options.output_type == OutputType::kAssembly);
     std::cout << aoc2021::Generate(program) << '\n';
-  } catch (const aoc2021::CheckError& error) {
+  } catch (const aoc2021::SourceError& error) {
     std::cerr << error.what() << '\n';
     return 1;
   }
