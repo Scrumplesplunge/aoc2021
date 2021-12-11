@@ -1,0 +1,95 @@
+import "std/std.aoc" as std;
+
+var input: [10][10]byte;
+
+function readInput(): void {
+  alias bufferSize = 128;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length != 110 { std.die("wrong input size"); }
+  var i: []byte = &buffer;
+  for var y = 0; y < 10; y = y + 1 {
+    for var x = 0; x < 10; x = x + 1 {
+      var c = i[0];
+      if c < '0' || '9' < c { std.die("syntax"); }
+      input[y][x] = (c - '0') as byte;
+      i = i + 1;
+    }
+    if i[0] != '\n' { std.die("syntax"); }
+    i = i + 1;
+  }
+}
+
+struct Point {
+  x: byte;
+  y: byte;
+}
+
+function step(energy: *[10][10]byte): int64 {
+  // All energy levels increase. Any octopus that hits energy level 10 will
+  // flash and its energy will reset to 0 at the end of the round.
+  var flash: [100]Point;
+  var numFlash = 0;
+  for var y = 0; y < 10; y = y + 1 {
+    for var x = 0; x < 10; x = x + 1 {
+      var cell = &(*energy)[y][x];
+      *cell = (*cell + 1) as byte;
+      if *cell == 10 as byte {
+        var out = &flash[numFlash];
+        numFlash = numFlash + 1;
+        out->x = x as byte;
+        out->y = y as byte;
+      }
+    }
+  }
+  // Handle flashes (including chain reactions).
+  for var i = 0; i < numFlash; i = i + 1 {
+    var point = &flash[i];
+    for var dy = -1; dy <= 1; dy = dy + 1 {
+      var y = point->y + dy;
+      if y < 0 || 10 <= y { continue; }  // Outside the grid.
+      for var dx = -1; dx <= 1; dx = dx + 1 {
+        var x = point->x + dx;
+        if x < 0 || 10 <= x { continue; } // Outside the grid.
+        var cell = &(*energy)[y][x];
+        *cell = (*cell + 1) as byte;
+        if *cell == 10 as byte {
+          var out = &flash[numFlash];
+          numFlash = numFlash + 1;
+          out->x = x as byte;
+          out->y = y as byte;
+        }
+      }
+    }
+  }
+  // Reset the energy level of any octopus that flashed.
+  for var i = 0; i < numFlash; i = i + 1 {
+    var point = &flash[i];
+    (*energy)[point->y][point->x] = 0 as byte;
+  }
+  return numFlash;
+}
+
+function part1(): int64 {
+  var energy = input;
+  var totalFlashes = 0;
+  for var i = 0; i < 100; i = i + 1 {
+    totalFlashes = totalFlashes + step(&energy);
+  }
+  return totalFlashes;
+}
+
+function part2(): int64 {
+  var energy = input;
+  var i = 1;
+  while step(&energy) != 100 {
+    i = i + 1;
+  }
+  return i;
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
