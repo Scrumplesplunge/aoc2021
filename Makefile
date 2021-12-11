@@ -21,7 +21,7 @@ build:
 	mkdir build
 
 build/%.s: src/%.aoc build/compiler
-	build/compiler $< >$@
+	build/compiler $< >$@.tmp && mv $@.tmp $@
 
 build/%.o: build/%.s
 	as -Os $^ -o $@
