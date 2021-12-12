@@ -1,0 +1,110 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+alias bufferSize = 256;
+var buffer: [bufferSize]byte;
+var length: int64;
+
+alias maxCaves = 32;
+
+struct Cave {
+  name: []byte;
+  big: bool;
+  neighbours: [maxCaves]byte;
+  numNeighbours: int64;
+}
+
+var caves: [maxCaves]Cave;
+var numCaves: int64;
+var startCave: byte;
+var endCave: byte;
+
+function caveIndex(name: []byte): int64 {
+  // Search for an existing cave.
+  for var i = 0; i < numCaves; i = i + 1 {
+    var cave = &caves[i];
+    if strings.strncmp(name, cave->name, 6) == 0 { return i; }
+  }
+  // The cave is not already known, so create a new one.
+  if numCaves == maxCaves { std.die("too many caves"); }
+  var cave = &caves[numCaves];
+  numCaves = numCaves + 1;
+  cave->name = name;
+  cave->big = std.isUpper(name[0]);
+  return numCaves - 1;
+}
+
+function joinCaves(aIndex: int64, bIndex: int64): void {
+  var a = &caves[aIndex];
+  var b = &caves[bIndex];
+  var aSize = a->numNeighbours;
+  var bSize = b->numNeighbours;
+  if aSize == maxCaves || bSize == maxCaves { std.die("too many neighbours"); }
+  a->neighbours[aSize] = bIndex as byte;
+  a->numNeighbours = aSize + 1;
+  b->neighbours[bSize] = aIndex as byte;
+  b->numNeighbours = bSize + 1;
+}
+
+function readInput(): void {
+  alias bufferSize = 256;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty input"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    var a = i;
+    while std.isAlpha(i[0]) { i = i + 1; }
+    if i[0] != '-' { std.die("syntax"); }
+    i[0] = '\0';
+    i = i + 1;
+    var b = i;
+    while std.isAlpha(i[0]) { i = i + 1; }
+    if i[0] != '\n' { std.die("syntax"); }
+    i[0] = '\0';
+    joinCaves(caveIndex(a), caveIndex(b));
+    i = i + 1;
+  }
+  startCave = caveIndex("start") as byte;
+  endCave = caveIndex("end") as byte;
+}
+
+function explore(visited: int64, caveIndex: int64, canRevisit: bool): int64 {
+  if caveIndex == endCave { return 1; }
+  var cave = &caves[caveIndex];
+  // Skip exploring paths that re-enter a small cave that was already visited.
+  var caveBit = 1 << caveIndex;
+  var alreadyVisited = (visited & caveBit) != 0;
+  if caveIndex == startCave && alreadyVisited { return 0; }
+  if !cave->big && alreadyVisited {
+    if canRevisit {
+      canRevisit = false;
+    } else {
+      return 0;
+    }
+  }
+  visited = visited | caveBit;
+  var n = cave->numNeighbours;
+  var total = 0;
+  for var i = 0; i < n; i = i + 1 {
+    var neighbourIndex = cave->neighbours[i];
+    total = total + explore(visited, neighbourIndex, canRevisit);
+  }
+  return total;
+}
+
+function part1(): int64 {
+  return explore(0, startCave, false);
+}
+
+function part2(): int64 {
+  return explore(0, startCave, true);
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
