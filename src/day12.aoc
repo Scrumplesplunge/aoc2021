@@ -71,12 +71,17 @@ function readInput(): void {
   endCave = caveIndex("end") as byte;
 }
 
-function explore(visited: int64, caveIndex: int64, canRevisit: bool): int64 {
-  if caveIndex == endCave { return 1; }
+// Explore the cave network, counting the number of distinct paths that
+// start at `caveIndex` and end at `endCave`. When `canRevisit` is true,
+// a single small cave may be revisited on any path. Otherwise, only big caves
+// may be revisited. `visited` is a bitmap where the ith bit is 1 if cave i has
+// already been visited.
+function explore(visited: int64, caveIndex: byte, canRevisit: bool): int64 {
+  if caveIndex == endCave { return 1; }  // There's only one path end -> end.
   var cave = &caves[caveIndex];
-  // Skip exploring paths that re-enter a small cave that was already visited.
   var caveBit = 1 << caveIndex;
   var alreadyVisited = (visited & caveBit) != 0;
+  // The start cave may never be revisited.
   if caveIndex == startCave && alreadyVisited { return 0; }
   if !cave->big && alreadyVisited {
     if canRevisit {
@@ -85,6 +90,8 @@ function explore(visited: int64, caveIndex: int64, canRevisit: bool): int64 {
       return 0;
     }
   }
+  // Consider all distinct paths leading to the `endCave` via any path that
+  // exits from `cave`.
   visited = visited | caveBit;
   var n = cave->numNeighbours;
   var total = 0;
@@ -95,16 +102,8 @@ function explore(visited: int64, caveIndex: int64, canRevisit: bool): int64 {
   return total;
 }
 
-function part1(): int64 {
-  return explore(0, startCave, false);
-}
-
-function part2(): int64 {
-  return explore(0, startCave, true);
-}
-
 function main(): int64 {
   readInput();
-  std.printInt(part1());
-  std.printInt(part2());
+  std.printInt(explore(0, startCave, false));
+  std.printInt(explore(0, startCave, true));
 }
