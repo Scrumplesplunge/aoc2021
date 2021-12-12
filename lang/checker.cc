@@ -314,8 +314,8 @@ void AddBuiltins(Environment& environment) {
           .location = BuiltinLocation(),
           .value = TypedExpression(
               Category::kRvalue,
-              ir::FunctionPointer(ir::Unit::kVoid, {ir::Span(ir::Scalar::kByte),
-                                                    ir::Span(ir::Scalar::kByte),
+              ir::FunctionPointer(ir::Unit::kVoid, {ir::Pointer(ir::Unit::kAny),
+                                                    ir::Pointer(ir::Unit::kAny),
                                                     ir::Scalar::kInt64}),
               Representation::kDirect, ir::Label("copy"))});
   environment.Define(

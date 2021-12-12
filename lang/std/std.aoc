@@ -1,9 +1,17 @@
 export alias stdin = 0;
 export alias stdout = 1;
 export alias stderr = 2;
+
+// function read(fd: int64, data: *any, size: int64): int64
 export alias read = _builtin_read;
+
+// function write(fd: int64, data: *any, size: int64): int64
 export alias write = _builtin_write;
+
+// function exit(code: int64): void
 export alias exit = _builtin_exit;
+
+// function copy(dest: *any, source: *any, size: int64): void
 export alias copy = _builtin_copy;
 
 export function strlen(message: []byte): int64 {

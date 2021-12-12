@@ -1466,7 +1466,7 @@ std::string Generate(const ir::Program& program) {
   }
 
   result << ".section .text\n"
-            // function read(fd: int64, buffer: []byte, size: int64): int64;
+            // function read(fd: int64, data: *any, size: int64): int64;
             "read:\n"
             "  mov $0, %rax\n"
             "  mov 16(%rsp), %rdi\n"
@@ -1476,7 +1476,7 @@ std::string Generate(const ir::Program& program) {
             "  mov 8(%rsp), %rdi\n"
             "  mov %rax, (%rdi)\n"
             "  ret\n"
-            // function write(fd: int64, buffer: []byte, size: int64): int64;
+            // function write(fd: int64, data: *any, size: int64): int64;
             "write:\n"
             "  mov $1, %rax\n"
             "  mov 16(%rsp), %rdi\n"
@@ -1491,7 +1491,7 @@ std::string Generate(const ir::Program& program) {
             "  mov $60, %rax\n"
             "  mov 8(%rsp), %rdi\n"
             "  syscall\n"
-            // function copy(dest: []byte, source: []byte, size: int64): void;
+            // function copy(dest: *any, source: *any, size: int64): void;
             "copy:\n"
             "  mov 8(%rsp), %rdi\n"
             "  mov 16(%rsp), %rsi\n"
