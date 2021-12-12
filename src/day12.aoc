@@ -78,7 +78,10 @@ function readInput(): void {
 // already been visited.
 function explore(visited: int64, caveIndex: byte, canRevisit: bool): int64 {
   var entry = &exploreCache[visited][caveIndex][canRevisit];
-  if !entry->explored { doExplore(visited, caveIndex, canRevisit); }
+  if !entry->explored {
+    entry->count = doExplore(visited, caveIndex, canRevisit) as int32;
+    entry->explored = true;
+  }
   return entry->count;
 }
 
@@ -89,28 +92,18 @@ struct CacheEntry {
 var exploreCache: [1 << maxCaves][maxCaves][2]CacheEntry;
 
 // Populate a cache entry for explore().
-function doExplore(visited: int64, caveIndex: byte, canRevisit: bool): void {
-  var entry = &exploreCache[visited][caveIndex][canRevisit];
-  entry->explored = true;
-  if caveIndex == endCave {
-    // There's only one path end -> end.
-    entry->count = 1 as int32;
-    return;
-  }
+function doExplore(visited: int64, caveIndex: byte, canRevisit: bool): int64 {
+  if caveIndex == endCave { return 1; }  // There's only one path end -> end.
   var cave = &caves[caveIndex];
   var caveBit = 1 << caveIndex;
   var alreadyVisited = (visited & caveBit) != 0;
-  if caveIndex == startCave && alreadyVisited {
-    // The start cave may never be revisited.
-    entry->count = 0 as int32;
-    return;
-  }
+  // The start cave may never be revisited.
+  if caveIndex == startCave && alreadyVisited { return 0; }
   if !cave->big && alreadyVisited {
     if canRevisit {
       canRevisit = false;
     } else {
-      entry->count = 0 as int32;
-      return;
+      return 0;
     }
   }
   // Consider all distinct paths leading to the `endCave` via any path that
@@ -122,8 +115,7 @@ function doExplore(visited: int64, caveIndex: byte, canRevisit: bool): void {
     var neighbourIndex = cave->neighbours[i];
     total = total + explore(visited, neighbourIndex, canRevisit);
   }
-  entry->count = total as int32;
-  return;
+  return total;
 }
 
 function main(): int64 {
