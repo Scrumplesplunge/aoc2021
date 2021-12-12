@@ -96,14 +96,13 @@ function doExplore(visited: int64, caveIndex: byte, canRevisit: bool): int64 {
   if caveIndex == endCave { return 1; }  // There's only one path end -> end.
   var cave = &caves[caveIndex];
   var caveBit = 1 << caveIndex;
-  var alreadyVisited = (visited & caveBit) != 0;
-  // The start cave may never be revisited.
-  if caveIndex == startCave && alreadyVisited { return 0; }
-  if !cave->big && alreadyVisited {
-    if canRevisit {
+  if (visited & caveBit) != 0 {
+    // The start cave may never be revisited.
+    if caveIndex == startCave { return 0; }
+    // Small caves can only be revisited if canRevisit is still true.
+    if !cave->big {
+      if !canRevisit { return 0; }
       canRevisit = false;
-    } else {
-      return 0;
     }
   }
   // Consider all distinct paths leading to the `endCave` via any path that
@@ -112,8 +111,7 @@ function doExplore(visited: int64, caveIndex: byte, canRevisit: bool): int64 {
   var n = cave->numNeighbours;
   var total = 0;
   for var i = 0; i < n; i = i + 1 {
-    var neighbourIndex = cave->neighbours[i];
-    total = total + explore(visited, neighbourIndex, canRevisit);
+    total = total + explore(visited, cave->neighbours[i], canRevisit);
   }
   return total;
 }
