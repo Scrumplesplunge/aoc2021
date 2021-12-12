@@ -37,6 +37,18 @@ export function isDigit(x: byte): bool {
   return '0' <= x && x <= '9';
 }
 
+export function isLower(x: byte): bool {
+  return 'a' <= x && x <= 'z';
+}
+
+export function isUpper(x: byte): bool {
+  return 'A' <= x && x <= 'Z';
+}
+
+export function isAlpha(x: byte): bool {
+  return isLower(x) || isUpper(x);
+}
+
 export function readInt(input: []byte, value: *int64): []byte {
   if !isDigit(input[0]) { die("bad"); }
   var temp = 0;
