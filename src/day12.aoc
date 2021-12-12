@@ -5,7 +5,7 @@ alias bufferSize = 256;
 var buffer: [bufferSize]byte;
 var length: int64;
 
-alias maxCaves = 12;
+alias maxCaves = 13;
 
 struct Cave {
   name: []byte;
