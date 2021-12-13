@@ -47,9 +47,7 @@ function joinCaves(aIndex: int64, bIndex: int64): void {
 }
 
 function readInput(): void {
-  alias bufferSize = 256;
-  var buffer: [bufferSize]byte;
-  var length = std.read(std.stdin, &buffer, bufferSize);
+  length = std.read(std.stdin, &buffer, bufferSize);
   if length == 0 { std.die("empty input"); }
   if buffer[length - 1] != '\n' { std.die("newline"); }
   var i: []byte = &buffer;
