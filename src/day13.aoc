@@ -1,0 +1,142 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+struct Point {
+  x: int16;
+  y: int16;
+}
+
+struct Fold {
+  horizontal: bool;
+  offset: int16;
+}
+
+alias maxPoints = 1000;
+var points: [maxPoints]Point;
+var numPoints: int64;
+
+alias maxFolds = 20;
+var folds: [maxFolds]Fold;
+var numFolds: int64;
+
+alias imageSize = 1600;
+var image: [imageSize][imageSize]bool;
+var imageWidth: int64;
+var imageHeight: int64;
+
+function readInput(): void {
+  alias bufferSize = 8192;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  // Read the list of points.
+  while i[0] != '\n' {
+    if numPoints == maxPoints { std.die("too many points"); }
+    var point = &points[numPoints];
+    numPoints = numPoints + 1;
+    i = std.readInt16(i, &point->x);
+    if i[0] != ',' { std.die("syntax"); }
+    i = std.readInt16(i + 1, &point->y);
+    if i[0] != '\n' { std.die("syntax"); }
+    i = i + 1;
+    if i == end { std.die("puzzle is incomplete"); }
+  }
+  i = i + 1;
+  // Read the list of folds.
+  while i != end {
+    if numFolds == maxFolds { std.die("too many folds"); }
+    var fold = &folds[numFolds];
+    numFolds = numFolds + 1;
+    if strings.strncmp(i, "fold along ", 11) != 0 { std.die("syntax"); }
+    i = i + 11;
+    var direction = i[0];
+    if direction != 'x' && direction != 'y' { std.die("bad direction"); }
+    fold->horizontal = direction == 'y';
+    if i[1] != '=' { std.die("syntax"); }
+    i = std.readInt16(i + 2, &fold->offset);
+    if i[0] != '\n' { std.die("syntax"); }
+    i = i + 1;
+  }
+  imageWidth = imageSize;
+  imageHeight = imageSize;
+  for var j = 0; j < numPoints; j = j + 1 {
+    var point = &points[j];
+    image[point->y][point->x] = true;
+  }
+}
+
+function applyFold(fold: *Fold): void {
+  if fold->horizontal {
+    // Fold along a horizontal line, removing any newly-overlapping points.
+    var y = fold->offset;
+    var j = 0;
+    for var i = 0; i < numPoints; i = i + 1 {
+      var point = &points[i];
+      if point->y < y {
+        points[j] = points[i];
+        j = j + 1;
+        continue;
+      }
+      point->y = (y - (point->y - y)) as int16;
+      var cell = &image[point->y][point->x];
+      if !*cell {
+        *cell = true;
+        points[j] = points[i];
+        j = j + 1;
+      }
+    }
+    numPoints = j;
+    imageHeight = y;
+  } else {
+    // Fold along a vertical line, removing any newly-overlapping points.
+    var x = fold->offset;
+    var j = 0;
+    for var i = 0; i < numPoints; i = i + 1 {
+      var point = &points[i];
+      if point->x < x {
+        points[j] = points[i];
+        j = j + 1;
+        continue;
+      }
+      point->x = (x - (point->x - x)) as int16;
+      var cell = &image[point->y][point->x];
+      if !*cell {
+        *cell = true;
+        points[j] = points[i];
+        j = j + 1;
+      }
+    }
+    numPoints = j;
+    imageWidth = x;
+  }
+}
+
+function part1(): int64 {
+  applyFold(&folds[0]);
+  return numPoints;
+}
+
+function part2(): int64 {
+  for var i = 1; i < numFolds; i = i + 1 {
+    applyFold(&folds[i]);
+  }
+  var output: [256]byte;
+  var i = 0;
+  for var y = 0; y < imageHeight; y = y + 1 {
+    for var x = 0; x < imageWidth; x = x + 1 {
+      output[i + x] = image[y][x] ? '#' : '.';
+    }
+    output[i + imageWidth] = '\n';
+    i = i + imageWidth + 1;
+  }
+  std.write(std.stdout, &output, i);
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  part2();
+}
