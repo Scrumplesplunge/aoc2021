@@ -77,7 +77,7 @@ function part1(): int64 {
   for var i = 0; i < numLines; i = i + 1 {
     var line = &lines[i];
     if line->a.x == line->b.x {
-      // Line is horizontal.
+      // Line is vertical.
       var x = line->a.x;
       var yMax = line->b.y;
       for var y: int64 = line->a.y; y <= yMax; y = y + 1 {
@@ -88,7 +88,7 @@ function part1(): int64 {
         }
       }
     } else if line->a.y == line->b.y {
-      // Line is vertical.
+      // Line is horizontal.
       var y = line->a.y;
       var xMax = line->b.x;
       for var x: int64 = line->a.x; x <= xMax; x = x + 1 {
@@ -98,9 +98,6 @@ function part1(): int64 {
           if *cell == 2 as byte { numOverlaps = numOverlaps + 1; }
         }
       }
-    } else {
-      // Line is neither horizontal nor vertical.
-      continue;
     }
   }
   return numOverlaps;
@@ -112,6 +109,7 @@ function part2(): int64 {
   for var i = 0; i < numLines; i = i + 1 {
     var line = &lines[i];
     if line->a.x != line->b.x && line->a.y != line->b.y {
+      // Line is diagonal.
       var xStep = line->b.x < line->a.x ? -1 : 1;
       var yMax = line->b.y;
       var x: int64 = line->a.x;
@@ -123,9 +121,6 @@ function part2(): int64 {
         }
         x = x + xStep;
       }
-    } else {
-      // Line is neither horizontal nor vertical.
-      continue;
     }
   }
   return numOverlaps;
