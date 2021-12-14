@@ -885,17 +885,35 @@ class ExpressionGenerator {
       // No-op multiplication.
       return left;
     } else if (right_value) {
-      // Multiply by an immediate value.
-      return ProductionResult{
-          .code = StrCat(left.code, "  imul $", *right_value, ", ",
-                         left.result(), ", ", left.result(), "\n"),
-          .registers_used = left.registers_used};
+      if (std::has_single_bit(static_cast<std::uint64_t>(*right_value))) {
+        // Multiply by a power of two: use an arithmetic shift.
+        const int shift =
+            std::countr_zero(static_cast<std::uint64_t>(*right_value));
+        return ProductionResult{.code = StrCat(left.code, "  sal $", shift,
+                                               ", ", left.result(), "\n"),
+                                .registers_used = left.registers_used};
+      } else {
+        // Multiply by an immediate value.
+        return ProductionResult{
+            .code = StrCat(left.code, "  imul $", *right_value, ", ",
+                           left.result(), ", ", left.result(), "\n"),
+            .registers_used = left.registers_used};
+      }
     } else if (left_value) {
-      // Multiply by an immediate value.
-      return ProductionResult{
-          .code = StrCat(right.code, "  imul $", *left_value, ", ",
-                         right.result(), ", ", right.result(), "\n"),
-          .registers_used = right.registers_used};
+      if (std::has_single_bit(static_cast<std::uint64_t>(*left_value))) {
+        const int shift =
+            std::countr_zero(static_cast<std::uint64_t>(*left_value));
+        // Multiply by a power of two: use an arithmetic shift.
+        return ProductionResult{.code = StrCat(right.code, "  sal $", shift,
+                                               ", ", right.result(), "\n"),
+                                .registers_used = right.registers_used};
+      } else {
+        // Multiply by an immediate value.
+        return ProductionResult{
+            .code = StrCat(right.code, "  imul $", *left_value, ", ",
+                           right.result(), ", ", right.result(), "\n"),
+            .registers_used = right.registers_used};
+      }
     } else if (left.registers_used > right.registers_used) {
       // We can compute left first, leave the result where it is, then compute
       // right without accidentally clobbering left, then store the result
