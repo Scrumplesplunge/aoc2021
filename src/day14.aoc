@@ -1,0 +1,180 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+alias maxSeedLength = 64;
+var seed: [maxSeedLength]byte;
+var seedLength: int64;
+var recipes: [32][32]byte;  // Maps two uppercase characters to a third one.
+
+function readInput(): void {
+  alias bufferSize = 1024;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  // Read the seed.
+  while std.isAlpha(i[0]) {
+    if seedLength == maxSeedLength { std.die("seed too large"); }
+    seed[seedLength] = (i[0] - 'A') as byte;
+    seedLength = seedLength + 1;
+    i = i + 1;
+  }
+  if i[0] != '\n' || i[1] != '\n' { std.die("expected empty line"); }
+  i = i + 2;
+  // Read the recipes.
+  while i != end {
+    var a = i[0];
+    if !std.isUpper(a) { std.die("expected first letter"); }
+    var b = i[1];
+    if !std.isUpper(b) { std.die("expected second letter"); }
+    if strings.strncmp(i + 2, " -> ", 4) != 0 { std.die("expected ' -> '"); }
+    i = i + 6;
+    var c = i[0];
+    if !std.isUpper(c) { std.die("expected third letter"); }
+    recipes[a - 'A'][b - 'A'] = (c - 'A') as byte;
+    if i[1] != '\n' { std.die("expected newline"); }
+    i = i + 2;
+  }
+}
+
+function countOccurrences(grid: [][32]int64): [26]int64 {
+  // Every element will initially be double-counted except for the first and
+  // last elements, due to the overlapping nature of the pairs. We explicitly
+  // increase the count for the first and last elements and then divide every
+  // count by two at the end.
+  var occurrences: [26]int64;
+  for var i = 0; i < 26; i = i + 1 {
+    occurrences[i] = 0;
+  }
+  var first = &occurrences[seed[0]];
+  *first = *first + 1;
+  var last = &occurrences[seed[seedLength - 1]];
+  *last = *last + 1;
+  for var a = 0; a < 26; a = a + 1 {
+    for var b = 0; b < 26; b = b + 1 {
+      occurrences[a] = occurrences[a] + grid[a][b];
+      occurrences[b] = occurrences[b] + grid[a][b];
+    }
+  }
+  for var i = 0; i < 26; i = i + 1 {
+    var cell = &occurrences[i];
+    if *cell % 2 != 0 { std.die("odd count"); }
+    *cell = *cell / 2;
+  }
+  return occurrences;
+}
+
+struct ElementStats {
+  length: int64;
+  leastCommon: byte;
+  mostCommon: byte;
+}
+
+function elementStats(occurrences: []int64): ElementStats {
+  var stats: ElementStats;
+  var mostCommonCount = 0;
+  var leastCommonCount = 1 << 60;
+  for var i = 1; i < 26; i = i + 1 {
+    var count = occurrences[i];
+    if count == 0 { continue; }
+    stats.length = stats.length + count;
+    if count < leastCommonCount {
+      leastCommonCount = count;
+      stats.leastCommon = i as byte;
+    }
+    if count > mostCommonCount {
+      mostCommonCount = count;
+      stats.mostCommon = i as byte;
+    }
+  }
+  return stats;
+}
+
+function debug(grid: [][32]int64): void {
+  for var a = 0; a < 26; a = a + 1 {
+    for var b = 0; b < 26; b = b + 1 {
+      var count = grid[a][b];
+      if count > 0 {
+        var buffer: [3]byte;
+        buffer[0] = (a + 'A') as byte;
+        buffer[1] = (b + 'A') as byte;
+        buffer[2] = ' ';
+        std.write(std.stdout, &buffer, 3);
+        std.printInt(count);
+      }
+    }
+  }
+  var occurrences = countOccurrences(grid);
+  for var i = 0; i < 26; i = i + 1 {
+    var count = occurrences[i];
+    if count % 2 != 0 { std.die("odd count"); }
+    var buffer: [2]byte;
+    buffer[0] = (i + 'A') as byte;
+    buffer[1] = ' ';
+    std.write(std.stdout, &buffer, 2);
+    std.printInt(count / 2);
+  }
+  var stats = elementStats(&occurrences);
+  std.puts("length/mostCommon/leastCommon");
+  std.printInt(stats.length);
+  std.printInt(stats.mostCommon);
+  std.printInt(stats.leastCommon);
+}
+
+function simulate(numSteps: int64): [26]int64 {
+  var counts: [2][32][32]int64;
+  for var i = 0; i < 2; i = i + 1 {
+    for var a = 0; a < 26; a = a + 1 {
+      for var b = 0; b < 26; b = b + 1 {
+        counts[i][a][b] = 0;
+      }
+    }
+  }
+
+  for var i = 1; i < seedLength; i = i + 1 {
+    var cell = &counts[0][seed[i - 1]][seed[i]];
+    *cell = *cell + 1;
+  }
+  for var step = 0; step < numSteps; step = step + 1 {
+    var input: [][32]int64 = &counts[step % 2];
+    var output: [][32]int64 = &counts[(step + 1) % 2];
+    // debug(input);
+    // std.puts("====== tick ======");
+    for var a = 0; a < 26; a = a + 1 {
+      for var b = 0; b < 26; b = b + 1 {
+        output[a][b] = 0;
+      }
+    }
+    for var a = 0; a < 26; a = a + 1 {
+      for var b = 0; b < 26; b = b + 1 {
+        var count = input[a][b];
+        var c = recipes[a][b];
+        var left = &output[a][c];
+        *left = *left + count;
+        var right = &output[c][b];
+        *right = *right + count;
+      }
+    }
+  }
+  return countOccurrences(&counts[numSteps % 2]);
+}
+
+function part1(): int64 {
+  var occurrences = simulate(10);
+  var stats = elementStats(&occurrences);
+  return occurrences[stats.mostCommon] - occurrences[stats.leastCommon];
+}
+
+function part2(): int64 {
+  var occurrences = simulate(40);
+  var stats = elementStats(&occurrences);
+  return occurrences[stats.mostCommon] - occurrences[stats.leastCommon];
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
