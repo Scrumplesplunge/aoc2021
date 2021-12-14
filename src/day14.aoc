@@ -83,7 +83,7 @@ function elementStats(occurrences: []int64): ElementStats {
   var stats: ElementStats;
   var mostCommonCount = 0;
   var leastCommonCount = 1 << 60;
-  for var i = 1; i < 26; i = i + 1 {
+  for var i = 0; i < 26; i = i + 1 {
     var count = occurrences[i];
     if count == 0 { continue; }
     stats.length = stats.length + count;
