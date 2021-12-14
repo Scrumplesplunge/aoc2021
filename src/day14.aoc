@@ -5,6 +5,8 @@ alias maxSeedLength = 64;
 var seed: [maxSeedLength]byte;
 var seedLength: int64;
 var recipes: [32][32]byte;  // Maps two uppercase characters to a third one.
+var counts: [2][32][32]int64;
+var step: int64;
 
 function readInput(): void {
   alias bufferSize = 1024;
@@ -36,6 +38,11 @@ function readInput(): void {
     recipes[a - 'A'][b - 'A'] = (c - 'A') as byte;
     if i[1] != '\n' { std.die("expected newline"); }
     i = i + 2;
+  }
+  // Initialize the frequency counters.
+  for var j = 1; j < seedLength; j = j + 1 {
+    var cell = &counts[0][seed[j - 1]][seed[j]];
+    *cell = *cell + 1;
   }
 }
 
@@ -92,56 +99,11 @@ function elementStats(occurrences: []int64): ElementStats {
   return stats;
 }
 
-function debug(grid: [][32]int64): void {
-  for var a = 0; a < 26; a = a + 1 {
-    for var b = 0; b < 26; b = b + 1 {
-      var count = grid[a][b];
-      if count > 0 {
-        var buffer: [3]byte;
-        buffer[0] = (a + 'A') as byte;
-        buffer[1] = (b + 'A') as byte;
-        buffer[2] = ' ';
-        std.write(std.stdout, &buffer, 3);
-        std.printInt(count);
-      }
-    }
-  }
-  var occurrences = countOccurrences(grid);
-  for var i = 0; i < 26; i = i + 1 {
-    var count = occurrences[i];
-    if count % 2 != 0 { std.die("odd count"); }
-    var buffer: [2]byte;
-    buffer[0] = (i + 'A') as byte;
-    buffer[1] = ' ';
-    std.write(std.stdout, &buffer, 2);
-    std.printInt(count / 2);
-  }
-  var stats = elementStats(&occurrences);
-  std.puts("length/mostCommon/leastCommon");
-  std.printInt(stats.length);
-  std.printInt(stats.mostCommon);
-  std.printInt(stats.leastCommon);
-}
-
-function simulate(numSteps: int64): [26]int64 {
-  var counts: [2][32][32]int64;
-  for var i = 0; i < 2; i = i + 1 {
-    for var a = 0; a < 26; a = a + 1 {
-      for var b = 0; b < 26; b = b + 1 {
-        counts[i][a][b] = 0;
-      }
-    }
-  }
-
-  for var i = 1; i < seedLength; i = i + 1 {
-    var cell = &counts[0][seed[i - 1]][seed[i]];
-    *cell = *cell + 1;
-  }
-  for var step = 0; step < numSteps; step = step + 1 {
+function advance(numSteps: int64): [26]int64 {
+  var end = step + numSteps;
+  while step != end {
     var input: [][32]int64 = &counts[step % 2];
     var output: [][32]int64 = &counts[(step + 1) % 2];
-    // debug(input);
-    // std.puts("====== tick ======");
     for var a = 0; a < 26; a = a + 1 {
       for var b = 0; b < 26; b = b + 1 {
         output[a][b] = 0;
@@ -157,18 +119,19 @@ function simulate(numSteps: int64): [26]int64 {
         *right = *right + count;
       }
     }
+    step = step + 1;
   }
   return countOccurrences(&counts[numSteps % 2]);
 }
 
 function part1(): int64 {
-  var occurrences = simulate(10);
+  var occurrences = advance(10);
   var stats = elementStats(&occurrences);
   return occurrences[stats.mostCommon] - occurrences[stats.leastCommon];
 }
 
 function part2(): int64 {
-  var occurrences = simulate(40);
+  var occurrences = advance(30);
   var stats = elementStats(&occurrences);
   return occurrences[stats.mostCommon] - occurrences[stats.leastCommon];
 }
