@@ -17,7 +17,7 @@ function readInput(): void {
   var i: []byte = &buffer;
   var end = i + length;
   // Read the seed.
-  while std.isAlpha(i[0]) {
+  while std.isUpper(i[0]) {
     if seedLength == maxSeedLength { std.die("seed too large"); }
     seed[seedLength] = (i[0] - 'A') as byte;
     seedLength = seedLength + 1;
