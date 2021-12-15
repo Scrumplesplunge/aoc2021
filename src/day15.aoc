@@ -7,7 +7,7 @@ alias gridSize = 512;
 // border simplifies the processing for each cell as we can always assume the
 // presence of neighbours, and a neighbour with height 9 is equivalent to having
 // no neighbour.
-var grid: [gridSize][gridSize]byte;
+var grid: [gridSize * gridSize]byte;
 
 // The width and height of the grid, excluding the border.
 var gridWidth: int64;
@@ -24,12 +24,12 @@ function readInput(): void {
   if gridWidth > maxSideLength { std.die("too wide"); }
   while i != end {
     if gridHeight == maxSideLength { std.die("too tall"); }
-    var row = &grid[gridHeight];
+    var row = (&grid as []byte) + gridHeight * gridSize;
     gridHeight = gridHeight + 1;
     for var x = 0; x < gridWidth; x = x + 1 {
       var value = i[x];
       if value < '0' || '9' < value { std.die("invalid cell"); }
-      (*row)[x] = (value - '0') as byte;
+      row[x] = (value - '0') as byte;
     }
     if i[gridWidth] != '\n' { std.die("expected line end"); }
     i = i + (gridWidth + 1);
@@ -37,12 +37,11 @@ function readInput(): void {
 }
 
 struct Node {
-  x: int16;
-  y: int16;
+  xy: int32;
   score: int32;
 }
 
-var visited: [gridSize][gridSize]bool;
+var visited: [gridSize * gridSize]bool;
 // The maximum difference between the minimum score in the queue and the maximum
 // score in the queue is 9: we can add at most 9 to the score of the current
 // node under consideration, and we consider nodes in ascending order of score.
@@ -60,20 +59,14 @@ alias stackLimit = 2048;
 var stacks: [numBuckets][stackLimit]Node;
 var stackSizes: [numBuckets]int64;
 var headBucket: int64;
-var lastPop: int64;
 
-function initSearch(endX: int64, endY: int64): void {
-}
-
-function queuePush(x: int64, y: int64, score: int64): void {
-  if visited[y][x] { return; }
-  // if score < lastPop || lastPop + 10 < score { std.die("bug"); }
+function queuePush(xy: int64, score: int64): void {
+  if visited[xy] { return; }
   var bucket = score % numBuckets;
   var i = stackSizes[bucket];
   if i == stackLimit { std.die("too many nodes with the same score"); }
   var node = &stacks[bucket][i];
-  node->x = x as int16;
-  node->y = y as int16;
+  node->xy = xy as int32;
   node->score = score as int32;
   stackSizes[bucket] = i + 1;
 }
@@ -85,35 +78,34 @@ function queuePop(): Node {
   var size = &stackSizes[headBucket];
   var i = *size - 1;
   *size = i;
-  // lastPop = stacks[headBucket][i].score;
   return stacks[headBucket][i];
 }
 
 function search(endX: int64, endY: int64): int64 {
   // Reset the frontier state.
-  lastPop = 0;
   headBucket = 0;
   for var i = 0; i < numBuckets; i = i + 1 { stackSizes[i] = 0; }
   // Reset the visited set.
   for var y = 0; y <= endY; y = y + 1 {
-    for var x = 0; x <= endX; x = x + 1 {
-      visited[y][x] = false;
-    }
+    var row = (&visited as []bool) + y * gridSize;
+    for var x = 0; x <= endX; x = x + 1 { row[x] = false; }
   }
   // Perform a search over the space in order of increasing score. The search
   // starts at the *end* and searches backwards for the beginning, because this
   // simplifies some of the bookkeeping.
-  queuePush(endX, endY, 0);
+  queuePush(endY * gridSize + endX, 0);
   while true {
     var node = queuePop();
-    if visited[node.y][node.x] { continue; }
-    visited[node.y][node.x] = true;
-    if node.x == 0 && node.y == 0 { return node.score; }
-    var score = node.score + grid[node.y][node.x];
-    if node.x > 0 { queuePush(node.x - 1, node.y, score); }
-    if node.x < endX { queuePush(node.x + 1, node.y, score); }
-    if node.y > 0 { queuePush(node.x, node.y - 1, score); }
-    if node.y < endY { queuePush(node.x, node.y + 1, score); }
+    if visited[node.xy] { continue; }
+    visited[node.xy] = true;
+    if node.xy == 0 { return node.score; }
+    var score = node.score + grid[node.xy];
+    var x = node.xy % gridSize;
+    var y = node.xy / gridSize;
+    if x < endX { queuePush(node.xy + 1, score); }
+    if y < endY { queuePush(node.xy + gridSize, score); }
+    if x > 0 { queuePush(node.xy - 1, score); }
+    if y > 0 { queuePush(node.xy - gridSize, score); }
   }
 }
 
@@ -124,16 +116,19 @@ function part1(): int64 {
 function part2(): int64 {
   // Build the larger grid.
   for var tileY = 0; tileY < 5; tileY = tileY + 1 {
-    var offsetY = gridHeight * tileY;
+    var offsetY = gridSize * gridHeight * tileY;
     for var tileX = 0; tileX < 5; tileX = tileX + 1 {
       var offsetX = gridWidth * tileX;
       var delta = tileX + tileY;
+      var gridOffset = offsetY + offsetX;
       if tileX == 0 && tileY == 0 { continue; }
       for var y = 0; y < gridHeight; y = y + 1 {
+        var input = (&grid as []byte) + y * gridSize;
+        var output = input + gridOffset;
         for var x = 0; x < gridWidth; x = x + 1 {
-          var risk = grid[y][x] + delta;
+          var risk = input[x] + delta;
           if risk > 9 { risk = risk - 9; }  // Risk level wraps 10 -> 1, not 0.
-          grid[y + offsetY][x + offsetX] = risk as byte;
+          output[x] = risk as byte;
         }
       }
     }
