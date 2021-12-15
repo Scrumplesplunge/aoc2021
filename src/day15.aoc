@@ -1,0 +1,137 @@
+import "std/std.aoc" as std;
+
+alias maxSideLength = 100;
+alias gridSize = 500;
+
+// Storage for the grid, with space for a border of 9 around all sides. The
+// border simplifies the processing for each cell as we can always assume the
+// presence of neighbours, and a neighbour with height 9 is equivalent to having
+// no neighbour.
+var grid: [gridSize][gridSize]byte;
+
+// The width and height of the grid, excluding the border.
+var gridWidth: int64;
+var gridHeight: int64;
+
+function readInput(): void {
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i[gridWidth] != '\n' { gridWidth = gridWidth + 1; }
+  if gridWidth > maxSideLength { std.die("too wide"); }
+  while i != end {
+    if gridHeight == maxSideLength { std.die("too tall"); }
+    var row = &grid[gridHeight];
+    gridHeight = gridHeight + 1;
+    for var x = 0; x < gridWidth; x = x + 1 {
+      var value = i[x];
+      if value < '0' || '9' < value { std.die("invalid cell"); }
+      (*row)[x] = (value - '0') as byte;
+    }
+    if i[gridWidth] != '\n' { std.die("expected line end"); }
+    i = i + (gridWidth + 1);
+  }
+}
+
+struct Node {
+  x: int16;
+  y: int16;
+  score: int32;
+}
+
+var visited: [gridSize][gridSize]bool;
+var queue: [gridSize * gridSize]Node;
+var queueSize: int64;
+
+function queuePush(x: int64, y: int64, score: int64): void {
+  if visited[y][x] { return; }
+  var i = queueSize;
+  queueSize = queueSize + 1;
+  while i > 0 {
+    var parent = (i - 1) / 2;
+    var node = &queue[parent];
+    if node->score < score { break; }
+    queue[i] = *node;
+    i = parent;
+  }
+  var node = &queue[i];
+  node->x = x as int16;
+  node->y = y as int16;
+  node->score = score as int32;
+}
+
+function queuePop(): Node {
+  queueSize = queueSize - 1;
+  var result = queue[0];
+  var score = queue[queueSize].score;
+  var i = 0;
+  while true {
+    var l = 2 * i + 1;
+    if l >= queueSize { break; }
+    var r = l + 1;
+    var c = r < queueSize && queue[r].score < queue[l].score ? r : l;
+    if queue[c].score >= score { break; }
+    queue[i] = queue[c];
+    i = c;
+  }
+  queue[i] = queue[queueSize];
+  return result;
+}
+
+function search(endX: int64, endY: int64): int64 {
+  queueSize = 0;
+  queuePush(endX, endY, 0);
+  while true {
+    if queueSize == 0 { std.die("bug"); }
+    var node = queuePop();
+    if visited[node.y][node.x] { continue; }
+    visited[node.y][node.x] = true;
+    if node.x == 0 && node.y == 0 { return node.score; }
+    var score = node.score + grid[node.y][node.x];
+    if node.x > 0 { queuePush(node.x - 1, node.y, score); }
+    if node.x < endX { queuePush(node.x + 1, node.y, score); }
+    if node.y > 0 { queuePush(node.x, node.y - 1, score); }
+    if node.y < endY { queuePush(node.x, node.y + 1, score); }
+  }
+}
+
+function part1(): int64 {
+  return search(gridWidth - 1, gridHeight - 1);
+}
+
+function part2(): int64 {
+  // Build the larger grid.
+  for var tileY = 0; tileY < 5; tileY = tileY + 1 {
+    var offsetY = gridHeight * tileY;
+    for var tileX = 0; tileX < 5; tileX = tileX + 1 {
+      var offsetX = gridWidth * tileX;
+      var delta = tileX + tileY;
+      if tileX == 0 && tileY == 0 { continue; }
+      for var y = 0; y < gridHeight; y = y + 1 {
+        for var x = 0; x < gridWidth; x = x + 1 {
+          var risk = grid[y][x] + delta;
+          if risk > 9 { risk = risk - 9; }  // Risk level wraps 10 -> 1, not 0.
+          grid[y + offsetY][x + offsetX] = risk as byte;
+        }
+      }
+    }
+  }
+  // Reset the visited set.
+  var endX = gridWidth * 5 - 1;
+  var endY = gridHeight * 5 - 1;
+  for var y = 0; y <= endY; y = y + 1 {
+    for var x = 0; x <= endX; x = x + 1 {
+      visited[y][x] = false;
+    }
+  }
+  return search(endX, endY);
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
