@@ -1,7 +1,7 @@
 import "std/std.aoc" as std;
 
 alias maxSideLength = 100;
-alias gridSize = 500;
+alias gridSize = 512;
 
 // Storage for the grid, with space for a border of 9 around all sides. The
 // border simplifies the processing for each cell as we can always assume the
@@ -43,49 +43,68 @@ struct Node {
 }
 
 var visited: [gridSize][gridSize]bool;
-var queue: [gridSize * gridSize]Node;
-var queueSize: int64;
+// The maximum difference between the minimum score in the queue and the maximum
+// score in the queue is 9: we can add at most 9 to the score of the current
+// node under consideration, and we consider nodes in ascending order of score.
+alias numBuckets = 16;
+// The theoretical maximum number of frontier nodes that have the same score is
+// the maximum perimeter of some connected subset of the grid, which could be
+// huge in contrived examples. We'll assume that it is no larger than the
+// perimeter of the grid itself.
+alias stackLimit = 2048;
+// Represent the priority queue as a collection of stacks. Stack i stores the
+// frontier nodes that have i == score % numBuckets. Since the range between the
+// minimum frontier element and the maximum frontier element is bounded at 9, we
+// never have to worry about conflicts: every element in a given bucket will
+// have exactly the same score.
+var stacks: [numBuckets][stackLimit]Node;
+var stackSizes: [numBuckets]int64;
+var headBucket: int64;
+var lastPop: int64;
+
+function initSearch(endX: int64, endY: int64): void {
+}
 
 function queuePush(x: int64, y: int64, score: int64): void {
   if visited[y][x] { return; }
-  var i = queueSize;
-  queueSize = queueSize + 1;
-  while i > 0 {
-    var parent = (i - 1) / 2;
-    var node = &queue[parent];
-    if node->score < score { break; }
-    queue[i] = *node;
-    i = parent;
-  }
-  var node = &queue[i];
+  // if score < lastPop || lastPop + 10 < score { std.die("bug"); }
+  var bucket = score % numBuckets;
+  var i = stackSizes[bucket];
+  if i == stackLimit { std.die("too many nodes with the same score"); }
+  var node = &stacks[bucket][i];
   node->x = x as int16;
   node->y = y as int16;
   node->score = score as int32;
+  stackSizes[bucket] = i + 1;
 }
 
 function queuePop(): Node {
-  queueSize = queueSize - 1;
-  var result = queue[0];
-  var score = queue[queueSize].score;
-  var i = 0;
-  while true {
-    var l = 2 * i + 1;
-    if l >= queueSize { break; }
-    var r = l + 1;
-    var c = r < queueSize && queue[r].score < queue[l].score ? r : l;
-    if queue[c].score >= score { break; }
-    queue[i] = queue[c];
-    i = c;
+  while stackSizes[headBucket] == 0 {
+    headBucket = (headBucket + 1) % numBuckets;
   }
-  queue[i] = queue[queueSize];
-  return result;
+  var size = &stackSizes[headBucket];
+  var i = *size - 1;
+  *size = i;
+  // lastPop = stacks[headBucket][i].score;
+  return stacks[headBucket][i];
 }
 
 function search(endX: int64, endY: int64): int64 {
-  queueSize = 0;
+  // Reset the frontier state.
+  lastPop = 0;
+  headBucket = 0;
+  for var i = 0; i < numBuckets; i = i + 1 { stackSizes[i] = 0; }
+  // Reset the visited set.
+  for var y = 0; y <= endY; y = y + 1 {
+    for var x = 0; x <= endX; x = x + 1 {
+      visited[y][x] = false;
+    }
+  }
+  // Perform a search over the space in order of increasing score. The search
+  // starts at the *end* and searches backwards for the beginning, because this
+  // simplifies some of the bookkeeping.
   queuePush(endX, endY, 0);
   while true {
-    if queueSize == 0 { std.die("bug"); }
     var node = queuePop();
     if visited[node.y][node.x] { continue; }
     visited[node.y][node.x] = true;
@@ -119,15 +138,7 @@ function part2(): int64 {
       }
     }
   }
-  // Reset the visited set.
-  var endX = gridWidth * 5 - 1;
-  var endY = gridHeight * 5 - 1;
-  for var y = 0; y <= endY; y = y + 1 {
-    for var x = 0; x <= endX; x = x + 1 {
-      visited[y][x] = false;
-    }
-  }
-  return search(endX, endY);
+  return search(5 * gridWidth - 1, 5 * gridHeight - 1);
 }
 
 function main(): int64 {
