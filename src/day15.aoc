@@ -3,10 +3,7 @@ import "std/std.aoc" as std;
 alias maxSideLength = 100;
 alias gridSize = 512;
 
-// Storage for the grid, with space for a border of 9 around all sides. The
-// border simplifies the processing for each cell as we can always assume the
-// presence of neighbours, and a neighbour with height 9 is equivalent to having
-// no neighbour.
+// Storage for the grid, in row major order.
 var grid: [gridSize * gridSize]byte;
 
 // The width and height of the grid, excluding the border.
