@@ -1,0 +1,185 @@
+import "std/std.aoc" as std;
+
+alias maxSize = 8192;
+var input: [maxSize]bool;
+var inputSize: int64;
+
+function readInput(): void {
+  alias bufferSize = 2048;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty"); }
+  length = length - 1;
+  if buffer[length] != '\n' { std.die("newline"); }
+  inputSize = length * 4;
+  if inputSize > maxSize { std.die("too large"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  var o: []bool = &input;
+  while i != end {
+    var c = i[0];
+    var value: int64;
+    if '0' <= c && c <= '9' {
+      value = c - '0';
+    } else if 'A' <= c && c <= 'F' {
+      value = c + (10 - 'A');
+    } else {
+      std.die("syntax");
+    }
+    o[0] = (value & 8) != 0;
+    o[1] = (value & 4) != 0;
+    o[2] = (value & 2) != 0;
+    o[3] = (value & 1) != 0;
+    i = i + 1;
+    o = o + 4;
+  }
+}
+
+alias maxChildren = 1024;
+struct Node {
+  version: byte;
+  typeId: byte;
+  // For literal nodes, stores the value. For operator nodes, stores the
+  // number of children.
+  payload: int64;
+  children: [maxChildren]int16;
+}
+
+alias maxNodes = 1024;
+var nodes: [maxNodes]Node;
+var numNodes: int64;
+
+function parseInput(packet: []bool, node: *Node): []bool {
+  node->version = (packet[0] << 2 | packet[1] << 1 | packet[2]) as byte;
+  node->typeId = (packet[3] << 2 | packet[4] << 1 | packet[5]) as byte;
+  var i = packet + 6;
+  if node->typeId == 4 {
+    // Literal packet.
+    var value = 0;
+    while true {
+      value = value << 4 | i[1] << 3 | i[2] << 2 | i[3] << 1 | i[4];
+      if !i[0] { break; }
+      i = i + 5;
+    }
+    node->payload = value;
+    return i + 5;
+  }
+  if i[0] {
+    // Number of sub-packets.
+    var numChildren = 0;
+    for var j = 1; j <= 11; j = j + 1 {
+      numChildren = numChildren << 1 | i[j];
+    }
+    i = i + 12;
+    if numChildren > maxChildren { std.die("too many sub-packets"); }
+    for var c = 0; c < numChildren; c = c + 1 {
+      if numNodes == maxNodes { std.die("too many packets"); }
+      node->children[c] = numNodes as int16;
+      var child = &nodes[numNodes];
+      numNodes = numNodes + 1;
+      i = parseInput(i, child);
+    }
+    node->payload = numChildren as int16;
+    return i;
+  } else {
+    // Length of all sub-packets in bits.
+    var length = 0;
+    for var j = 1; j <= 15; j = j + 1 {
+      length = length << 1 | i[j];
+    }
+    i = i + 16;
+    var end = i + length;
+    var numChildren = 0;
+    while i != end {
+      if numChildren == maxChildren { std.die("too many sub-packets"); }
+      if numNodes == maxNodes { std.die("too many packets"); }
+      node->children[numChildren] = numNodes as int16;
+      numChildren = numChildren + 1;
+      var child = &nodes[numNodes];
+      numNodes = numNodes + 1;
+      i = parseInput(i, child);
+    }
+    node->payload = numChildren as int16;
+    return i;
+  }
+}
+
+function versionSum(node: *Node): int64 {
+  if node->typeId == 4 { return node->version; }
+  var total: int64 = node->version;
+  var n = node->payload;
+  for var i = 0; i < n; i = i + 1 {
+    total = total + versionSum(&nodes[node->children[i]]);
+  }
+  return total;
+}
+
+function evaluate(node: *Node): int64 {
+  var typeId = node->typeId;
+  var n = node->payload;
+  if typeId == 4 { return n; }
+  if typeId == 0 {
+    // Sum
+    var total = 0;
+    for var i = 0; i < n; i = i + 1 {
+      total = total + evaluate(&nodes[node->children[i]]);
+    }
+    return total;
+  }
+  if typeId == 1 {
+    // Product
+    var total = 1;
+    for var i = 0; i < n; i = i + 1 {
+      total = total * evaluate(&nodes[node->children[i]]);
+    }
+    return total;
+  }
+  if typeId == 2 {
+    // Minimum
+    var min = evaluate(&nodes[node->children[0]]);
+    for var i = 1; i < n; i = i + 1 {
+      var value = evaluate(&nodes[node->children[i]]);
+      if value < min { min = value; }
+    }
+    return min;
+  }
+  if typeId == 3 {
+    // Maximum
+    var max = evaluate(&nodes[node->children[0]]);
+    for var i = 1; i < n; i = i + 1 {
+      var value = evaluate(&nodes[node->children[i]]);
+      if value > max { max = value; }
+    }
+    return max;
+  }
+  if typeId == 5 {
+    // Greater than
+    if n != 2 { std.die("comparison needs exactly 2 arguments"); }
+    var a = evaluate(&nodes[node->children[0]]);
+    var b = evaluate(&nodes[node->children[1]]);
+    return a > b;
+  }
+  if typeId == 6 {
+    // Less than
+    if n != 2 { std.die("comparison needs exactly 2 arguments"); }
+    var a = evaluate(&nodes[node->children[0]]);
+    var b = evaluate(&nodes[node->children[1]]);
+    return a < b;
+  }
+  if typeId == 7 {
+    // Equals
+    if n != 2 { std.die("comparison needs exactly 2 arguments"); }
+    var a = evaluate(&nodes[node->children[0]]);
+    var b = evaluate(&nodes[node->children[1]]);
+    return a == b;
+  }
+}
+
+function main(): int64 {
+  readInput();
+  var root = &nodes[0];
+  numNodes = 1;
+  parseInput(&input, root);
+  std.printInt(versionSum(root));
+  std.printInt(evaluate(root));
+}
