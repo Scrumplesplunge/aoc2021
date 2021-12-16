@@ -35,7 +35,7 @@ function readInput(): void {
   }
 }
 
-alias maxChildren = 1024;
+alias maxChildren = 64;
 struct Node {
   version: byte;
   typeId: byte;
@@ -45,7 +45,7 @@ struct Node {
   children: [maxChildren]int16;
 }
 
-alias maxNodes = 1024;
+alias maxNodes = 512;
 var nodes: [maxNodes]Node;
 var numNodes: int64;
 
