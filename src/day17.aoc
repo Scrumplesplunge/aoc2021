@@ -1,0 +1,108 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+var minX: int64;
+var maxX: int64;
+var minY: int64;
+var maxY: int64;
+
+function readSigned(i: []byte, value: *int64): []byte {
+  var negative = false;
+  if i[0] == '-' {
+    negative = true;
+    i = i + 1;
+  }
+  i = std.readInt(i, value);
+  if negative { *value = -*value; }
+  return i;
+}
+
+function readInput(): void {
+  alias bufferSize = 64;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 || buffer[length - 1] != '\n' { std.die("bad input"); }
+  var i: []byte = &buffer;
+  var end = i + (length - 1);
+  if strings.strncmp(i, "target area: x=", 15) != 0 { std.die("syntax"); }
+  i = readSigned(i + 15, &minX);
+  if strings.strncmp(i, "..", 2) != 0 { std.die("syntax"); }
+  i = readSigned(i + 2, &maxX);
+  if strings.strncmp(i, ", y=", 4) != 0 { std.die("syntax"); }
+  i = readSigned(i + 4, &minY);
+  if strings.strncmp(i, "..", 2) != 0 { std.die("syntax"); }
+  i = readSigned(i + 2, &maxY);
+  if i != end { std.die("trailing characters"); }
+
+  // The test input and my own input both have positive X bounds. The wording
+  // implies that these coordinates might be negative, but lets see if this
+  // assumption can work for now...
+  if minX <= 0 { std.die("broken assumption"); }
+
+  // This solver assumes that the target is never overlapping the X axis, as
+  // this would allow for unbounded height.
+  if minY <= 0 && 0 <= maxY { std.die("infinite height"); }
+}
+
+function sum(i: int64): int64 {
+  return i * (i + 1) / 2;
+}
+
+struct Result {
+  maxY: int64;
+  count: int64;
+}
+
+function hits(vx: int64, vy: int64): bool {
+  var x = 0;
+  var y = 0;
+  while y >= minY {
+    x = x + vx;
+    y = y + vy;
+    if minX <= x && x <= maxX && minY <= y && y <= maxY {
+      return true;
+    }
+    if vx > 0 { vx = vx - 1; }
+    vy = vy - 1;
+  }
+  return false;
+}
+
+function solve(): Result {
+  var minVelocityX = 0;
+  while sum(minVelocityX) < minX { minVelocityX = minVelocityX + 1; }
+  var maxVelocityX = maxX;
+  var minVelocityY = minY;
+
+  // If the target range is above y=0, the maximum Y velocity is upper bounded
+  // by maxY: anything above this will jump straight past the range and, since
+  // the Y coordinates for the upwards journey will match the Y coordinates for
+  // the downwards one, it will jump straight past it on the way down as well.
+  // If the target range is below y=0, we can continue the reasoning from above:
+  // An initial (positive) velocity of vy will hit y=0 and y=-(vy+1). To hit
+  // the range, it must be the case that -(vy+1) >= minY.
+  var maxVelocityY = minY > 0 ? maxY : -minY;
+
+  var result: Result;
+  result.count = 0;
+  result.maxY = 0;
+  for var vy = minVelocityY; vy <= maxVelocityY; vy = vy + 1 {
+    for var vx = minVelocityX; vx <= maxVelocityX; vx = vx + 1 {
+      if hits(vx, vy) {
+        result.count = result.count + 1;
+        if vy > 0 {
+          var height = sum(vy);
+          if height > result.maxY { result.maxY = height; }
+        }
+      }
+    }
+  }
+  return result;
+}
+
+function main(): int64 {
+  readInput();
+  var result = solve();
+  std.printInt(result.maxY);
+  std.printInt(result.count);
+}
