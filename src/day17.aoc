@@ -34,14 +34,8 @@ function readInput(): void {
   i = readSigned(i + 2, &maxY);
   if i != end { std.die("trailing characters"); }
 
-  // The test input and my own input both have positive X bounds. The wording
-  // implies that these coordinates might be negative, but lets see if this
-  // assumption can work for now...
-  if minX <= 0 { std.die("broken assumption"); }
-
-  // This solver assumes that the target is never overlapping the X axis, as
-  // this would allow for unbounded height.
-  if minY <= 0 && 0 <= maxY { std.die("infinite height"); }
+  // Assume that X bounds are always positive, and Y bounds are always negative.
+  if minX <= 0 || maxY >= 0 { std.die("broken assumption"); }
 }
 
 function sum(i: int64): int64 {
@@ -56,12 +50,10 @@ struct Result {
 function hits(vx: int64, vy: int64): bool {
   var x = 0;
   var y = 0;
-  while y >= minY {
+  while minY <= y {
+    if y <= maxY && minX <= x && x <= maxX { return true; }
     x = x + vx;
     y = y + vy;
-    if minX <= x && x <= maxX && minY <= y && y <= maxY {
-      return true;
-    }
     if vx > 0 { vx = vx - 1; }
     vy = vy - 1;
   }
