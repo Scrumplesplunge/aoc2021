@@ -82,6 +82,8 @@ export function readInt32(input: []byte, value: *int32): []byte {
 }
 
 export function printInt(x: int64): void {
+  var negative = x < 0;
+  if negative { x = -x; }
   var buffer: [24]byte;
   buffer[23] = '\n';
   var i = 23;
@@ -90,6 +92,10 @@ export function printInt(x: int64): void {
     buffer[i] = ('0' + (x % 10)) as byte;
     x = x / 10;
     if x == 0 { break; }
+  }
+  if negative {
+    i = i - 1;
+    buffer[i] = '-';
   }
   write(stdout, &buffer + i, 24 - i);
 }
