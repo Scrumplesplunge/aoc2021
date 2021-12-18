@@ -1,0 +1,246 @@
+import "std/std.aoc" as std;
+
+struct Node {
+  // The index of the parent node, or -1 if this node is a root.
+  parent: int16;
+  // If true, the corresponding field is a node index. Otherwise, it's a leaf.
+  nodeA: bool;
+  nodeB: bool;
+  a: int16;
+  b: int16;
+}
+
+alias maxNodes = 65536;
+var nodes: [maxNodes]Node;
+var numNodes: int64;
+alias maxRoots = 100;
+var roots: [maxRoots]int16;
+var numRoots: int64;
+
+function readInput(): void {
+  alias bufferSize = 4192;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numRoots == maxRoots { std.die("too many roots"); }
+    var isNode: bool;
+    i = parseValue(i, -1 as int16, &roots[numRoots], &isNode);
+    numRoots = numRoots + 1;
+    if !isNode { std.die("not a pair"); }
+    if i[0] != '\n' { std.die("newline"); }
+    i = i + 1;
+  }
+}
+
+function parseValue(
+    i: []byte, parent: int16, value: *int16, isNode: *bool): []byte {
+  *isNode = i[0] == '[';
+  if *isNode {
+    if numNodes == maxNodes { std.die("too many pairs"); }
+    *value = numNodes as int16;
+    numNodes = numNodes + 1;
+    var node = &nodes[*value];
+    node->parent = parent;
+    if i[0] != '[' { std.die("expected '['"); }
+    i = parseValue(i + 1, *value, &node->a, &node->nodeA);
+    if i[0] != ',' { std.die("expected ','"); }
+    i = parseValue(i + 1, *value, &node->b, &node->nodeB);
+    if i[0] != ']' { std.die("expected ']'"); }
+    return i + 1;
+  } else {
+    return std.readInt16(i, value);
+  }
+}
+
+function add(a: int16, b: int16): int16 {
+  if numNodes == maxNodes { std.die("too many pairs"); }
+  var i = numNodes as int16;
+  numNodes = numNodes + 1;
+  var node = &nodes[i];
+  node->parent = -1 as int16;
+  node->nodeA = true;
+  node->nodeB = true;
+  node->a = a;
+  nodes[a].parent = i;
+  node->b = b;
+  nodes[b].parent = i;
+  return i;
+}
+
+// Find the left-most leaf of a node.
+function leftLeaf(nodeIndex: int16): *int16 {
+  var node = &nodes[nodeIndex];
+  while node->nodeA { node = &nodes[node->a]; }
+  return &node->a;
+}
+
+// Find the right-most leaf of a node.
+function rightLeaf(nodeIndex: int16): *int16 {
+  var node = &nodes[nodeIndex];
+  while node->nodeB { node = &nodes[node->b]; }
+  return &node->b;
+}
+
+// Find the leaf that is strictly before the given node, or null if there is no
+// such leaf.
+function predecessor(nodeIndex: int16): *int16 {
+  var i = nodeIndex;
+  // Iterate towards the root until we found an ancestor for which we are on the
+  // right hand side.
+  while true {
+    var child = i;
+    i = nodes[child].parent;
+    if i == -1 { return null; }
+    var node = &nodes[i];
+    if node->nodeB && node->b == child { break; }
+  }
+  // The leaf is the right-most descendent of the left child of that ancestor.
+  var ancestor = &nodes[i];
+  return ancestor->nodeA ? rightLeaf(ancestor->a) : &ancestor->a;
+}
+
+// Find the leaf that is strictly after the given node, or null if there is no
+// such leaf.
+function successor(nodeIndex: int16): *int16 {
+  var i = nodeIndex;
+  // Iterate towards the root until we found an ancestor for which we are on the
+  // left hand side.
+  while true {
+    var child = i;
+    i = nodes[child].parent;
+    if i == -1 { return null; }
+    var node = &nodes[i];
+    if node->nodeA && node->a == child { break; }
+  }
+  // The leaf is the left-most descendent of the right child of that ancestor.
+  var ancestor = &nodes[i];
+  return ancestor->nodeB ? leftLeaf(ancestor->b) : &ancestor->b;
+}
+
+function explode(nodeIndex: int16): void {
+  var node = &nodes[nodeIndex];
+  if node->nodeA || node->nodeB {
+    std.die("exploded pair is not a primitive pair");
+  }
+  var p = predecessor(nodeIndex);
+  if p != null { *p = (*p + node->a) as int16; }
+  var s = successor(nodeIndex);
+  if s != null { *s = (*s + node->b) as int16; }
+}
+
+function tryExplode(
+    value: *int16, isNode: *bool, numParentNodes: int64): bool {
+  if !*isNode { return false; }
+  if numParentNodes == 4 {
+    // std.puts("explode");
+    // debug(*value);
+    explode(*value);
+    *value = 0 as int16;
+    *isNode = false;
+    return true;
+  } else {
+    var node = &nodes[*value];
+    return tryExplode(&node->a, &node->nodeA, numParentNodes + 1) ||
+           tryExplode(&node->b, &node->nodeB, numParentNodes + 1);
+  }
+}
+
+function trySplit(value: *int16, isNode: *bool, parent: int16): bool {
+  if *isNode {
+    var i = *value as int16;
+    var node = &nodes[i];
+    return trySplit(&node->a, &node->nodeA, i) ||
+           trySplit(&node->b, &node->nodeB, i);
+  } else {
+    if *value < 10 { return false; }
+    // std.puts("split");
+    // std.printInt(*value);
+    var a = (*value / 2) as int16;
+    var b = (*value - a) as int16;
+    if numNodes == maxNodes { std.die("too many nodes"); }
+    var node = &nodes[numNodes];
+    *value = numNodes as int16;
+    *isNode = true;
+    numNodes = numNodes + 1;
+    node->parent = parent;
+    node->nodeA = false;
+    node->nodeB = false;
+    node->a = a;
+    node->b = b;
+    return true;
+  }
+}
+
+function reduce(node: int16): bool {
+  var isNode = true;
+  return tryExplode(&node, &isNode, 0) || trySplit(&node, &isNode, -1 as int16);
+}
+
+function magnitude(value: int16, isNode: bool): int64 {
+  if isNode {
+    var node = &nodes[value];
+    return 3 * magnitude(node->a, node->nodeA) +
+           2 * magnitude(node->b, node->nodeB);
+  } else {
+    return value;
+  }
+}
+
+function toString(value: int16, isNode: bool, output: []byte): int64 {
+  if isNode {
+    var node = &nodes[value];
+    output[0] = '[';
+    var aSize = toString(node->a, node->nodeA, output + 1);
+    output = output + aSize + 1;
+    output[0] = ',';
+    var bSize = toString(node->b, node->nodeB, output + 1);
+    output = output + bSize + 1;
+    output[0] = ']';
+    return 3 + aSize + bSize;
+  } else {
+    if value >= 10 {
+      output[0] = (value / 10 + '0') as byte;
+      output[1] = (value % 10 + '0') as byte;
+      output = output + 2;
+      return 2;
+    } else {
+      output[0] = (value + '0') as byte;
+      output = output + 1;
+      return 1;
+    }
+  }
+}
+
+function debug(node: int16): void {
+  var buffer: [1024]byte;
+  var size = toString(node, true, &buffer);
+  buffer[size] = '\0';
+  std.puts(&buffer);
+}
+
+function part1(): int64 {
+  var total = roots[0];
+  // debug(total);
+  for var i = 1; i < numRoots; i = i + 1 {
+    // std.puts("===");
+    // debug(roots[i]);
+    total = add(total, roots[i]);
+    // debug(total);
+    while reduce(total) {
+      // std.puts("->");
+      // debug(total);
+    }
+    // std.puts("->");
+    // debug(total);
+  }
+  return magnitude(total, true);
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+}
