@@ -155,25 +155,22 @@ function successor(nodeIndex: int16): *int16 {
   return ancestor->nodeB ? leftLeaf(ancestor->b) : &ancestor->b;
 }
 
-function explode(nodeIndex: int16): void {
-  var node = &nodes[nodeIndex];
-  if node->nodeA || node->nodeB {
-    std.die("exploded pair is not a primitive pair");
-  }
-  var p = predecessor(nodeIndex);
-  if p != null { *p = (*p + node->a) as int16; }
-  var s = successor(nodeIndex);
-  if s != null { *s = (*s + node->b) as int16; }
-}
-
 function tryExplode(
     value: *int16, isNode: *bool, numParentNodes: int64): bool {
   if !*isNode { return false; }
   if numParentNodes == 4 {
     // std.puts("explode");
     // debug(*value);
-    explode(*value);
-    freeNode(*value);
+    var i = *value;
+    var node = &nodes[i];
+    if node->nodeA || node->nodeB {
+      std.die("exploded pair is not a primitive pair");
+    }
+    var p = predecessor(i);
+    if p != null { *p = (*p + node->a) as int16; }
+    var s = successor(i);
+    if s != null { *s = (*s + node->b) as int16; }
+    freeNode(i);
     *value = 0 as int16;
     *isNode = false;
     return true;
