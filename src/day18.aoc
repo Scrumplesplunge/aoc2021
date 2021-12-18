@@ -10,13 +10,37 @@ struct Node {
   b: int16;
 }
 
-alias maxNodes = 65536;
+alias maxNodes = 1024;
 var nodes: [maxNodes]Node;
 var numNodes: int64;
-var numInputNodes: int64;
 alias maxRoots = 100;
 var roots: [maxRoots]int16;
 var numRoots: int64;
+
+// A free-list of unused nodes, via the parent pointers of the nodes.
+var freeList: int16;
+
+function initNodes(): void {
+  for var i = 0; i < maxNodes; i = i + 1 {
+    nodes[i].parent = (i + 1) as int16;
+  }
+  nodes[maxNodes - 1].parent = -1 as int16;
+}
+
+function newNode(): int16 {
+  if freeList == -1 { std.die("too many nodes"); }
+  var result = freeList;
+  freeList = nodes[freeList].parent;
+  return result;
+}
+
+function freeNode(nodeIndex: int16): void {
+  var node = &nodes[nodeIndex];
+  if node->nodeA { freeNode(node->a); }
+  if node->nodeB { freeNode(node->b); }
+  node->parent = freeList;
+  freeList = nodeIndex;
+}
 
 function readInput(): void {
   alias bufferSize = 4192;
@@ -35,15 +59,13 @@ function readInput(): void {
     if i[0] != '\n' { std.die("newline"); }
     i = i + 1;
   }
-  numInputNodes = numNodes;
 }
 
 function parseValue(
     i: []byte, parent: int16, value: *int16, isNode: *bool): []byte {
   *isNode = i[0] == '[';
   if *isNode {
-    if numNodes == maxNodes { std.die("too many pairs"); }
-    *value = numNodes as int16;
+    *value = newNode();
     numNodes = numNodes + 1;
     var node = &nodes[*value];
     node->parent = parent;
@@ -59,9 +81,7 @@ function parseValue(
 }
 
 function cloneNode(nodeIndex: int16, parent: int16): int16 {
-  if numNodes == maxNodes { std.die("too many pairs"); }
-  var i = numNodes as int16;
-  numNodes = numNodes + 1;
+  var i = newNode();
   var node = &nodes[nodeIndex];
   var clone = &nodes[i];
   clone->parent = parent;
@@ -73,9 +93,7 @@ function cloneNode(nodeIndex: int16, parent: int16): int16 {
 }
 
 function add(a: int16, b: int16): int16 {
-  if numNodes == maxNodes { std.die("too many pairs"); }
-  var i = numNodes as int16;
-  numNodes = numNodes + 1;
+  var i = newNode();
   var node = &nodes[i];
   node->parent = -1 as int16;
   node->nodeA = true;
@@ -155,6 +173,7 @@ function tryExplode(
     // std.puts("explode");
     // debug(*value);
     explode(*value);
+    freeNode(*value);
     *value = 0 as int16;
     *isNode = false;
     return true;
@@ -177,11 +196,9 @@ function trySplit(value: *int16, isNode: *bool, parent: int16): bool {
     // std.printInt(*value);
     var a = (*value / 2) as int16;
     var b = (*value - a) as int16;
-    if numNodes == maxNodes { std.die("too many nodes"); }
-    var node = &nodes[numNodes];
-    *value = numNodes as int16;
+    *value = newNode();
+    var node = &nodes[*value];
     *isNode = true;
-    numNodes = numNodes + 1;
     node->parent = parent;
     node->nodeA = false;
     node->nodeB = false;
@@ -249,9 +266,9 @@ function part1(): int64 {
   for var i = 1; i < numRoots; i = i + 1 {
     total = addAndReduce(total, cloneNode(roots[i], -1 as int16));
   }
-  // Discard all clones.
-  numNodes = numInputNodes;
-  return magnitude(total, true);
+  var result = magnitude(total, true);
+  freeNode(total);
+  return result;
 }
 
 function part2(): int64 {
@@ -264,14 +281,14 @@ function part2(): int64 {
       var result = addAndReduce(left, right);
       var value = magnitude(result, true);
       if value > best { best = value; }
-      // Discard clones.
-      numNodes = numInputNodes;
+      freeNode(result);
     }
   }
   return best;
 }
 
 function main(): int64 {
+  initNodes();
   readInput();
   std.printInt(part1());
   std.printInt(part2());
