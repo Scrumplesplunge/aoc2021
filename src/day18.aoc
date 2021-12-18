@@ -13,6 +13,7 @@ struct Node {
 alias maxNodes = 65536;
 var nodes: [maxNodes]Node;
 var numNodes: int64;
+var numInputNodes: int64;
 alias maxRoots = 100;
 var roots: [maxRoots]int16;
 var numRoots: int64;
@@ -34,6 +35,7 @@ function readInput(): void {
     if i[0] != '\n' { std.die("newline"); }
     i = i + 1;
   }
+  numInputNodes = numNodes;
 }
 
 function parseValue(
@@ -54,6 +56,20 @@ function parseValue(
   } else {
     return std.readInt16(i, value);
   }
+}
+
+function cloneNode(nodeIndex: int16, parent: int16): int16 {
+  if numNodes == maxNodes { std.die("too many pairs"); }
+  var i = numNodes as int16;
+  numNodes = numNodes + 1;
+  var node = &nodes[nodeIndex];
+  var clone = &nodes[i];
+  clone->parent = parent;
+  clone->nodeA = node->nodeA;
+  clone->nodeB = node->nodeB;
+  clone->a = clone->nodeA ? cloneNode(node->a, i) : node->a;
+  clone->b = clone->nodeB ? cloneNode(node->b, i) : node->b;
+  return i;
 }
 
 function add(a: int16, b: int16): int16 {
@@ -222,25 +238,41 @@ function debug(node: int16): void {
   std.puts(&buffer);
 }
 
+function addAndReduce(a: int16, b: int16): int16 {
+  var result = add(a, b);
+  while reduce(result) {}
+  return result;
+}
+
 function part1(): int64 {
-  var total = roots[0];
-  // debug(total);
+  var total = cloneNode(roots[0], -1 as int16);
   for var i = 1; i < numRoots; i = i + 1 {
-    // std.puts("===");
-    // debug(roots[i]);
-    total = add(total, roots[i]);
-    // debug(total);
-    while reduce(total) {
-      // std.puts("->");
-      // debug(total);
-    }
-    // std.puts("->");
-    // debug(total);
+    total = addAndReduce(total, cloneNode(roots[i], -1 as int16));
   }
+  // Discard all clones.
+  numNodes = numInputNodes;
   return magnitude(total, true);
+}
+
+function part2(): int64 {
+  var best = 0;
+  for var i = 0; i < numRoots; i = i + 1 {
+    for var j = 0; j < numRoots; j = j + 1 {
+      if i == j { continue; }
+      var left = cloneNode(roots[i], -1 as int16);
+      var right = cloneNode(roots[j], -1 as int16);
+      var result = addAndReduce(left, right);
+      var value = magnitude(result, true);
+      if value > best { best = value; }
+      // Discard clones.
+      numNodes = numInputNodes;
+    }
+  }
+  return best;
 }
 
 function main(): int64 {
   readInput();
   std.printInt(part1());
+  std.printInt(part2());
 }
