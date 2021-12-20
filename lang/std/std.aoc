@@ -50,13 +50,15 @@ export function isAlpha(x: byte): bool {
 }
 
 export function readInt(input: []byte, value: *int64): []byte {
+  var negative = input[0] == '-';
+  if negative { input = input + 1; }
   if !isDigit(input[0]) { die("bad"); }
   var temp = 0;
   while isDigit(input[0]) {
     temp = 10 * temp + (input[0] - '0');
     input = input + 1;
   }
-  *value = temp;
+  *value = negative ? -temp : temp;
   return input;
 }
 
