@@ -220,38 +220,6 @@ function magnitude(value: int16, isNode: bool): int64 {
   }
 }
 
-function toString(value: int16, isNode: bool, output: []byte): int64 {
-  if isNode {
-    var node = &nodes[value];
-    output[0] = '[';
-    var aSize = toString(node->a, node->nodeA, output + 1);
-    output = output + aSize + 1;
-    output[0] = ',';
-    var bSize = toString(node->b, node->nodeB, output + 1);
-    output = output + bSize + 1;
-    output[0] = ']';
-    return 3 + aSize + bSize;
-  } else {
-    if value >= 10 {
-      output[0] = (value / 10 + '0') as byte;
-      output[1] = (value % 10 + '0') as byte;
-      output = output + 2;
-      return 2;
-    } else {
-      output[0] = (value + '0') as byte;
-      output = output + 1;
-      return 1;
-    }
-  }
-}
-
-function debug(node: int16): void {
-  var buffer: [1024]byte;
-  var size = toString(node, true, &buffer);
-  buffer[size] = '\0';
-  std.puts(&buffer);
-}
-
 function addAndReduce(a: int16, b: int16): int16 {
   var result = add(a, b);
   while reduce(result) {}
