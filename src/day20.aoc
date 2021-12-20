@@ -1,0 +1,100 @@
+import "std/std.aoc" as std;
+
+var step: [512]bool;
+
+alias maxSize = 256;
+alias minBorder = 64;
+var grid: [2][maxSize][maxSize]bool;
+var parity: bool;
+var offset: int64;
+var size: int64;
+var borderShade: bool;
+
+function readInput(): void {
+  alias bufferSize = 16384;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  for var j = 0; j < 512; j = j + 1 {
+    var c = i[j];
+    if c == '\n' { std.die("algorithm too short"); }
+    step[j] = c == '#';
+  }
+  if i[512] != '\n' || i[513] != '\n' { std.die("algorithm too long"); }
+  i = i + 514;
+  while i[size] != '\n' { size = size + 1; }
+  if size > maxSize { std.die("too wide"); }
+  offset = (maxSize - size) / 2;
+  if offset < minBorder { std.die("not enough border"); }
+  for var y = 0; y < size; y = y + 1 {
+    if i == end { std.die("grid is wider than it is tall"); }
+    var row: []bool = &grid[0][y + offset];
+    for var x = 0; x < size; x = x + 1 {
+      var c = i[x];
+      if c == '\n' { std.die("row too narrow"); }
+      row[x + offset] = c == '#';
+    }
+    if i[size] != '\n' { std.die("row too wide"); }
+    i = i + size + 1;
+  }
+}
+
+function enhance(): void {
+  var input = &grid[parity];
+  parity = !parity;
+  var output = &grid[parity];
+  if offset < 2 { std.die("reached edges"); }
+  offset = offset - 1;
+  size = size + 2;
+  var end = offset + size;
+  for var y = 1; y < maxSize - 1; y = y + 1 {
+    for var x = 1; x < maxSize - 1; x = x + 1 {
+      var key = 0;
+      for var dy = -1; dy <= 1; dy = dy + 1 {
+        for var dx = -1; dx <= 1; dx = dx + 1 {
+          key = key << 1 | (*input)[y + dy][x + dx];
+        }
+      }
+      (*output)[y][x] = step[key];
+    }
+  }
+  // Fill the output borders.
+  var borderShade = step[511 * (*input)[0][0]];
+  for var i = 0; i < maxSize; i = i + 1 {
+    (*output)[i][0] = borderShade;
+    (*output)[i][maxSize - 1] = borderShade;
+    (*output)[0][i] = borderShade;
+    (*output)[maxSize - 1][i] = borderShade;
+  }
+}
+
+function count(): int64 {
+  var end = offset + size;
+  var total = 0;
+  for var y = offset; y < end; y = y + 1 {
+    for var x = offset; x < end; x = x + 1 {
+      total = total + grid[parity][y][x];
+    }
+  }
+  return total;
+}
+
+function part1(): int64 {
+  enhance();
+  enhance();
+  return count();
+}
+
+function part2(): int64 {
+  for var i = 2; i < 50; i = i + 1 { enhance(); }
+  return count();
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
