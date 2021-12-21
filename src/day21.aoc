@@ -1,0 +1,133 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+var start1: int64;
+var start2: int64;
+
+function readInput(): void {
+  alias bufferSize = 128;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  if strings.strncmp(i, "Player 1 starting position: ", 28) != 0 {
+    std.die("syntax");
+  }
+  i = std.readInt(i + 28, &start1);
+  if strings.strncmp(i, "\nPlayer 2 starting position: ", 29) != 0 {
+    std.die("syntax");
+  }
+  i = std.readInt(i + 29, &start2);
+  if i[0] != '\n' { std.die("syntax"); }
+  i = i + 1;
+  if i != end { std.die("trailing characters"); }
+}
+
+function part1(): int64 {
+  var position1 = start1;
+  var position2 = start2;
+  var score1 = 0;
+  var score2 = 0;
+  var nextRoll = 1;
+  var numRolls = 0;
+  while true {
+    var a = nextRoll;
+    nextRoll = nextRoll < 10 ? nextRoll + 1 : 1;
+    var b = nextRoll;
+    nextRoll = nextRoll < 10 ? nextRoll + 1 : 1;
+    var c = nextRoll;
+    nextRoll = nextRoll < 10 ? nextRoll + 1 : 1;
+    numRolls = numRolls + 3;
+    position1 = position1 + a + b + c;
+    while position1 > 10 { position1 = position1 - 10; }
+    score1 = score1 + position1;
+    if score1 >= 1000 { return score2 * numRolls; }
+    var d = nextRoll;
+    nextRoll = nextRoll < 10 ? nextRoll + 1 : 1;
+    var e = nextRoll;
+    nextRoll = nextRoll < 10 ? nextRoll + 1 : 1;
+    var f = nextRoll;
+    nextRoll = nextRoll < 10 ? nextRoll + 1 : 1;
+    numRolls = numRolls + 3;
+    position2 = position2 + d + e + f;
+    while position2 > 10 { position2 = position2 - 10; }
+    score2 = score2 + position2;
+    if score2 >= 1000 { return score1 * numRolls; }
+  }
+}
+
+struct Stats {
+  total: int64;
+  wins: int64;
+}
+
+// counts[s1][s2][p1][p2] is the number of ways of a player to win assuming
+// that it is their turn, they are at p1 with s1 points, and their opponent is
+// at p2 with s2 points.
+var counts: [21][21][11][11]Stats;
+
+function part2(): int64 {
+  // Precompute a distribution for the number of ways to roll a given value with
+  // three three-sided dice.
+  var rolls: [10]int64;
+  for var i = 0; i < 10; i = i + 1 { rolls[i] = 0; }
+  for var a = 1; a <= 3; a = a + 1 {
+    for var b = 1; b <= 3; b = b + 1 {
+      for var c = 1; c <= 3; c = c + 1 {
+        var out = &rolls[a + b + c];
+        *out = *out + 1;
+      }
+    }
+  }
+  // Iterate over the grid in descending order of total combined score. Note
+  // that nothing about this computation depends on the puzzle input at all, so
+  // with adequate language or compiler support it could be done at compile time
+  // and then the solver would just have to perform a constant-time lookup.
+  for var t = 40; t >= 0; t = t - 1 {
+    for var s1 = 20; s1 >= 0; s1 = s1 - 1 {
+      var s2 = t - s1;
+      if s2 < 0 || 21 <= s2 { continue; }
+      for var p1 = 1; p1 <= 10; p1 = p1 + 1 {
+        for var p2 = 1; p2 <= 10; p2 = p2 + 1 {
+          var out = &counts[s1][s2][p1][p2];
+          // Consider all possible rolls that we could make from this
+          // configuration.
+          for var roll = 3; roll <= 9; roll = roll + 1 {
+            var newP1 = p1 + roll;
+            if newP1 > 10 { newP1 = newP1 - 10; }
+            var newS1 = s1 + newP1;
+            var rollFrequency = rolls[roll];
+            if newS1 >= 21 {
+              // This roll is a direct win.
+              // std.puts("direct win");
+              out->total = out->total + rollFrequency;
+              out->wins = out->wins + rollFrequency;
+            } else {
+              // Consider all possible ways of winning from the new
+              // configuration. This relies on the other configurations
+              // having already been processed. This is guaranteed by the
+              // iteration order: we depend on a cell with a combined score
+              // of newS1 + s2 > s1 + s2, and the outermost loop iterates in
+              // order of decreasing total score.
+              var in = &counts[s2][newS1][p2][newP1];
+              out->total = out->total + rollFrequency * in->total;
+              out->wins = out->wins + rollFrequency * (in->total - in->wins);
+            }
+          }
+        }
+      }
+    }
+  }
+  var stats = counts[0][0][start1][start2];
+  var wins1 = stats.wins;
+  var wins2 = stats.total - stats.wins;
+  return wins1 > wins2 ? wins1 : wins2;
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+  std.printInt(part2());
+}
