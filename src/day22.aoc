@@ -1,0 +1,98 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+struct Interval {
+  min: int32;
+  max: int32;
+}
+alias Box = [3]Interval;
+
+struct Entry {
+  box: Box;
+  value: bool;
+}
+
+alias maxEntries = 420;
+var entries: [maxEntries]Entry;
+var numEntries: int64;
+
+function readInput(): void {
+  alias bufferSize = 32768;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  while i != end {
+    if numEntries == maxEntries { std.die("too many entries"); }
+    var entry = &entries[numEntries];
+    numEntries = numEntries + 1;
+    if i[1] == 'n' {
+      entry->value = true;
+      if strings.strncmp(i, "on x=", 5) != 0 { std.die("syntax"); }
+      i = i + 5;
+    } else {
+      entry->value = false;
+      if strings.strncmp(i, "off x=", 6) != 0 { std.die("syntax"); }
+      i = i + 6;
+    }
+    var box = &entry->box;
+    i = std.readInt32(i, &(*box)[0].min);
+    if strings.strncmp(i, "..", 2) != 0 { std.die("expected '..'"); }
+    var temp: int32;
+    i = std.readInt32(i + 2, &temp);
+    (*box)[0].max = (temp + 1) as int32;
+    if strings.strncmp(i, ",y=", 3) != 0 { std.die("syntax"); }
+    i = std.readInt32(i + 3, &(*box)[1].min);
+    if strings.strncmp(i, "..", 2) != 0 { std.die("expected '..'"); }
+    i = std.readInt32(i + 2, &temp);
+    (*box)[1].max = (temp + 1) as int32;
+    if strings.strncmp(i, ",z=", 3) != 0 { std.die("syntax"); }
+    i = std.readInt32(i + 3, &(*box)[2].min);
+    if strings.strncmp(i, "..", 2) != 0 { std.die("expected '..'"); }
+    i = std.readInt32(i + 2, &temp);
+    (*box)[2].max = (temp + 1) as int32;
+    if i[0] != '\n' { std.die("expected newline"); }
+    i = i + 1;
+  }
+}
+
+var cells: [101][101][101]bool;
+function part1(): int64 {
+  for var i = 0; i < numEntries; i = i + 1 {
+    var entry = &entries[i];
+    var minX = entry->box[0].min + 50;
+    var maxX = entry->box[0].max + 50;
+    var minY = entry->box[1].min + 50;
+    var maxY = entry->box[1].max + 50;
+    var minZ = entry->box[2].min + 50;
+    var maxZ = entry->box[2].max + 50;
+    if minX < 0 || 100 <= maxX ||
+       minY < 0 || 100 <= minY ||
+       minZ < 0 || 100 <= minZ {
+      continue;
+    }
+    for var z = minZ; z < maxZ; z = z + 1 {
+      for var y = minY; y < maxY; y = y + 1 {
+        for var x = minX; x < maxX; x = x + 1 {
+          cells[z][y][x] = entry->value;
+        }
+      }
+    }
+  }
+  var total = 0;
+  for var z = 0; z < 101; z = z + 1 {
+    for var y = 0; y < 101; y = y + 1 {
+      for var x = 0; x < 101; x = x + 1 {
+        total = total + cells[z][y][x];
+      }
+    }
+  }
+  return total;
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+}
