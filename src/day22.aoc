@@ -58,41 +58,117 @@ function readInput(): void {
   }
 }
 
-var cells: [101][101][101]bool;
+alias maxZones = 8192;
+var zones: [maxZones]Box;
+var numZones: int64;
+
+var numRemoved: int64;
+var numReadded: int64;
+var numAdded: int64;
+
+function addDifference(a: Box, b: *Box): void {
+  for var axis = 0; axis < 3; axis = axis + 1 {
+    var aRange = a[axis];
+    var bRange = (*b)[axis];
+    if aRange.max <= bRange.min || bRange.max <= aRange.min {
+      std.die("bug: no overlap");
+    }
+    // Add any entry from the low side.
+    if aRange.min < bRange.min {
+      numReadded = numReadded + 1;
+      var zone = &zones[numZones];
+      if numZones == maxZones { std.die("too many zones"); }
+      numZones = numZones + 1;
+      *zone = a;
+      (*zone)[axis].max = bRange.min;
+      a[axis].min = bRange.min;
+    }
+    // Add any entry from the high side.
+    if bRange.max < aRange.max {
+      numReadded = numReadded + 1;
+      var zone = &zones[numZones];
+      if numZones == maxZones { std.die("too many zones"); }
+      numZones = numZones + 1;
+      *zone = a;
+      (*zone)[axis].min = bRange.max;
+      a[axis].max = bRange.max;
+    }
+  }
+}
+
+function subtract(a: *Box): void {
+  for var i = numZones - 1; i >= 0; i = i - 1 {
+    var b = &zones[i];
+    if (*a)[0].max <= (*b)[0].min || (*b)[0].max <= (*a)[0].min ||
+       (*a)[1].max <= (*b)[1].min || (*b)[1].max <= (*a)[1].min ||
+       (*a)[2].max <= (*b)[2].min || (*b)[2].max <= (*a)[2].min {
+      // The zone does not overlap with a.
+      continue;
+    }
+    numRemoved = numRemoved + 1;
+    // Remove the zone, split it up into parts that are not overlapping with a,
+    // and re-add those.
+    numZones = numZones - 1;
+    var removed = *b;
+    *b = zones[numZones];
+    addDifference(removed, a);
+  }
+}
+
+function add(a: *Box): void {
+  numAdded = numAdded + 1;
+  subtract(a);
+  zones[numZones] = *a;
+  if numZones == maxZones { std.die("too many zones"); }
+  numZones = numZones + 1;
+}
+
+function inInitializationRegion(box: *Box): bool {
+  return -50 <= (*box)[0].min && (*box)[0].max <= 51 &&
+         -50 <= (*box)[1].min && (*box)[1].max <= 51 &&
+         -50 <= (*box)[2].min && (*box)[2].max <= 51;
+}
+
+function countActive(): int64 {
+  var total = 0;
+  for var i = 0; i < numZones; i = i + 1 {
+    var zone = &zones[i];
+    var x = (*zone)[0].max - (*zone)[0].min;
+    var y = (*zone)[1].max - (*zone)[1].min;
+    var z = (*zone)[2].max - (*zone)[2].min;
+    total = total + x * y * z;
+  }
+  return total;
+}
+
 function part1(): int64 {
   for var i = 0; i < numEntries; i = i + 1 {
     var entry = &entries[i];
-    var minX = entry->box[0].min + 50;
-    var maxX = entry->box[0].max + 50;
-    var minY = entry->box[1].min + 50;
-    var maxY = entry->box[1].max + 50;
-    var minZ = entry->box[2].min + 50;
-    var maxZ = entry->box[2].max + 50;
-    if minX < 0 || 100 <= maxX ||
-       minY < 0 || 100 <= minY ||
-       minZ < 0 || 100 <= minZ {
-      continue;
-    }
-    for var z = minZ; z < maxZ; z = z + 1 {
-      for var y = minY; y < maxY; y = y + 1 {
-        for var x = minX; x < maxX; x = x + 1 {
-          cells[z][y][x] = entry->value;
-        }
-      }
+    if !inInitializationRegion(&entry->box) { continue; }
+    if entry->value {
+      add(&entry->box);
+    } else {
+      subtract(&entry->box);
     }
   }
-  var total = 0;
-  for var z = 0; z < 101; z = z + 1 {
-    for var y = 0; y < 101; y = y + 1 {
-      for var x = 0; x < 101; x = x + 1 {
-        total = total + cells[z][y][x];
-      }
+  return countActive();
+}
+
+function part2(): int64 {
+  numZones = 0;
+  for var i = 0; i < numEntries; i = i + 1 {
+    var entry = &entries[i];
+    if entry->value {
+      add(&entry->box);
+    } else {
+      subtract(&entry->box);
     }
   }
-  return total;
+  return countActive();
 }
 
 function main(): int64 {
   readInput();
   std.printInt(part1());
+  std.printInt(part2());
 }
