@@ -159,9 +159,10 @@ function findOverlap(a: *Scanner, b: *Scanner, overlap: *Overlap): bool {
   for var orientation = 0; orientation < 24; orientation = orientation + 1 {
     // Consider every possible translational offset for scanner b.
     initTable();
-    for var i = 0; i < a->numBeacons; i = i + 1 {
-      for var j = 0; j < b->numBeacons; j = j + 1 {
-        var offset = sub(a->beacons[i], rotate(b->beacons[j], orientation));
+    for var i = 0; i < b->numBeacons; i = i + 1 {
+      var rotated = rotate(b->beacons[i], orientation);
+      for var j = 0; j < a->numBeacons; j = j + 1 {
+        var offset = sub(a->beacons[j], rotated);
         var cell = get(offset);
         cell->value = cell->value + 1;
         if cell->value >= 12 {
