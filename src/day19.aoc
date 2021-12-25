@@ -122,30 +122,49 @@ struct Overlap {
   offset: Vector;
 }
 
+struct HashTableNode {
+  key: Vector;
+  value: int64;
+  next: *any;  // *HashTableNode
+}
+
+alias maxNodes = 1024;
+var nodes: [maxNodes]HashTableNode;
+var numNodes: int64;
+alias bucketCount = 1024;
+var table: [bucketCount]*HashTableNode;
+
+function initTable(): void {
+  for var i = 0; i < bucketCount; i = i + 1 { table[i] = null; }
+  numNodes = 0;
+}
+
+function get(v: Vector): *HashTableNode {
+  var hashKey = (v.x * 1009 + v.y * 2003 + v.z * 3001) % bucketCount;
+  for var i = table[hashKey]; i != null; i = i->next as *HashTableNode {
+    if equal(v, i->key) { return i; }
+  }
+  if numNodes == maxNodes { std.die("too many nodes"); }
+  var node = &nodes[numNodes];
+  numNodes = numNodes + 1;
+  node->key = v;
+  node->value = 0;
+  node->next = table[hashKey];
+  table[hashKey] = node;
+  return node;
+}
+
 function findOverlap(a: *Scanner, b: *Scanner, overlap: *Overlap): bool {
   // Consider every possible orientation for scanner b relative to scanner a.
   for var orientation = 0; orientation < 24; orientation = orientation + 1 {
     // Consider every possible translational offset for scanner b.
-    for var i = 11; i < a->numBeacons; i = i + 1 {
-      for var j = 11; j < b->numBeacons; j = j + 1 {
-        // Assume that a->beacons[i] and b->beacons[j] are the same beacon. In
-        // that case, we can compute the offset of scanner b from scanner a.
+    initTable();
+    for var i = 0; i < a->numBeacons; i = i + 1 {
+      for var j = 0; j < b->numBeacons; j = j + 1 {
         var offset = sub(a->beacons[i], rotate(b->beacons[j], orientation));
-        // Count how many beacons for scanner b are among those detected by
-        // scanner a with this offset.
-        var count = 0;
-        for var k = 0; k < b->numBeacons; k = k + 1 {
-          // Compute the position of beacon k in the reference frame of scanner
-          // a and then search for that position in scanner a's list.
-          var p = add(rotate(b->beacons[k], orientation), offset);
-          for var l = 0; l < a->numBeacons; l = l + 1 {
-            if equal(p, a->beacons[l]) {
-              count = count + 1;
-              break;
-            }
-          }
-        }
-        if count >= 12 {
+        var cell = get(offset);
+        cell->value = cell->value + 1;
+        if cell->value >= 12 {
           overlap->orientation = orientation;
           overlap->offset = offset;
           return true;
