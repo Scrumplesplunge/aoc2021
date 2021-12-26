@@ -177,30 +177,25 @@ function findOverlap(a: *Scanner, b: *Scanner, overlap: *Overlap): bool {
 }
 
 function part1(): int64 {
-  for var i = 1; i < numScanners; i = i + 1 {
+  for var i = 0; i < numScanners; i = i + 1 {
+    var k = i;
     // Find a scanner which overlaps with some previously handled scanner.
-    var found = false;
-    var index = -1;
-    var overlap: Overlap;
-    for var j = 0; j < i; j = j + 1 {
-      for var k = i; k < numScanners; k = k + 1 {
-        if findOverlap(&scanners[j], &scanners[k], &overlap) {
-          found = true;
-          index = k;
-          break;
+    for var j = i + 1; j < numScanners; j = j + 1 {
+      var overlap: Overlap;
+      if findOverlap(&scanners[i], &scanners[j], &overlap) {
+        // Swap this scanner into the first position that does not already hold
+        // another explored and connected scanner.
+        var s = scanners[j];
+        s.offset = overlap.offset;
+        scanners[j] = scanners[k];
+        scanners[k] = s;
+        k = k + 1;
+        // Rewrite all beacon positions in the reference coordinate frame.
+        for var b = 0; b < s.numBeacons; b = b + 1 {
+          s.beacons[b] = add(rotate(s.beacons[b], overlap.orientation),
+                             overlap.offset);
         }
       }
-      if found { break; }
-    }
-    if !found { std.die("no match"); }
-    // Rewrite all beacon positions in the reference coordinate frame.
-    var s = scanners[index];
-    s.offset = overlap.offset;
-    scanners[index] = scanners[i];
-    scanners[i] = s;
-    for var j = 0; j < s.numBeacons; j = j + 1 {
-      s.beacons[j] = add(rotate(s.beacons[j], overlap.orientation),
-                         overlap.offset);
     }
   }
   var list = beacons;
