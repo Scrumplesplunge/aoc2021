@@ -79,11 +79,11 @@ function updateNode(
   return n;
 }
 
-alias maxHeapSize = 1048576;
+alias maxHeapSize = 65536;
 var heap: [maxNodes]*Node;
 var heapSize: int64;
 
-alias setBuckets = 1048576;
+alias setBuckets = 262144;
 var set: [setBuckets]*Node;
 
 // The number of amphipods that we are currently trying to solve for.
