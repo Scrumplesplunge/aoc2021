@@ -11,7 +11,7 @@ struct Vector {
   y: byte;
 }
 
-var input: [8]Vector;
+var input: [16]Vector;
 
 function validate(template: []byte, value: []byte): bool {
   for var i = 0; template[i] != '\0'; i = i + 1 {
@@ -54,10 +54,11 @@ function readInput(): void {
 }
 
 function cell(c: byte): byte { return c == 0 ? '.' : c; }
-function debug(state: []Vector): void {
+function debug(state: []Vector, n: int64): void {
   var output =
-    *"#############\n#...........#\n###.#.#.#.###\n  #.#.#.#.#\n  #########\n";
-  for var i = 0; i < 8; i = i + 1 {
+    *"#############\n#...........#\n###.#.#.#.###\n  #.#.#.#.#  \n  #.#.#.#.#  \n  #.#.#.#.#  \n  #########\n";
+  var numAmphipods = 4 * n;
+  for var i = 0; i < numAmphipods; i = i + 1 {
     var p = state[i];
     output[14 * p.y + p.x] = ('A' + i % 4) as byte;
   }
@@ -65,7 +66,7 @@ function debug(state: []Vector): void {
 }
 
 struct Node {
-  cells: [8]Vector;
+  cells: [16]Vector;
   cost: int64;
 }
 
@@ -74,7 +75,7 @@ var nodes: [maxNodes]Node;
 var numNodes: int64;
 
 struct SetNode {
-  cells: [8]Vector;
+  cells: [16]Vector;
   next: *any;  // *SetNode
 }
 
@@ -84,10 +85,20 @@ var numSetNodes: int64;
 alias setBuckets = 1048576;
 var set: [setBuckets]*SetNode;
 
+// The number of amphipods that we are currently trying to solve for.
+var numAmphipods: int64;
+
+function reset(n: int64): void {
+  numSetNodes = 0;
+  numNodes = 0;
+  for var i = 0; i < setBuckets; i = i + 1 { set[i] = null; }
+  numAmphipods = n;
+}
+
 function hash(node: *Node): int64 {
   var c: []Vector = &node->cells;
   var id = 123456789;
-  for var i = 0; i < 8; i = i + 1 {
+  for var i = 0; i < numAmphipods; i = i + 1 {
     id = (id * 131) ^ (c[i].x << 4 | c[i].y);
   }
   return id % setBuckets;
@@ -114,17 +125,17 @@ function add(node: *Node): bool {
   return true;
 }
 
-function push(node: Node): void {
+function push(node: *Node): void {
   if numNodes == maxNodes { std.die("too many nodes"); }
   var i = numNodes;
   numNodes = numNodes + 1;
   while i > 0 {
     var p = (i - 1) / 2;
-    if nodes[p].cost <= node.cost { break; }
+    if nodes[p].cost <= node->cost { break; }
     nodes[i] = nodes[p];
     i = p;
   }
-  nodes[i] = node;
+  nodes[i] = *node;
   // if !checkHeap(0, 0) { std.die("broken after push"); }
   // std.puts("== push ==");
   // std.printInt(node.cost);
@@ -162,7 +173,7 @@ function checkHeap(p: int64, i: int64): bool {
 }
 
 function isOrganized(state: []Vector): bool {
-  for var i = 0; i < 8; i = i + 1 {
+  for var i = 0; i < numAmphipods; i = i + 1 {
     if state[i].x != targetX(i) { return false; }
   }
   return true;
@@ -170,14 +181,14 @@ function isOrganized(state: []Vector): bool {
 
 function targetX(i: int64): int64 { return 3 + 2 * (i % 4); }
 
-function toMap(node: *Node): [5][14]byte {
-  var map: [5][14]byte;
-  for var y = 0; y < 5; y = y + 1 {
+function toMap(node: *Node): [7][14]byte {
+  var map: [7][14]byte;
+  for var y = 0; y < 7; y = y + 1 {
     for var x = 0; x < 14; x = x + 1 {
       map[y][x] = 0 as byte;
     }
   }
-  for var i = 0; i < 8; i = i + 1 {
+  for var i = 0; i < numAmphipods; i = i + 1 {
     var p = node->cells[i];
     map[p.y][p.x] = (1 + i % 4) as byte;
   }
@@ -188,6 +199,24 @@ function isCorridorBlocked(map: [][14]byte, start: int64, end: int64): bool {
   var step = start < end ? -1 : 1;
   for var x = end; x != start; x = x + step {
     if map[1][x] != 0 { return true; }
+  }
+  return false;
+}
+
+function isStuckInRoom(map: [][14]byte, v: Vector): bool {
+  for var y = v.y - 1; y > 1; y = y - 1 {
+    if map[y][v.x] != 0 { return true; }
+  }
+  return false;
+}
+
+function roomIncorrectlyPopulated(map: [][14]byte, i: int64): bool {
+  var type = 1 + i % 4;
+  var x = targetX(i);
+  var yMax = 1 + numAmphipods / 4;
+  for var y = 2; y <= yMax; y = y + 1 {
+    var v = map[y][x];
+    if v != 0 && v != type { return true; }
   }
   return false;
 }
@@ -216,7 +245,8 @@ function unitCosts(): [8]int16 {
   return costs;
 }
 
-function part1(): int64 {
+function solve(input: [16]Vector): int64 {
+  var n = numAmphipods / 4;
   var validStop = validHallwayPositions();
   var unitCost = unitCosts();
   nodes[0].cells = input;
@@ -232,7 +262,7 @@ function part1(): int64 {
     if isOrganized(&node.cells) { return node.cost; }
     var map = toMap(&node);
     // Consider all ways that each Amphipod could move.
-    for var i = 0; i < 8; i = i + 1 {
+    for var i = 0; i < numAmphipods; i = i + 1 {
       var type = 1 + i % 4;
       var p = node.cells[i];
       // std.printInt(i);
@@ -240,46 +270,33 @@ function part1(): int64 {
         // The Amphipod is in the hall, so the only valid moves would be to move
         // into the target room. Skip if the room entrance is occupied.
         var tx = targetX(i);
-        if map[2][tx] != 0 {
-          // std.puts("skip move: room blocked");
+        if isCorridorBlocked(&map, p.x, tx) ||
+           roomIncorrectlyPopulated(&map, i) {
+          // std.puts("skip move: corridor blocked");
           continue;
         }
-        if isCorridorBlocked(&map, p.x, tx) {
-          // std.puts("skip move: corridor blocked");
+        // Scan the room for the furthest slot that isn't occupied.
+        var ty = 1;
+        while ty <= n && map[ty + 1][tx] == 0 { ty = ty + 1; }
+        if ty == 1 {
+          // std.puts("skip move: room blocked");
           continue;
         }
         var newNode = node;
         newNode.cells[i].x = tx as byte;
-        if map[3][tx] == 0 {
-          // Go to the back of the room. There's no point trying to go to the
-          // front of the room, since that will just block the way.
-          newNode.cells[i].y = 3 as byte;
-        } else if map[3][tx] == type {
-          // The other occupant of the room is of the right type, so we can
-          // populate the available space.
-          newNode.cells[i].y = 2 as byte;
-        } else {
-          // The room is occupied by an Amphipod of the wrong type, so we must
-          // not enter.
-          // std.puts("skip move: room occupied by wrong type");
-          continue;
-        }
+        newNode.cells[i].y = ty as byte;
         var dy = newNode.cells[i].y - 1;
         var dx = tx < p.x ? p.x - tx : tx - p.x;
         newNode.cost = newNode.cost + unitCost[i] * (dy + dx);
-        push(newNode);
-      } else if p.y == 3 && map[2][p.x] != 0 {
-        // The Amphipod is in a room and cannot move because their way is
-        // obstructed by another Amphipod.
-        // std.puts("skip move: stuck in room");
-        continue;
-      } else if p.x == targetX(i) && (p.y == 3 || map[3][p.x] == type) {
-        // The Amphipod is already in the right room and not obstructing an
-        // Amphipod that is in the wrong room.
-        // std.puts("skip move: already in the right place");
-        continue;
+        push(&newNode);
       } else {
-        // The Amphipod is in a room and is able to move.
+        // The Amphipod is in a room. Without loss of generality, we can
+        // consider only moves that go into the hall: moves between rooms can be
+        // considered as moves to the hall followed by moves from the hall. The
+        // Amphipod should only move if they are in the wrong room, or if they
+        // are obstructing the path of an Amphipod that is in the wrong room.
+        if p.x == targetX(i) && !roomIncorrectlyPopulated(&map, i) { continue; }
+        if isStuckInRoom(&map, p) { continue; }
         var newNode = node;
         newNode.cells[i].y = 1 as byte;
         for var x = p.x - 1; x >= 1; x = x - 1 {
@@ -287,7 +304,7 @@ function part1(): int64 {
           if validStop[x] {
             newNode.cells[i].x = x as byte;
             newNode.cost = node.cost + unitCost[i] * ((p.y - 1) + (p.x - x));
-            push(newNode);
+            push(&newNode);
           }
         }
         for var x = p.x + 1; x <= 11; x = x + 1 {
@@ -295,7 +312,7 @@ function part1(): int64 {
           if validStop[x] {
             newNode.cells[i].x = x as byte;
             newNode.cost = node.cost + unitCost[i] * ((p.y - 1) + (x - p.x));
-            push(newNode);
+            push(&newNode);
           }
         }
       }
@@ -303,7 +320,39 @@ function part1(): int64 {
   }
 }
 
+function part1(): int64 {
+  reset(8);
+  return solve(input);
+}
+
+function part2(): int64 {
+  var copy = input;
+  for var i = 0; i < 8; i = i + 1 {
+    var v = &copy[i];
+    if v->y == 3 { v->y = 5 as byte; }
+  }
+  // #############
+  // #...........#
+  // ###?#?#?#?###
+  //   #D#C#B#A#    <- 11, 10,  9,  8
+  //   #D#B#A#C#    <- 15, 13, 12, 14
+  //   #?#?#?#?#
+  //   #########
+  copy[8].x  = 9 as byte; copy[8].y  = 3 as byte;
+  copy[9].x  = 7 as byte; copy[9].y  = 3 as byte;
+  copy[10].x = 5 as byte; copy[10].y = 3 as byte;
+  copy[11].x = 3 as byte; copy[11].y = 3 as byte;
+  copy[12].x = 7 as byte; copy[12].y = 4 as byte;
+  copy[13].x = 5 as byte; copy[13].y = 4 as byte;
+  copy[14].x = 9 as byte; copy[14].y = 4 as byte;
+  copy[15].x = 3 as byte; copy[15].y = 4 as byte;
+  // debug(&copy, 4);
+  reset(16);
+  return solve(copy);
+}
+
 function main(): int64 {
   readInput();
   std.printInt(part1());
+  std.printInt(part2());
 }
