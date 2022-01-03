@@ -73,16 +73,8 @@ alias maxNodes = 1048576;
 var nodes: [maxNodes]Node;
 var numNodes: int64;
 
-function id(cells: []Vector): int64 {
-  var value = 0;
-  for var i = 0; i < 8; i = i + 1 {
-    value = value << 8 | cells[i].x << 4 | cells[i].y;
-  }
-  return value;
-}
-
 struct SetNode {
-  id: int64;
+  cells: [8]Vector;
   next: *any;  // *SetNode
 }
 
@@ -92,20 +84,31 @@ var numSetNodes: int64;
 alias setBuckets = 1048576;
 var set: [setBuckets]*SetNode;
 
-function hash(id: int64): int64 {
-  return id * 1000000007 % setBuckets;
+function hash(node: *Node): int64 {
+  var c: []Vector = &node->cells;
+  var id = 123456789;
+  for var i = 0; i < 8; i = i + 1 {
+    id = (id * 131) ^ (c[i].x << 4 | c[i].y);
+  }
+  return id % setBuckets;
+}
+
+function equal(a: []Vector, b: []Vector): bool {
+  for var i = 0; i < 8; i = i + 1 {
+    if a[i].x != b[i].x || a[i].y != b[i].y { return false; }
+  }
+  return true;
 }
 
 function add(node: *Node): bool {
-  var x = id(&node->cells);
-  var key = hash(x);
+  var key = hash(node);
   for var i = set[key]; i != null; i = i->next as *SetNode {
-    if i->id == x { return false; }
+    if equal(&node->cells, &i->cells) { return false; }
   }
   if numSetNodes == maxSetNodes { std.die("too many set nodes"); }
   var s = &setNodes[numSetNodes];
   numSetNodes = numSetNodes + 1;
-  s->id = x;
+  s->cells = node->cells;
   s->next = set[key];
   set[key] = s;
   return true;
