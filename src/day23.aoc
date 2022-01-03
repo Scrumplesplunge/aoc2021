@@ -55,28 +55,38 @@ function readInput(): void {
 struct Node {
   cells: [16]Vector;
   cost: int64;
+  next: *any;  // *Node
 }
 
 alias maxNodes = 1048576;
 var nodes: [maxNodes]Node;
 var numNodes: int64;
 
-struct SetNode {
-  cells: [16]Vector;
-  next: *any;  // *SetNode
+function newNode(): *Node {
+  if numNodes == maxNodes { std.die("too many nodes"); }
+  var node = &nodes[numNodes];
+  numNodes = numNodes + 1;
+  return node;
 }
 
-alias maxSetNodes = 1048576;
-var setNodes: [maxSetNodes]SetNode;
-var numSetNodes: int64;
+function clone(node: *Node): *Node {
+  var result = newNode();
+  *result = *node;
+  return result;
+}
+
+alias maxHeapSize = 1048576;
+var heap: [maxNodes]*Node;
+var heapSize: int64;
+
 alias setBuckets = 1048576;
-var set: [setBuckets]*SetNode;
+var set: [setBuckets]*Node;
 
 // The number of amphipods that we are currently trying to solve for.
 var numAmphipods: int64;
 
 function reset(n: int64): void {
-  numSetNodes = 0;
+  heapSize = 0;
   numNodes = 0;
   for var i = 0; i < setBuckets; i = i + 1 { set[i] = null; }
   numAmphipods = n;
@@ -100,46 +110,42 @@ function equal(a: []Vector, b: []Vector): bool {
 
 function add(node: *Node): bool {
   var key = hash(node);
-  for var i = set[key]; i != null; i = i->next as *SetNode {
+  for var i = set[key]; i != null; i = i->next as *Node {
     if equal(&node->cells, &i->cells) { return false; }
   }
-  if numSetNodes == maxSetNodes { std.die("too many set nodes"); }
-  var s = &setNodes[numSetNodes];
-  numSetNodes = numSetNodes + 1;
-  s->cells = node->cells;
-  s->next = set[key];
-  set[key] = s;
+  node->next = set[key];
+  set[key] = node;
   return true;
 }
 
 function push(node: *Node): void {
-  if numNodes == maxNodes { std.die("too many nodes"); }
-  var i = numNodes;
-  numNodes = numNodes + 1;
+  if heapSize == maxHeapSize { std.die("heap too large"); }
+  var i = heapSize;
+  heapSize = heapSize + 1;
   while i > 0 {
     var p = (i - 1) / 2;
-    if nodes[p].cost <= node->cost { break; }
-    nodes[i] = nodes[p];
+    if heap[p]->cost <= node->cost { break; }
+    heap[i] = heap[p];
     i = p;
   }
-  nodes[i] = *node;
+  heap[i] = node;
 }
 
-function pop(): Node {
-  if numNodes == 0 { std.die("empty"); }
-  numNodes = numNodes - 1;
-  var node = nodes[0];
-  var last = nodes[numNodes];
+function pop(): *Node {
+  if heapSize == 0 { std.die("empty"); }
+  heapSize = heapSize - 1;
+  var node = heap[0];
+  var last = heap[heapSize];
   var i = 0;
   while true {
     var l = 2 * i + 1;
-    if l >= numNodes { break; }
-    var c = l + 1 < numNodes && nodes[l + 1].cost < nodes[l].cost ? l + 1 : l;
-    if nodes[c].cost >= last.cost { break; }
-    nodes[i] = nodes[c];
+    if l >= heapSize { break; }
+    var c = l + 1 < heapSize && heap[l + 1]->cost < heap[l]->cost ? l + 1 : l;
+    if heap[c]->cost >= last->cost { break; }
+    heap[i] = heap[c];
     i = c;
   }
-  nodes[i] = last;
+  heap[i] = last;
   return node;
 }
 
@@ -220,19 +226,20 @@ function solve(input: [16]Vector): int64 {
   var n = numAmphipods / 4;
   var validStop = validHallwayPositions();
   var unitCost = unitCosts();
-  nodes[0].cells = input;
-  nodes[0].cost = 0;
-  numNodes = 1;
+  var root = newNode();
+  root->cells = input;
+  root->cost = 0;
+  push(root);
   while true {
-    if numNodes == 0 { std.die("impossible"); }
+    if heapSize == 0 { std.die("impossible"); }
     var node = pop();
-    if !add(&node) { continue; }
-    if isOrganized(&node.cells) { return node.cost; }
-    var map = toMap(&node);
+    if !add(node) { continue; }
+    if isOrganized(&node->cells) { return node->cost; }
+    var map = toMap(node);
     // Consider all ways that each Amphipod could move.
     for var i = 0; i < numAmphipods; i = i + 1 {
       var type = 1 + i % 4;
-      var p = node.cells[i];
+      var p = node->cells[i];
       if p.y == 1 {
         // The Amphipod is in the hall, so the only valid moves would be to move
         // into the target room. Skip if the room entrance is occupied.
@@ -245,13 +252,13 @@ function solve(input: [16]Vector): int64 {
         var ty = 1;
         while ty <= n && map[ty + 1][tx] == 0 { ty = ty + 1; }
         if ty == 1 { continue; }
-        var newNode = node;
-        newNode.cells[i].x = tx as byte;
-        newNode.cells[i].y = ty as byte;
-        var dy = newNode.cells[i].y - 1;
+        var newNode = clone(node);
+        newNode->cells[i].x = tx as byte;
+        newNode->cells[i].y = ty as byte;
+        var dy = newNode->cells[i].y - 1;
         var dx = tx < p.x ? p.x - tx : tx - p.x;
-        newNode.cost = newNode.cost + unitCost[i] * (dy + dx);
-        push(&newNode);
+        newNode->cost = newNode->cost + unitCost[i] * (dy + dx);
+        push(newNode);
       } else {
         // The Amphipod is in a room. Without loss of generality, we can
         // consider only moves that go into the hall: moves between rooms can be
@@ -260,22 +267,24 @@ function solve(input: [16]Vector): int64 {
         // are obstructing the path of an Amphipod that is in the wrong room.
         if p.x == targetX(i) && !roomIncorrectlyPopulated(&map, i) { continue; }
         if isStuckInRoom(&map, p) { continue; }
-        var newNode = node;
-        newNode.cells[i].y = 1 as byte;
         for var x = p.x - 1; x >= 1; x = x - 1 {
           if map[1][x] != 0 { break; }  // Obstructed.
           if validStop[x] {
-            newNode.cells[i].x = x as byte;
-            newNode.cost = node.cost + unitCost[i] * ((p.y - 1) + (p.x - x));
-            push(&newNode);
+            var newNode = clone(node);
+            newNode->cells[i].y = 1 as byte;
+            newNode->cells[i].x = x as byte;
+            newNode->cost = node->cost + unitCost[i] * ((p.y - 1) + (p.x - x));
+            push(newNode);
           }
         }
         for var x = p.x + 1; x <= 11; x = x + 1 {
           if map[1][x] != 0 { break; }  // Obstructed.
           if validStop[x] {
-            newNode.cells[i].x = x as byte;
-            newNode.cost = node.cost + unitCost[i] * ((p.y - 1) + (x - p.x));
-            push(&newNode);
+            var newNode = clone(node);
+            newNode->cells[i].y = 1 as byte;
+            newNode->cells[i].x = x as byte;
+            newNode->cost = node->cost + unitCost[i] * ((p.y - 1) + (x - p.x));
+            push(newNode);
           }
         }
       }
