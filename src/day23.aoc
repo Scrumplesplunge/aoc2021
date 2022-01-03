@@ -50,19 +50,6 @@ function readInput(): void {
       *count = *count + 1;
     }
   }
-  // debug(&input);
-}
-
-function cell(c: byte): byte { return c == 0 ? '.' : c; }
-function debug(state: []Vector, n: int64): void {
-  var output =
-    *"#############\n#...........#\n###.#.#.#.###\n  #.#.#.#.#  \n  #.#.#.#.#  \n  #.#.#.#.#  \n  #########\n";
-  var numAmphipods = 4 * n;
-  for var i = 0; i < numAmphipods; i = i + 1 {
-    var p = state[i];
-    output[14 * p.y + p.x] = ('A' + i % 4) as byte;
-  }
-  std.write(std.stdout, &output, std.strlen(&output));
 }
 
 struct Node {
@@ -136,10 +123,6 @@ function push(node: *Node): void {
     i = p;
   }
   nodes[i] = *node;
-  // if !checkHeap(0, 0) { std.die("broken after push"); }
-  // std.puts("== push ==");
-  // std.printInt(node.cost);
-  // debug(&node.cells);
 }
 
 function pop(): Node {
@@ -157,19 +140,7 @@ function pop(): Node {
     i = c;
   }
   nodes[i] = last;
-  // std.printInt(node.cost);
-  // if !checkHeap(0, 0) { std.die("broken after pop"); }
-  // std.puts("== pop ==");
-  // std.printInt(node.cost);
-  // debug(&node.cells);
   return node;
-}
-
-function checkHeap(p: int64, i: int64): bool {
-  if i >= numNodes { return true; }
-  var v = nodes[i].cost;
-  if v < p { return false; }
-  return checkHeap(v, 2 * i + 1) && checkHeap(v, 2 * i + 2);
 }
 
 function isOrganized(state: []Vector): bool {
@@ -255,33 +226,25 @@ function solve(input: [16]Vector): int64 {
   while true {
     if numNodes == 0 { std.die("impossible"); }
     var node = pop();
-    if !add(&node) {
-      // std.puts("already explored");
-      continue;
-    }
+    if !add(&node) { continue; }
     if isOrganized(&node.cells) { return node.cost; }
     var map = toMap(&node);
     // Consider all ways that each Amphipod could move.
     for var i = 0; i < numAmphipods; i = i + 1 {
       var type = 1 + i % 4;
       var p = node.cells[i];
-      // std.printInt(i);
       if p.y == 1 {
         // The Amphipod is in the hall, so the only valid moves would be to move
         // into the target room. Skip if the room entrance is occupied.
         var tx = targetX(i);
         if isCorridorBlocked(&map, p.x, tx) ||
            roomIncorrectlyPopulated(&map, i) {
-          // std.puts("skip move: corridor blocked");
           continue;
         }
         // Scan the room for the furthest slot that isn't occupied.
         var ty = 1;
         while ty <= n && map[ty + 1][tx] == 0 { ty = ty + 1; }
-        if ty == 1 {
-          // std.puts("skip move: room blocked");
-          continue;
-        }
+        if ty == 1 { continue; }
         var newNode = node;
         newNode.cells[i].x = tx as byte;
         newNode.cells[i].y = ty as byte;
@@ -346,7 +309,6 @@ function part2(): int64 {
   copy[13].x = 5 as byte; copy[13].y = 4 as byte;
   copy[14].x = 9 as byte; copy[14].y = 4 as byte;
   copy[15].x = 3 as byte; copy[15].y = 4 as byte;
-  // debug(&copy, 4);
   reset(16);
   return solve(copy);
 }
