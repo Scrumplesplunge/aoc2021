@@ -69,10 +69,14 @@ function newNode(): *Node {
   return node;
 }
 
-function clone(node: *Node): *Node {
-  var result = newNode();
-  *result = *node;
-  return result;
+function updateNode(
+    node: *Node, i: int64, x: int64, y: int64, costDelta: int64): *Node {
+  var n = newNode();
+  *n = *node;
+  n->cells[i].x = x as byte;
+  n->cells[i].y = y as byte;
+  n->cost = n->cost + costDelta;
+  return n;
 }
 
 alias maxHeapSize = 1048576;
@@ -252,13 +256,9 @@ function solve(input: [16]Vector): int64 {
         var ty = 1;
         while ty <= n && map[ty + 1][tx] == 0 { ty = ty + 1; }
         if ty == 1 { continue; }
-        var newNode = clone(node);
-        newNode->cells[i].x = tx as byte;
-        newNode->cells[i].y = ty as byte;
-        var dy = newNode->cells[i].y - 1;
+        var dy = ty - 1;
         var dx = tx < p.x ? p.x - tx : tx - p.x;
-        newNode->cost = newNode->cost + unitCost[i] * (dy + dx);
-        push(newNode);
+        push(updateNode(node, i, tx, ty, unitCost[i] * (dx + dy)));
       } else {
         // The Amphipod is in a room. Without loss of generality, we can
         // consider only moves that go into the hall: moves between rooms can be
@@ -270,21 +270,13 @@ function solve(input: [16]Vector): int64 {
         for var x = p.x - 1; x >= 1; x = x - 1 {
           if map[1][x] != 0 { break; }  // Obstructed.
           if validStop[x] {
-            var newNode = clone(node);
-            newNode->cells[i].y = 1 as byte;
-            newNode->cells[i].x = x as byte;
-            newNode->cost = node->cost + unitCost[i] * ((p.y - 1) + (p.x - x));
-            push(newNode);
+            push(updateNode(node, i, x, 1, unitCost[i] * (p.y - 1 + p.x - x)));
           }
         }
         for var x = p.x + 1; x <= 11; x = x + 1 {
           if map[1][x] != 0 { break; }  // Obstructed.
           if validStop[x] {
-            var newNode = clone(node);
-            newNode->cells[i].y = 1 as byte;
-            newNode->cells[i].x = x as byte;
-            newNode->cost = node->cost + unitCost[i] * ((p.y - 1) + (x - p.x));
-            push(newNode);
+            push(updateNode(node, i, x, 1, unitCost[i] * (p.y - 1 + x - p.x)));
           }
         }
       }
