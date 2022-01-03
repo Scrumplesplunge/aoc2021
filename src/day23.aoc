@@ -44,7 +44,7 @@ function readInput(): void {
       var type = buffer[14 * y + x] - 'A';
       var count = &counts[type];
       if *count == 2 { std.die("too many of one type"); }
-      var position = &input[2 * type + *count];
+      var position = &input[4 * *count + type];
       position->x = x as byte;
       position->y = y as byte;
       *count = *count + 1;
@@ -59,7 +59,7 @@ function debug(state: []Vector): void {
     *"#############\n#...........#\n###.#.#.#.###\n  #.#.#.#.#\n  #########\n";
   for var i = 0; i < 8; i = i + 1 {
     var p = state[i];
-    output[14 * p.y + p.x] = ('A' + i / 2) as byte;
+    output[14 * p.y + p.x] = ('A' + i % 4) as byte;
   }
   std.write(std.stdout, &output, std.strlen(&output));
 }
@@ -168,7 +168,7 @@ function isOrganized(state: []Vector): bool {
   return true;
 }
 
-function targetX(i: int64): int64 { return 3 + 2 * (i / 2); }
+function targetX(i: int64): int64 { return 3 + 2 * (i % 4); }
 
 function toMap(node: *Node): [5][14]byte {
   var map: [5][14]byte;
@@ -179,7 +179,7 @@ function toMap(node: *Node): [5][14]byte {
   }
   for var i = 0; i < 8; i = i + 1 {
     var p = node->cells[i];
-    map[p.y][p.x] = (1 + i / 2) as byte;
+    map[p.y][p.x] = (1 + i % 4) as byte;
   }
   return map;
 }
@@ -204,13 +204,21 @@ function validHallwayPositions(): [14]bool {
   return map;
 }
 
+function unitCosts(): [8]int16 {
+  var costs: [8]int16;
+  var value = 1;
+  for var i = 0; i < 4; i = i + 1 {
+    for var j = 0; j < 2; j = j + 1 {
+      costs[4 * j + i] = value as int16;
+    }
+    value = 10 * value;
+  }
+  return costs;
+}
+
 function part1(): int64 {
   var validStop = validHallwayPositions();
-  var unitCost: [8]int16;
-  unitCost[0] = 1 as int16;
-  for var i = 1; i < 8; i = i + 1 {
-    unitCost[i] = (unitCost[i - 1] * (i % 2 == 1 ? 1 : 10)) as int16;
-  }
+  var unitCost = unitCosts();
   nodes[0].cells = input;
   nodes[0].cost = 0;
   numNodes = 1;
@@ -225,7 +233,7 @@ function part1(): int64 {
     var map = toMap(&node);
     // Consider all ways that each Amphipod could move.
     for var i = 0; i < 8; i = i + 1 {
-      var type = 1 + i / 2;
+      var type = 1 + i % 4;
       var p = node.cells[i];
       // std.printInt(i);
       if p.y == 1 {
