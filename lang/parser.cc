@@ -169,7 +169,13 @@ StringLiteral Parser::ParseStringLiteral() {
   while (true) {
     if (reader_.empty()) throw Error("unterminated string literal");
     if (reader_.ConsumePrefix("\"")) {
-      return StringLiteral(location, value);
+      // If this string literal is immediately followed by another string
+      // literal, they are implicitly concatenated and the loop continues.
+      // Otherwise, the string is complete and is returned.
+      SkipWhitespaceAndComments();
+      if (!reader_.ConsumePrefix("\"")) {
+        return StringLiteral(location, value);
+      }
     }
     if (reader_.front() == '\\') {
       const std::string_view input = reader_.remaining();
