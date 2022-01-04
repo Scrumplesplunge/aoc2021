@@ -1,0 +1,138 @@
+import "std/std.aoc" as std;
+import "std/strings.aoc" as strings;
+
+var blocks: [14][3]int64;
+
+function readInput(): void {
+  alias bufferSize = 65536;
+  var buffer: [bufferSize]byte;
+  var length = std.read(std.stdin, &buffer, bufferSize);
+  if length == 0 { std.die("empty"); }
+  if buffer[length - 1] != '\n' { std.die("newline"); }
+  var i: []byte = &buffer;
+  var end = i + length;
+  var numBlocks = 0;
+  while i != end {
+    if numBlocks == 14 { std.die("too many blocks"); }
+    var block = &blocks[numBlocks];
+    numBlocks = numBlocks + 1;
+    i = parseBlock(i, block);
+  }
+  if numBlocks != 14 { std.die("not enough blocks"); }
+}
+
+function parseBlock(i: []byte, o: []int64): []byte {
+  var expected: []byte =
+      "inp w\n"      // w' = in_i
+      "mul x 0\n"
+      "add x z\n"
+      "mod x 26\n"
+      "div z ?\n"
+      "add x ?\n"
+      "eql x w\n"
+      "eql x 0\n"    // x' = (z % 26 + k_i_2 != in_i)
+      "mul y 0\n"
+      "add y 25\n"
+      "mul y x\n"
+      "add y 1\n"
+      "mul z y\n"
+      "mul y 0\n"
+      "add y w\n"
+      "add y ?\n"
+      "mul y x\n"    // y' = (in_i + k_i_3) * x'
+      "add z y\n";   // z' = z / k_i_1 * (25 * x' + 1) + y'
+  while expected[0] != '\0' {
+    if expected[0] == '?' {
+      i = std.readInt(i, &o[0]);
+      o = o + 1;
+    } else if i[0] == expected[0] {
+      i = i + 1;
+    } else {
+      std.die("syntax");
+    }
+    expected = expected + 1;
+  }
+  return i;
+}
+
+struct Candidate {
+  minPrefix: int64;
+  maxPrefix: int64;
+  z: int64;
+  next: *any;  // *Candidate
+}
+
+alias maxCandidates = 8388608;
+alias hashBuckets = 8388608;
+struct CandidateMap {
+  nodes: [maxCandidates]Candidate;
+  table: [hashBuckets]*Candidate;
+  size: int64;
+}
+
+var candidates: [2]CandidateMap;
+
+function init(map: *CandidateMap): void {
+  map->size = 0;
+  var table: []*Candidate = &map->table;
+  for var i = 0; i < hashBuckets; i = i + 1 { table[i] = null; }
+}
+
+function get(map: *CandidateMap, z: int64): *Candidate {
+  var key = z % hashBuckets;
+  for var i = map->table[key]; i != null; i = i->next as *Candidate {
+    if i->z == z { return i; }
+  }
+  return null;
+}
+
+function add(
+    map: *CandidateMap, z: int64, minPrefix: int64, maxPrefix: int64): void {
+  var key = z % hashBuckets;
+  var node = get(map, z);
+  if node == null {
+    if map->size == maxCandidates { std.die("too many candidates"); }
+    node = &map->nodes[map->size];
+    map->size = map->size + 1;
+    node->next = map->table[key];
+    map->table[key] = node;
+    node->minPrefix = minPrefix;
+    node->maxPrefix = maxPrefix;
+    node->z = z;
+  } else {
+    if node->maxPrefix < maxPrefix { node->maxPrefix = maxPrefix; }
+    if node->minPrefix > minPrefix { node->minPrefix = minPrefix; }
+  }
+}
+
+function solve(): *Candidate {
+  add(&candidates[0], 0, 0, 0);
+  for var digit = 0; digit < 14; digit = digit + 1 {
+    var input = &candidates[digit % 2];
+    var output = &candidates[(digit + 1) % 2];
+    var k: []int64 = &blocks[digit];
+    init(output);
+    var begin: []Candidate = &input->nodes;
+    var end = begin + input->size;
+    for var i = begin; i != end; i = i + 1 {
+      var t = i[0].z % 26 + k[1];
+      // Consider all possible values for the digit.
+      for var in = 1; in <= 9; in = in + 1 {
+        var x2 = (t != in);
+        var y2 = (in + k[2]) * x2;
+        var z2 = i[0].z / k[0] * (25 * x2 + 1) + y2;
+        add(output, z2, 10 * i[0].minPrefix + in, 10 * i[0].maxPrefix + in);
+      }
+    }
+  }
+  var result = get(&candidates[14 % 2], 0);
+  if result == null { std.die("impossible"); }
+  return result;
+}
+
+function main(): int64 {
+  readInput();
+  var result = solve();
+  std.printInt(result->maxPrefix);
+  std.printInt(result->minPrefix);
+}
