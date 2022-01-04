@@ -62,8 +62,8 @@ struct Candidate {
   next: *any;  // *Candidate
 }
 
-alias maxCandidates = 8388608;
-alias hashBuckets = 8388608;
+alias maxCandidates = 131072;
+alias hashBuckets = 65536;
 struct CandidateMap {
   nodes: [maxCandidates]Candidate;
   table: [hashBuckets]*Candidate;
@@ -107,6 +107,15 @@ function add(
 
 function solve(): *Candidate {
   add(&candidates[0], 0, 0, 0);
+  // recovery[i] is the maximum value of z which we can have before processing
+  // block i and still achieve z=0 by the end. The only way z can decrease is
+  // through the division constants at each stage, so the threshold is derived
+  // from the product of some suffix of these constants.
+  var recovery: [15]int64;
+  recovery[14] = 1;
+  for var i = 13; i >= 0; i = i - 1 {
+    recovery[i] = blocks[i][0] * recovery[i + 1];
+  }
   for var digit = 0; digit < 14; digit = digit + 1 {
     var input = &candidates[digit % 2];
     var output = &candidates[(digit + 1) % 2];
@@ -121,7 +130,9 @@ function solve(): *Candidate {
         var x2 = (t != in);
         var y2 = (in + k[2]) * x2;
         var z2 = i[0].z / k[0] * (25 * x2 + 1) + y2;
-        add(output, z2, 10 * i[0].minPrefix + in, 10 * i[0].maxPrefix + in);
+        if z2 < recovery[digit] {
+          add(output, z2, 10 * i[0].minPrefix + in, 10 * i[0].maxPrefix + in);
+        }
       }
     }
   }
