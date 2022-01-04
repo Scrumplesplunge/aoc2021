@@ -1,0 +1,93 @@
+import "std/std.aoc" as std;
+
+alias maxGridSize = 32768;
+var grids: [2][maxGridSize]byte;
+var gridSize: int64;
+var gridWidth: int64;
+var gridHeight: int64;
+
+function readInput(): void {
+  gridSize = std.read(std.stdin, &grids[0], maxGridSize);
+  if gridSize == 0 { std.die("empty"); }
+  var i: []byte = &grids[0];
+  var end = i + gridSize;
+  if end[-1] != '\n' { std.die("newline"); }
+  while i[gridWidth] != '\n' { gridWidth = gridWidth + 1; }
+  while i != end {
+    gridHeight = gridHeight + 1;
+    for var j = 0; j < gridWidth; j = j + 1 {
+      if i[j] == '\n' { std.die("short line"); }
+    }
+    if i[gridWidth] != '\n' { std.die("long line"); }
+    i = i + gridWidth + 1;
+  }
+}
+
+function part1(): int64 {
+  var stride = gridWidth + 1;
+  var step = 0;
+  for var i = gridWidth; i < gridSize; i = i + gridWidth + 1 {
+    grids[1][i] = '\n';
+  }
+  while true {
+    var input: []byte = &grids[0];
+    var output: []byte = &grids[1];
+    step = step + 1;
+    var moved = false;
+    // Try stepping every east-facing cucumber.
+    for var y = 0; y < gridHeight; y = y + 1 {
+      var rowOffset = y * stride;
+      var inputRow = input + rowOffset;
+      var outputRow = output + rowOffset;
+      for var x = 1; x < gridWidth; x = x + 1 {
+        if inputRow[x] == '.' && inputRow[x - 1] == '>' {
+          moved = true;
+          outputRow[x - 1] = '.';
+          outputRow[x] = '>';
+        } else {
+          outputRow[x] = inputRow[x];
+        }
+      }
+      if inputRow[0] == '.' && inputRow[gridWidth - 1] == '>' {
+        moved = true;
+        outputRow[gridWidth - 1] = '.';
+        outputRow[0] = '>';
+      } else if inputRow[0] == '>' && inputRow[1] == '.' {
+        outputRow[0] = '.';
+      } else {
+        outputRow[0] = inputRow[0];
+      }
+    }
+    input = &grids[1];
+    output = &grids[0];
+    // Try stepping every south-facing cucumber.
+    for var x = 0; x < gridWidth; x = x + 1 {
+      for var y = 1; y < gridHeight; y = y + 1 {
+        var i = y * stride + x;
+        if input[i] == '.' && input[i - stride] == 'v' {
+          moved = true;
+          output[i - stride] = '.';
+          output[i] = 'v';
+        } else {
+          output[i] = input[i];
+        }
+      }
+      var lastRow = (gridHeight - 1) * stride;
+      if input[x] == '.' && input[lastRow + x] == 'v' {
+        moved = true;
+        output[lastRow + x] = '.';
+        output[x] = 'v';
+      } else if input[x] == 'v' && input[stride + x] == '.' {
+        output[x] = '.';
+      } else {
+        output[x] = input[x];
+      }
+    }
+    if !moved { return step; }
+  }
+}
+
+function main(): int64 {
+  readInput();
+  std.printInt(part1());
+}
