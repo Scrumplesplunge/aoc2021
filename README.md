@@ -67,6 +67,6 @@ small binaries:
     day20: Ran 6 times, average 95890us
     day21: Ran 144 times, average 3491us
     day22: Ran 60 times, average 8344us
-    day23: Ran 1 times, average 349375us
+    day23: Ran 2 times, average 349375us
     day24: Ran 8 times, average 65509us
     day25: Ran 3 times, average 173591us
