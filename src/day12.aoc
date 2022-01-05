@@ -1,3 +1,30 @@
+// Input: A set of tunnels that exist between caves. There is a start cave, an
+// end cave, and a number of other caves that are either small (identified by
+// lowercase names) or big (identified by uppercase names).
+//
+// Part 1: Count how many paths there are, from the start cave to the end cave,
+// which don't visit any small cave more than once.
+//
+// Part 2: Count how many paths there are, from the start cave to the end cave,
+// which visit at most a single small cave twice and no other small cave more
+// than once.
+//
+// Approach: There are multiple nifty tricks in this question:
+//
+//   * The ability to revisit a cave can be handled via a function parameter
+//     canRevisit, which is always false for part 1 but is initially true for
+//     part 2, eventually becoming false after visiting a single small cave more
+//     than once.
+//   * By mapping caves to consecutive small integers, we can represent the set
+//     of visited caves in the traversal using a bitset. This is small, and
+//     very efficient to query.
+//   * Our recursive exploration will often invoke the explore function with the
+//     same parameters, so it is wise to memoize them. Thanks to the visited set
+//     being a bitset, every parameter to explore is a small integer, so we can
+//     use the tuple of parameters as indices into a multi-dimensional array
+//     which caches the result of previous instantiations. This makes the
+//     exploration very fast.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 

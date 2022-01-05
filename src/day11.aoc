@@ -1,3 +1,29 @@
+// Input: A 10x10 grid of digits, representing the energy levels for 100 dumbo
+// octopuses. In each step, every energy level increases by 1. If an octopus
+// reaches an energy level of 10 or more, it will flash. Any octopus adjacent to
+// a flashing octopus (8 neighbours) will gain 1 additional energy, which may
+// trigger that octopus to also flash. At the end of each step, any octopus that
+// flashed will reset to 0 energy.
+//
+// Part 1: Calculate how many flashes will have occurred after 100 steps.
+//
+// Part 2: Calculate the first step in which all 100 octopuses flash.
+//
+// Approach: The main tricky thing in this question is to ensure that energy
+// levels are appropriately reset after a flash: the reset should occur after
+// all flashes, not before, so every octopus that flashes should end up on 0 at
+// the end of the step. To do this, we can defer the reset until the end: we
+// count a flash only when the energy level hits *exactly* 10, not above, and we
+// keep a list of every octopus which has flashed this round. Initially, this
+// list can be seeded with all the octopuses that flash due to hitting 10
+// naturally, and then the chain reactions can be handled by iterating over the
+// list of flashes to update their neighbours and potentially add additional
+// flashes to the list. After all flashes have been considered, a second pass
+// over the list of flashes can be used to reset the energy levels to 0.
+//
+// For part 2, we simply iterate repeatedly until the list contains 100 flashes
+// at the end of the step.
+
 import "std/std.aoc" as std;
 
 var input: [10][10]byte;

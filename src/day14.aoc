@@ -1,3 +1,23 @@
+// Input: A template string, followed by a blank line, followed by many
+// production rules that describe what elements to insert between existing
+// pairs based on what elements the pair is composed of. In each step, all pairs
+// are simultaneously expanded by the production rules.
+// Part 1: Apply 10 expansion steps, and then output the quantity of the most
+// common element minus the quantity of the least common element.
+// Part 2: Apply 40 expansion steps and output the result of the same
+// calculation.
+// Approach: We can avoid representing the entire polymer template, and can
+// instead only keep track of how many instances of each pair there are. In each
+// step, this is sufficient information to deduce what pairs will exist in the
+// next iteration. We can calculate the number of occurrences of each element by
+// summing up the number of occurrences of pairs containing that element. This
+// will double-count every element (once as the first element of a pair, once as
+// the second element) except for the first and last elements in the template
+// string. Since these will never change over all the iterations, we can
+// double-count those ones as well and then divide the total number of
+// occurrences for each element by 2. It is then trivial to identify the most
+// common and least common elements and to output the desired values.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 

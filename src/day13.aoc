@@ -1,3 +1,22 @@
+// Input: A list of two-dimensional coordinates on a sheet of transparent paper,
+// followed by a sequence of folds.
+//
+// Part 1: Fold the transparent paper along the first fold line and return the
+// number of points that are visible after doing so.
+//
+// Part 2: Fold the transparent paper along the remaining lines and identify the
+// eight capital letters that are formed by the visible points.
+//
+// Approach: The points are rendered onto a two-dimensional image that is
+// sufficiently large to store all of the points. When performing a fold, each
+// point affected by the fold (below a horizontal fold, or to the right of
+// a vertical fold) is transformed and looked up in the image. If that point is
+// already present in the image, we can drop the duplicate point. This allows
+// each fold to be processed in O(n) time, where n is the number of points.
+//
+// The eight capital letters are output in ascii art, as it is not worth trying
+// to parse them out of the image :)
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 

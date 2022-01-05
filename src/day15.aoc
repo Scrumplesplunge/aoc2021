@@ -1,3 +1,18 @@
+// Input: A square grid of digits representing risk levels.
+// Part 1: Moving only up, down, left, or right, find the path from the top left
+// to the bottom right which has the lowest total sum of cells that have been
+// entered.
+// Part 2: Expand the grid by twenty-five times, by tiling it 5x5 times. The
+// initial grid goes in position 0x0. A cell in any other tile is one higher
+// than the corresponding cell in the tiles up or to the left of it, wrapping
+// any risk level above 9 back around to 1. Find the lowest cost path from the
+// top left to the bottom right of the newly expanded grid.
+// Approach: The lowest cost path can be found with Minimum Cost Search. Due to
+// how the cell costs are added, it is simpler to start at the bottom right and
+// search for the top left as this way we only need to know where we are in
+// order to calculate the cost for each neighbour. This also has the advantage
+// that our termination condition is a constant comparison against 0.
+
 import "std/std.aoc" as std;
 
 alias maxSideLength = 100;
