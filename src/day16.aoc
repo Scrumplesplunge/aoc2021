@@ -1,3 +1,48 @@
+// Input: A hexadecimal string representing a packet in the BITS format.
+//
+// A BITS packet has the following format:
+//
+//   * A 3-bit version number
+//   * A 3-bit packet type ID
+//   * A payload which depends on the type ID.
+//
+// Type 4 packets have a payload consisting of one or more 5-bit groups that
+// form a varint-encoded literal value: the first bit of each group indicates
+// whether there are more groups to come, while the remaining four bits are the
+// bits of the literal value, in big-endian order.
+//
+// All other packet types are operator packets, which contain one or more nested
+// packets. The size of an operator packet is either represented by the total
+// size of the concatenated sub-packets, or by the number of sub-packets:
+//
+//   * If the first bit of the payload is 0, then the next 15 bits represent the
+//     total size in bits of the concatenated sub-packets.
+//   * If the first bit of the payload is 1, the next 11 bits represent the
+//     number of sub-packets.
+//
+// The sub-packets begin immediately after the length information.
+//
+// Part 1: Parse the packet and calculate the sum of all of the packet version
+// numbers in the packet heirarchy.
+//
+// Part 2: Operator packets have the following semantics:
+//
+//   * Type ID 0, 1, 2, and 3 are sum, product, minimum, and maximum packets
+//     respectively. These yield the result of reducing their sub-packets with
+//     the corresponding operation.
+//   * Type ID 5, 6, and 7 are greater than, less than, and equal to packets
+//     respectively. These always have exactly two sub-packets and evaluate to
+//     1 if the comparison is true, or 0 otherwise.
+//
+// Evaluate the packet and return the result.
+//
+// Approach: Represent the message as an array of bools: given the unaligned
+// nature of the input data and the small size of the message, it's simpler and
+// potentially more computationally efficient to use an array of bools rather
+// than bit manipulations. Parsing of packets is not algorithmically
+// challenging, and evaluating the expressions can be done recursively after the
+// packets have been parsed into a tree structure.
+
 import "std/std.aoc" as std;
 
 alias maxSize = 8192;

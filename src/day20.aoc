@@ -1,3 +1,27 @@
+// Input: A 512 character "image enhancement algorithm" on a single line,
+// followed by a rectangular image. Both the algorithm and the image consist
+// only of '.' or '#' cells. The rectangular image is the interesting area of an
+// infinite grid. Cells outside of the rectangular image are all initially '.'.
+// An image can be enhanced by simultaneously updating every cell in the
+// infinite grid according to the image enhancement algorithm: interpreting '.'
+// as 0 and '#' as 1, the 3x3 pixel area surrounding a given cell can be
+// converted into a 9-bit binary number which is an index into the enhancement
+// algorithm. The value at that index is the new value of the cell.
+// Part 1: Enhance the image twice and count how many pixels are set to '#'.
+// Part 2: Enhance the image a total of 50 times and count how many pixels are
+// set to '#'.
+// Approach: It is not sufficient to pick a sufficiently large finite grid and
+// treat all cells outside that grid as 0, as the enhancement algorithm may
+// enhance those cells to be '#'. Indeed, for my input, cells well outside the
+// interesting range will toggle between '.' and '#' on each step, so the count
+// of cells set to '#' is only finite on even steps. To simulate this, we must
+// also keep track of the value of the border cells to ensure that they are
+// interpreted correctly for intermediate steps. Aside from this detail, the
+// simulation is straightforward: we can use a grid with at least 50 cells of
+// margin around the input image to ensure that the chaotic part of the image
+// does not reach the true edge, and we ensure that we know the value of all
+// cells outside that range to be equal.
+
 import "std/std.aoc" as std;
 
 var step: [512]bool;

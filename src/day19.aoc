@@ -1,3 +1,35 @@
+// Input: A list of scanner entries, each containing several three-dimensional
+// relative positions that denote beacons that are within range of that scanner.
+// Scanners are each oriented to one of 24 possible alignments, but exactly
+// which alignment is unknown. Two scanners are guaranteed to have overlapping
+// ranges if at least 12 beacons can be made to align perfectly through some
+// combination of rotations and translations.
+//
+// Part 1: Figure out how all scanners are positioned relative to each other by
+// considering the overlapping beacons, and return the total number of beacons.
+//
+// Part 2: Compute the largest Manhattan distance between any two scanners.
+//
+// Approach: As implied by the prose for the puzzle, we can calculate the
+// positions of all beacons in the reference frame of the first scanner. To do
+// this, we will gradually increase a set of scanners that have been oriented,
+// starting with just the first scanner and increasing the set by searching for
+// any unoriented scanner that overlaps with any oriented scanner.
+//
+// Overlap between the beacons detected by two scanners can be found
+// by considering all possible rotations, calculating the relative offsets
+// between each pair of nodes between the two scanners, and counting how many
+// times we see the same offset. If we see the same offset at least 12 times,
+// the two scanners are known to overlap. To efficiently count the occurrences
+// for each offset, we can maintain a hashtable that maps offsets to their
+// occurrence count, and reset the hashtable for each orientation.
+//
+// After determining the offsets and orientations for every scanner, and
+// translating the beacon coordinates for each scanner into the reference frame
+// of the first scanner, the duplicate beacon coordinates can be pruned to leave
+// the total number of beacons, and the relative offsets for all scanners can be
+// compared to calculate the maximum Manhattan distance between any pair.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 

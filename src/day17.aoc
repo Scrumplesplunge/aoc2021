@@ -1,3 +1,41 @@
+// Input: Upper and lower bounds for a target rectangle.
+//
+// A probe can be yote from an initial position of (x=0, y=0) with any integer
+// vx any vy. It will move forwards in discrete steps, obeying horizontal drag
+// and vertical gravity:
+//
+//   * On each step, if the horizontal velocity is not zero it will change by
+//     a plus or minus one, towards zero.
+//   * On each step, the vertical velocity decreases by one due to gravity.
+//
+// The objective is to have the probe step inside the target rectangle. It does
+// not count if the probe steps across the target rectangle.
+//
+// Part 1: Calculate the highest y position that the probe can reach while still
+// stepping inside the target rectangle at some point along its trajectory.
+//
+// Part 2: Calculate how many distinct initial velocities will allow the probe
+// to step inside the target rectangle.
+//
+// Approach: We can derive upper and lower bounds for vx and vy:
+//
+//   * There is a minimum vx, below which the probe will never reach the target
+//     x range due to drag.
+//   * There is a maximum vx, above which the probe will immediately step beyond
+//     the target x range, never to return.
+//   * There is a minimum vy, below which the probe will immediately step below
+//     the target y range, never to return.
+//   * There is a maximum vy, above which the probe will be going sufficiently
+//     fast after curving back downwards that it will step straight over the
+//     target y range.
+//
+// We can simulate the trajectory of the probe for each possible vx and vy until
+// it either hits the target area or goes beyond it with no hope of returning.
+// To simplify the logic slightly, this solution assumes that the target x range
+// is always entirely positive. We could also handle the entirely-negative case
+// by flipping all the signs, but we would need to adjust the hits() function to
+// handle negative vx if we wanted to handle an x range which crosses x=0.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 
@@ -34,8 +72,8 @@ function readInput(): void {
   i = readSigned(i + 2, &maxY);
   if i != end { std.die("trailing characters"); }
 
-  // Assume that X bounds are always positive, and Y bounds are always negative.
-  if minX <= 0 || maxY >= 0 { std.die("broken assumption"); }
+  // Assume that X bounds are always positive.
+  if minX <= 0 { std.die("broken assumption"); }
 }
 
 function sum(i: int64): int64 {

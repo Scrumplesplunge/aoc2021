@@ -1,3 +1,38 @@
+// Input: Snail numbers, one per line: a snail number is a pair where each
+// element is either a number or another snail number.
+//
+// Snail numbers can be added by forming a new pair containing the two input
+// numbers. However, after doing this, the numbers must be reduced by repeatedly
+// applying the following sequence of steps until neither rule applies:
+//
+//   * If any pair is nested inside four pairs, the left-most such pair
+//     explodes: the left number in the pair is added to the number to its left
+//     (if there is one), the right number is added to the number to its right
+//     (if there is one), and the pair is replaced with a 0.
+//   * If any regular number is 10 or greater, the left-most such number splits:
+//     it is replaced with a pair consisting of [ceil(n/2), floor(n/2)].
+//
+// The magnitude of a snail number is three times the magnitude of its left
+// element plus two times the magnitude of its right element. The magnitude of
+// a regular number is the number itself.
+//
+// Part 1: Add up all the input snail numbers and compute the magnitude of the
+// final answer.
+//
+// Part 2: Compute the largest magnitude for the sum of any two input snail
+// numbers.
+//
+// Approach: Snail numbers can be represented with a tree-like data structure.
+// Each node represents a pair, and each child is either a regular number or is
+// the index of another node representing a nested pair. With this data
+// structure, we can implement the adding and reduction rules for snail numbers
+// to compute the sums.
+//
+// aoclang does not have a heap, so the nodes are allocated from a fixed-size
+// buffer of nodes. Unallocated nodes are arranged in a free-list, with the
+// parent pointer acting as the next pointer. This allows nodes to be
+// efficiently allocated or freed.
+
 import "std/std.aoc" as std;
 
 struct Node {
