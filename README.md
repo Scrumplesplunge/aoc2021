@@ -38,7 +38,7 @@ small binaries:
     -rwxr-xr-x 1 joe joe 3920 Jan  5 17:39 build/day20
     -rwxr-xr-x 1 joe joe 4402 Jan  5 17:39 build/day21
     -rwxr-xr-x 1 joe joe 5673 Jan  5 17:39 build/day22
-    -rwxr-xr-x 1 joe joe 8547 Jan  5 17:39 build/day23
+    -rwxr-xr-x 1 joe joe 8755 Jan  5 18:29 build/day23
     -rwxr-xr-x 1 joe joe 4071 Jan  5 17:39 build/day24
     -rwxr-xr-x 1 joe joe 3635 Jan  5 17:39 build/day25
 
@@ -67,6 +67,6 @@ small binaries:
     day20: Ran 6 times, average 95890us
     day21: Ran 144 times, average 3491us
     day22: Ran 60 times, average 8344us
-    day23: Ran 1 times, average 888688us
+    day23: Ran 1 times, average 349375us
     day24: Ran 8 times, average 65509us
     day25: Ran 3 times, average 173591us
