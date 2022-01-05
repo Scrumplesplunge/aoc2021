@@ -1,3 +1,23 @@
+// Input: An assembly code program for a branchless ALU that supports five
+// operations on four registers, plus an input instruction. The program
+// validates a 14 digit model number by leaving a 0 in the z register after it
+// completes.
+// Part 1: Find the largest possible valid model number.
+// Part 2: Find the smallest possible valid model number.
+// Approach: The input program has a very repetitive structure: the same
+// sequence of instructions is used for each digit, with three variable
+// parameters per digit. By parsing out the three parameters and manually
+// analysing the structure of the block, it can be reduced to a short expression
+// that relies only on the value of z left by the previous digit (0 for the
+// first digit) and the next input digit. We can explore all possible model
+// numbers, one digit at a time, by maintaining a hashmap from z -> prefix. On
+// each step, we consider all possible (z, inp) -> z' pairs and add the new
+// prefixes to the map for the next digit. When we find a z' that already exists
+// in the map, we update it with the maximum (part 1) and minimum (part 2)
+// prefixes that have the same z', which deduplicates many states that yield the
+// same value for z at a given point in the program. At the end, we can examine
+// the value for z=0 to produce the answers for part 1 and 2.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 

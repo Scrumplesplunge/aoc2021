@@ -1,3 +1,24 @@
+// Input: The starting positions for two players, in a circular track with ten
+// spaces labelled 1 to 10. On a player's turn, they roll a die three times,
+// move forwards around the track by the corresponding number of spaces, and
+// then add the value of their current position to their score.
+// Part 1: An example game is played using a deterministic die which rolls the
+// numbers 1 to 100 consecutively, in order, before looping back around to 1.
+// The game is played until one player reaches a score of at least 1000.
+// Calculate the product of the losing player's score with the number of times
+// that the die was rolled during the game.
+// Part 2: A second game is played using a three-sided quantum die which rolls
+// all three possible values in separate universes. The game concludes when
+// a player reaches a score of at least 21. Calculate the number of universes in
+// which each player wins and return the larger of the two numbers.
+// Approach: Part 1 is a straightforward simulation up until the score limit.
+// Part 2 can be solved as a dynamic programming problem, by populating a table
+// counts such that counts[s1][s2][p1][p2] is the number of ways of a player to
+// win assuming that it is their turn, they are at p1 with s1 points, and their
+// opponent is at p2 with s2 points. By iterating over the grid in descending
+// order of total score, we can calculate the value of each cell in terms of the
+// cells that we have already processed.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 

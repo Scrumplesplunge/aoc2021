@@ -1,3 +1,13 @@
+// Input: A rectangular grid of characters, each being one of '.' (empty), '>'
+// (an east-facing sea cucumber), or 'v' (a south-facing sea cucumber).
+// Part 1: Sea cucumbers move in steps. All cucumbers of a given type
+// simultaneously decide whether to move by considering whether the space in
+// front of them is empty and then moving into the space if it is. In each step, 
+// east-facing cucumbers move and then south-facing cucumbers move. Calculate
+// the first step in which no cucumber moves.
+// Approach: Directly simulate the movement of the cucumbers, iterating until a
+// step occurs without any movement, and then return the number of iterations.
+
 import "std/std.aoc" as std;
 
 alias maxGridSize = 32768;

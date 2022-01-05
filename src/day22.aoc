@@ -1,3 +1,16 @@
+// Input: A series of instructions, one per line, indicating a cube of switches
+// in a three-dimensional grid which should be switched on or off, respectively.
+// Part 1: Execute the instructions and calculate the number of switches within
+// the range -50 <= x, y, z <= 50 which are turned on after the instructions.
+// Part 2: Calculate the total number of switches which are turned on after the
+// instructions.
+// Approach: We can maintain a representation of the set of switches that are
+// turned on, as a list of non-overlapping boxes. When switching a range of
+// switches off, we need to reduce or remove the affected boxes. When switching
+// a range of switches on, we need to avoid adding an overlapping box, which can
+// be done by first switching the entire range off and then adding the new box
+// that will be non-overlapping.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 

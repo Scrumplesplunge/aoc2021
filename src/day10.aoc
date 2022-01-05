@@ -1,3 +1,18 @@
+// Input: Lines of brackets [](){}<> with missing or mismatched brackets.
+// Part 1: Identify lines which have a closing bracket that does not match any
+// opening bracket. Each type of closing bracket maps to a certain score.
+// Compute the sum of scores across all lines with mismatched brackets.
+// Part 2: Identify lines that are simply incomplete. For each line, find the
+// sequence of brackets that would complete the line. Each bracket is worth
+// a certain number of points, and the score for a completion is computed by
+// successively multiplying by 5 and then adding the score for a bracket.
+// Compute the total score for all completions on incomplete lines.
+// Approach: The approach is fairly direct, with no major tricks. The main
+// simplification is to parse brackets into values 1-8, arranged such that we
+// can easily compute the matching closing bracket for any opening bracket, or
+// vice versa, and that the score for part 2 is directly represented by the
+// value for the opening brackets.
+
 import "std/std.aoc" as std;
 
 alias maxLength = 128;

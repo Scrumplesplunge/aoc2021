@@ -1,3 +1,55 @@
+// Input: an ASCII-art hallway with four rooms. Each room contains two letters.
+// Each letter represents a type of Amphipod, and moving an Amphipod has a cost
+// that depends on its type: A costs 1 per step, B costs 10, C costs 100, and
+// D costs 1000. The goal is to organise Amphipods such that the first room
+// holds those of type A, the second holds those of type B, and so on.
+// Furthermore, Amphipods have particular rules about how they move:
+//
+//   * An Amphipod will never enter a room except for their target room, but it
+//     can stay in its starting room until it chooses to leave regardless of
+//     whether that room is the target room.
+//   * An Amphipod will not move around in the hallway: it will either move
+//     straight from one room to another via the hallway, or will stand still in
+//     the hallway until it is able to move into another room.
+//   * An Amphipod will never stop directly outside the entrance to a room.
+//
+// Part 1: Find the minimum cost for reorganising the Amphipods into
+// alphabetical order in the rooms.
+//
+// Part 2: The hallway rooms are actually four spaces high rather than two, and
+// there are eight more Amphipods with the following arrangement:
+//
+//     #############
+//     #...........#
+//     ###?#?#?#?###
+//   +   #D#C#B#A#
+//   +   #D#B#A#C#
+//       #?#?#?#?#
+//       #########
+//
+// Find the new minimum cost for reorganising the Amphipods.
+//
+// Approach: The optimal sequence of moves for rearranging the Amphipods can be
+// found with a graph search. The tricky part is to capture all of the movement
+// rules correctly.
+//
+// Rather than having single-step moves with more complicated state, we can have
+// multi-step moves with more simple state. Each state can contain only the
+// positions of all of the Amphipods and the cost for achieving that
+// configuration.
+//
+// From each state, we can consider moving any Amphipod from the hallway into
+// their target room, or from their source room into the hallway. Note that we
+// do not need to consider moves directly from one room to another, as the
+// arrangement of the hallway will allow for this to be handled implicitly by
+// a move from the room into the hallway followed by another move from the
+// hallway into a room. This approach encodes all of the movement restrictions
+// of the Amphipods with minimal effort, but requires us to check reachability
+// for each potential next state.
+//
+// The graph search is a BFS over increasing costs until the target state is
+// found. The same approach is used for both part 1 and part 2.
+
 import "std/std.aoc" as std;
 
 // #############
