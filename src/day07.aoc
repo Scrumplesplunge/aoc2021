@@ -1,3 +1,15 @@
+// Input: a list of numbers representing positions.
+// Part 1: Find the position that minimises the sum of distances from each input
+// position to that position.
+// Part 2: Find the position that minimises the sum of n(n+1)/2 for each input
+// position, where n is the distance between the input position and the target
+// position.
+// Approach: We can naively find the target position by assuming that it will
+// lie somewhere between the left-most and right-most positions and then
+// computing the cost for each candidate to find the lowest. This can be
+// optimized by rearranging the sum, which allows us to precompute prefix sums
+// that make the cost calculation cheaper.
+
 import "std/std.aoc" as std;
 
 alias maxNumbers = 1000;

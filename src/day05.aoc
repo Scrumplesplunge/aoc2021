@@ -1,3 +1,14 @@
+// Input: A collection of lines of the form "a,b -> c,d" for positive integers
+// a-d. Lines are either horizontal, vertical, or 45 degree diagonal.
+// Part 1: Count the number of points where two or more lines overlap,
+// considering only horizontal and vertical lines.
+// Part 2: Count the number of points where two or more lines overlap, including
+// the diagonal lines.
+// Approach: Render the lines onto a two-dimensional grid. Each cell counts the
+// number of lines that overlap that point, but the counter saturates at 2.
+// Whenever a point is incremented from 1 to 2, the overlap counter is
+// increased.
+
 import "std/std.aoc" as std;
 import "std/strings.aoc" as strings;
 

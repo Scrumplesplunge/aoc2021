@@ -1,3 +1,19 @@
+// Input: A rectangular grid of digits 0-9, representing a heightmap.
+// Part 1: Find all cells which are strictly lower than all of their neighbours
+// (up, down, left, or right, but not diagonal). For each one, compute 1 plus
+// the height, and produce the total sum across all of them.
+// Part 2: A basin is the entire transitive sloped area leading to a single low
+// point. Find the three largest basins by area and return the product of their
+// sizes.
+// Approach: Part 1 is solved by iterating over all cells and comparing them to
+// their neighbours. To simplify the logic at the edges of the grid, we can add
+// a border of cells with height 9 (the max height). To solve part 2, we need to
+// group cells by their basin. This can be done efficiently by using the
+// disjoint set data structure. All cells with height less than 9 will merge
+// with any neighbours that have height less than 9. After applying this process
+// to all cells, we have one set per basin. Sorting them by descending size, we
+// can compute the product of the top 3.
+
 import "std/std.aoc" as std;
 
 alias maxSideLength = 100;

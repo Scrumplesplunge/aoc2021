@@ -1,3 +1,25 @@
+// Input: Records, one per line, consisting of 10 words composed out of the
+// letters a-g, followed by '|', followed by four more words of the same form.
+// Each letter represents one of seven wires that control a seven segment
+// display, but the order of the wires is unknown. The presence of a letter
+// indicates that the wire is on, while absence means that it is off. Each
+// record has an independent set of wires that do not need to match. The 10
+// words before the vertical line represent the numbers 0-9 displayed on the
+// display in some order. The 4 words after the vertical line represent unknown
+// numbers.
+// Part 1: The numbers 1, 4, 7, and 8 all have a distinct number of wires active
+// and so can be deduced easily. Calculate how many times the numbers 1, 4, 7,
+// or 8 appear on the right hand side of the vertical bars for all records.
+// Part 2: Deduce the four-digit numbers on the right hand side of each record
+// and calculate the total sum.
+// Approach: The input can be parsed into a bitset per word, where bit i is 1 if
+// the ith letter is present. This eliminates the effect of the order of letters
+// in each word, and simplifies comparison logic. The wires can then be deduced
+// by considering which segments overlap between different numbers. We can
+// identify the segments that are part of a 1, 4, or 7 easily as they have
+// a unique number of lit segments, but we can then distinguish the remaining
+// numbers by considering how they overlap with those known numbers.
+
 import "std/std.aoc" as std;
 
 // A bitmask of wires that are on.

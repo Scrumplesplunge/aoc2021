@@ -1,3 +1,12 @@
+// Input: A sequence of numbers and a collection of bingo boards.
+// Part 1: Figure out which board wins, and compute its score by summing up all
+// unmarked numbers and then multiplying that sum by the last number called.
+// Part 2: Figure out which board will win last, and compute its score in the
+// same way.
+// Approach: Keep a bitset representing the marked numbers for each board. This
+// can be efficiently updated when each number is called, and can be efficiently
+// queried for completed rows or columns.
+
 import "std/std.aoc" as std;
 
 alias maxNumbers = 128;
